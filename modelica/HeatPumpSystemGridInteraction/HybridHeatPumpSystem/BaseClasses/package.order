@@ -1,0 +1,10 @@
+PartialHybridSystem
+CustomTEASERThermalZone
+CustomInputs
+HybridHeatPumpSystemCOPBased
+COPBasedHybridControl
+ParameterStudy
+GetCOPCurve
+HeatPumpAndHeatingRod
+PartialCOPBasedHybridControl
+NoCOPBasedHybridControl

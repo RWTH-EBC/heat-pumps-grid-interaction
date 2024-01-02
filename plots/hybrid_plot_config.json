@@ -1,0 +1,128 @@
+{
+  "rcParams": {
+    "font.size": 14
+  },
+  "variables": {
+    "hydraulic.generation.weaBus.TDryBul": {
+      "factor": 1.0,
+      "offset": 273.15,
+      "unit": "°C",
+      "label": "$T_\\mathrm{Oda}$"
+    },
+    "hydraulic.buiMeaBus.TZoneMea[1]": {
+      "factor": 1.0,
+      "offset": 273.15,
+      "unit": "°C",
+      "label": "$T_\\mathrm{Room,Mea}$"
+    },
+    "hydraulic.useProBus.TZoneSet[1]": {
+      "factor": 1.0,
+      "offset": 273.15,
+      "unit": "°C",
+      "label": "$T_\\mathrm{Room,Set}$"
+    },
+    "hydraulic.distribution.sigBusDistr.TStoDHWBotMea": {
+      "factor": 1.0,
+      "offset": 273.15,
+      "unit": "°C",
+      "label": "$T_\\mathrm{DHW,Bot}$"
+    },
+    "hydraulic.distribution.sigBusDistr.TStoDHWTopMea": {
+      "factor": 1.0,
+      "offset": 273.15,
+      "unit": "°C",
+      "label": "$T_\\mathrm{DHW,Top}$"
+    },
+    "hydraulic.distribution.sigBusDistr.TStoBufBotMea": {
+      "factor": 1.0,
+      "offset": 273.15,
+      "unit": "°C",
+      "label": "$T_\\mathrm{Buf,Bot}$"
+    },
+    "hydraulic.distribution.sigBusDistr.TStoBufTopMea": {
+      "factor": 1.0,
+      "offset": 273.15,
+      "unit": "°C",
+      "label": "$T_\\mathrm{Buf,Top}$"
+    },
+    "hydraulic.generation.sigBusGen.THeaPumOut": {
+      "factor": 1.0,
+      "offset": 273.15,
+      "unit": "°C",
+      "label": "$T_\\mathrm{HeaPum,Out}$"
+    },
+    "hydraulic.generation.sigBusGen.THeaPumIn": {
+      "factor": 1.0,
+      "offset": 273.15,
+      "unit": "°C",
+      "label": "$T_\\mathrm{HeaPum,In}$"
+    },
+    "hydraulic.distribution.sigBusDistr.TBoiOut": {
+      "factor": 1.0,
+      "offset": 273.15,
+      "unit": "°C",
+      "label": "$T_\\mathrm{Boi,Out}$"
+    },
+    "hydraulic.transfer.outBusTra.opening[1]": {
+      "factor": 0.01,
+      "offset": 0,
+      "unit": "%",
+      "label": "$y_\\mathrm{Val}$"
+    },
+    "hydraulic.distribution.sigBusDistr.yBoi": {
+      "factor": 0.01,
+      "offset": 0,
+      "unit": "%",
+      "label": "$y_\\mathrm{Boi}$"
+    },
+    "hydraulic.generation.sigBusGen.yHeaPumSet": {
+      "factor": 0.01,
+      "offset": 0,
+      "unit": "%",
+      "label": "$y_\\mathrm{HeaPum}$"
+    },
+    "hydraulic.generation.sigBusGen.COP": {
+      "factor": 1,
+      "offset": 0,
+      "unit": "-",
+      "label": "$COP$"
+    },
+    "time": {
+      "factor": 86400,
+      "offset": 0,
+      "unit": "d",
+      "label": "Time"
+    },
+    "outputs.hydraulic.dis.QBoi_flow.value": {
+      "factor": 1000,
+      "offset": 0,
+      "unit": "kW",
+      "label": "$\\dot{Q}_\\mathrm{Boi}$"
+    },
+    "outputs.building.QTraGain[1].value": {
+      "factor": 1000,
+      "offset": 0,
+      "unit": "kW",
+      "label": "$\\dot{Q}_\\mathrm{Bui}$"
+    },
+    "outputs.hydraulic.gen.PEleHeaPum.value": {
+      "factor": 1000,
+      "offset": 0,
+      "unit": "kW",
+      "label": "$\\dot{Q}_\\mathrm{HeaPum}$"
+    },
+    "outputs.DHW.Q_flow.value": {
+      "factor": 1000,
+      "offset": 0,
+      "unit": "kW",
+      "label": "$\\dot{Q}_\\mathrm{DHW}$"
+    },
+    "userProfiles.useProBus.absIntGai": {
+      "factor": 1000.0,
+      "offset": 0,
+      "unit": "kW",
+      "label": "$Q_\\mathrm{EleGai}$",
+      "plot": true
+    }
+  }
+}

@@ -3,18 +3,23 @@ partial model PartialHybridSystem "Partial bivalent heat pump system"
   extends HeatPumpSystemGridInteraction.BaseClasses.PartialSystem2D(
     final scalingFactor=hydraulic.generation.parHeaPum.scalingFactor,
     redeclare BESMod.Systems.Electrical.ElectricalSystem electrical(
-      redeclare BESMod.Systems.Electrical.Generation.PVSystemMultiSub generation(
+      redeclare
+        HeatPumpSystemGridInteraction.HybridHeatPumpSystem.BaseClasses.PVSystemWithElectricCar
+        generation(
         final f_design=fill(1, electrical.generation.numGenUnits),
         useTwoRoo=false,
         tilAllMod=0.5235987755983,
         redeclare model CellTemperature =
             AixLib.Electrical.PVSystem.BaseClasses.CellTemperatureMountingContactToGround,
+
         redeclare AixLib.DataBase.SolarElectric.QPlusBFRG41285 pVParameters,
         lat=weaDat.lat,
         lon=weaDat.lon,
         alt=weaDat.alt,
         timZon=3600,
-        ARoo=building.ARoo/2),
+        ARoo=building.ARoo/2,
+        use_eMob=use_eMob,
+        fileNameEMob=fileNameEMob),
       redeclare BESMod.Systems.Electrical.Distribution.BatterySystemSimple
         distribution(nBat=2, redeclare
           BuildingSystems.Technologies.ElectricalStorages.Data.LithiumIon.LithiumIonViessmann
@@ -62,6 +67,10 @@ partial model PartialHybridSystem "Partial bivalent heat pump system"
   parameter BESMod.Systems.Hydraulical.Generation.Types.GenerationDesign
     genDesTyp=BESMod.Systems.Hydraulical.Generation.Types.GenerationDesign.BivalentPartParallel
     "Type of generation system design";
+  parameter Boolean use_eMob=true "= true to activate e mobility";
+  parameter String fileNameEMob=Modelica.Utilities.Files.loadResource(
+      "modelica://HeatPumpSystemGridInteraction/HybridHeatPumpSystem/CustomInputs.txt")
+    "File where data for e mobility is stored";
   annotation (experiment(
       StopTime=31536000,
       Interval=600,

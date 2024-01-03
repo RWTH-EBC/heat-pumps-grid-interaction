@@ -8,3 +8,4 @@ GetCOPCurve
 HeatPumpAndHeatingRod
 PartialCOPBasedHybridControl
 NoCOPBasedHybridControl
+PVSystemWithElectricCar

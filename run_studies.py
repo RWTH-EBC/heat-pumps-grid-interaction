@@ -19,7 +19,8 @@ def run_simulations(
         model_name: str,
         grid_case: str,
         hybrid_assumptions: HybridSystemAssumptions,
-        without_heating_rod: bool = True,
+        with_heating_rod: bool = False,
+        with_e_mobility: bool = True,
         extract_only: bool = False,
         case_name: str = None,
         n_cpu: int = 8
@@ -28,7 +29,7 @@ def run_simulations(
     if case_name is None:
         case_name = model_name
     case_name += f"_{grid_case}"
-    if not without_heating_rod:
+    if with_heating_rod:
         case_name += "_HR"
     if extract_only:
         n_cpu = 1
@@ -39,13 +40,14 @@ def run_simulations(
     buildings, gains_modifiers, dhw_profiles = utils.load_buildings_and_gains(
         sheet_name=sheet_name,
         study_path=base_path.joinpath(case_name),
-        hybrid_assumptions=hybrid_assumptions
+        hybrid_assumptions=hybrid_assumptions,
+        with_e_mobility=with_e_mobility
     )
 
     weather_config = weather.WeatherConfig()
     study_path = base_path.joinpath(case_name)
 
-    sim_config = simulation.get_simulation_config(model_name=model_name, without_heating_rod=without_heating_rod)
+    sim_config = simulation.get_simulation_config(model_name=model_name, with_heating_rod=with_heating_rod)
 
     inputs_config = InputsConfig(
         weather=weather_config,
@@ -80,7 +82,7 @@ def run_simulations(
     else:
         T_bivs = utils.get_bivalence_temperatures(
             buildings=inputs_config.buildings, model_name=model_name,
-            without_heating_rod=without_heating_rod, TOda_nominal=weather_config.TOda_nominal,
+            with_heating_rod=with_heating_rod, TOda_nominal=weather_config.TOda_nominal,
             hybrid_assumptions=hybrid_assumptions, cost_optimal_design=False
         )
         pd.DataFrame(dict(
@@ -127,7 +129,10 @@ def run_simulations(
             if result is None:
                 logging.error("Could not read results, skipping extraction")
                 break
-            utils.extract_electricity_and_save(tsd=result, path=study_path, result_name=result_name)
+            utils.extract_electricity_and_save(
+                tsd=result, path=study_path, result_name=result_name,
+                with_e_mobility=with_e_mobility, with_heating_rod=with_heating_rod
+            )
             df = result.to_df()
 
             # Extract only last points:
@@ -167,5 +172,5 @@ if __name__ == '__main__':
     run_simulations(model_name="Hybrid", case_name="HybridPVBat", grid_case="neubau", **KWARGS)
     #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", **KWARGS)
     #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", **KWARGS)
-    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", without_heating_rod=True, **KWARGS)
-    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", without_heating_rod=True, **KWARGS)
+    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", with_heating_rod=True, **KWARGS)
+    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", with_heating_rod=True, **KWARGS)

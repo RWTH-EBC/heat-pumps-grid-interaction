@@ -142,7 +142,8 @@ def create_input_for_gains(csv_path: Path, hybrid_assumptions: HybridSystemAssum
     return tsd
 
 
-def load_buildings_and_gains(sheet_name: str, hybrid_assumptions: HybridSystemAssumptions, study_path: Path):
+def load_buildings_and_gains(sheet_name: str, hybrid_assumptions: HybridSystemAssumptions, study_path: Path,
+                             with_e_mobility: bool):
     logger.info("Loading grid and building data")
     df = pd.read_excel(KERBER_NETZ_XLSX, sheet_name=sheet_name, index_col=0)
 
@@ -176,7 +177,7 @@ def load_buildings_and_gains(sheet_name: str, hybrid_assumptions: HybridSystemAs
             csv_path=PROJECT_FOLDER.joinpath("Zeitreihen", f"elec_{idx}.csv"),
             hybrid_assumptions=hybrid_assumptions
         )
-        file_path = study_path.joinpath("custom_inputs", f"{idx}.txt")
+        file_path = study_path.joinpath("custom_inputs", f"house_elec_{idx}.txt")
         os.makedirs(file_path.parent, exist_ok=True)
         convert_tsd_to_modelica_txt(
             tsd,
@@ -191,6 +192,26 @@ def load_buildings_and_gains(sheet_name: str, hybrid_assumptions: HybridSystemAs
         )
         user_modifier = f'userProfiles(fileNameAbsGai=Modelica.Utilities.Files.loadResource("{file_path}"),' \
                         f'{night_set_back_modifier})'
+
+        if with_e_mobility:
+            file_path = study_path.joinpath("custom_inputs", f"house_elec_{idx}.txt")
+            tsd = TimeSeriesData(
+                PROJECT_FOLDER.joinpath("Zeitreihen", f"ev_{idx}.csv"),
+                sep=","
+            )
+            tsd.to_float_index()
+            tsd.loc[:, "e_mobility"] = tsd.loc[:, ("Ladestrom [kW]", "raw")] * 1000  # to W
+            convert_tsd_to_modelica_txt(
+                tsd,
+                table_name="EMobility",
+                columns=["e_mobility"],
+                save_path_file=file_path
+            )
+            file_path = str(file_path).replace("\\", "//")
+            e_mobility_modifier = f'fileNameEMob=Modelica.Utilities.Files.loadResource("{file_path}"),' \
+                                  f'use_eMob={"true" if with_e_mobility else "false"})'
+            user_modifier += "," + e_mobility_modifier
+
         dhw_path = dhw_base_path.joinpath(f"DHWCalc_{idx}.txt")
         if not os.path.exists(dhw_path):
             dhw_path = None
@@ -246,20 +267,43 @@ def load_buildings_and_gains(sheet_name: str, hybrid_assumptions: HybridSystemAs
     return building_configs, user_modifiers, dhw_profiles
 
 
-def extract_electricity_and_save(tsd, path, result_name):
+def extract_electricity_and_save(tsd, path, result_name, with_heating_rod: bool, with_e_mobility: bool):
     from hps_grid_interaction.bes_simulation.simulation import INIT_PERIOD
-    df_heat_pump_electricity = tsd.to_df().loc[INIT_PERIOD:, "outputs.hydraulic.gen.PEleHeaPum.value"] / 1000
-    df_heat_pump_electricity.index -= df_heat_pump_electricity.index[0]
-    if "outputs.hydraulic.gen.PEleHeaRod.value" in tsd:
-        df_heating_rod_electricity = tsd.to_df().loc[INIT_PERIOD:, "outputs.hydraulic.gen.PEleHeaRod.value"] / 1000
-        df_heating_rod_electricity.index -= df_heating_rod_electricity.index[0]
-        df_generation_electricity = df_heat_pump_electricity + df_heating_rod_electricity
-    else:
-        df_generation_electricity = df_heat_pump_electricity
-    if len(df_generation_electricity.index) != int(365 * 86400 / TIME_STEP + 1):
+
+    P_heat_pump = "outputs.hydraulic.gen.PEleHeaPum.value"
+    P_heating_rod = "outputs.hydraulic.gen.PEleHeaRod.value"
+    P_PV = "electrical.generation.internalElectricalPin.PElecGen"
+    P_household = "building.internalElectricalPin.PElecLoa"
+    P_grid_loa = "electricalGrid.PElecLoa"
+    P_grid_gen = "electricalGrid.PElecGen"
+    P_e_mobility = "electrical.generation.internalElectricalPin.PElecLoa"
+
+    df = tsd.to_df().loc[INIT_PERIOD:] / 1000  # All W to kW, other units will not be selected anyways
+    df -= df.index[0]
+    if len(df.index) != int(365 * 86400 / TIME_STEP + 1):
         logging.error("Not 15 min sampled data: %s", result_name)
+
+    if with_heating_rod:
+        df_heat_supply = df.loc[:, P_heat_pump] + df.loc[:, P_heating_rod]
+    else:
+        df_heat_supply = df.loc[:, P_heat_pump]
+
+    if with_e_mobility:
+        df_e_mobility = df.loc[:, P_e_mobility]
+        df_to_csv = pd.DataFrame({
+            "household+e_mobility": df.loc[:, P_household] + df_heat_supply + df_e_mobility,
+            "household+pv+e_mobility": df.loc[:, P_household] + df_heat_supply + df_e_mobility - df.loc[:, P_PV],
+            "household+pv+battery+e_mobility": - df.loc[:, P_grid_loa] - df.loc[:, P_grid_gen]
+        })
+    else:
+        df_to_csv = pd.DataFrame({
+            "household": df.loc[:, P_household] + df_heat_supply,
+            "household+pv": df.loc[:, P_household] + df_heat_supply - df.loc[:, P_PV],
+            "household+pv+battery": - df.loc[:, P_grid_loa] - df.loc[:, P_grid_gen],
+        })
+
     os.makedirs(path.joinpath("csv_files"), exist_ok=True)
-    df_generation_electricity.to_csv(path.joinpath("csv_files", result_name.replace(".mat", "_grid_simulation.csv")))
+    df_to_csv.to_csv(path.joinpath("csv_files", result_name.replace(".mat", "_grid_simulation.csv")))
 
 
 def extract_tsd_results(
@@ -305,10 +349,10 @@ def plot_result(tsd, init_period, result_name, save_path, plot_settings):
     )
 
 
-def get_bivalence_temperatures(buildings, without_heating_rod: bool, TOda_nominal, model_name: str,
+def get_bivalence_temperatures(buildings, with_heating_rod: bool, TOda_nominal, model_name: str,
                                hybrid_assumptions=None, cost_optimal_design=False):
     if model_name in ["Monovalent", "HeatDemandCalculation"]:
-        if without_heating_rod:
+        if not with_heating_rod:
             return [TOda_nominal] * len(buildings)
         # Bosch and energie-experten recommend TBiv of -6 to -3 for -12 degree TOda_nominal.
         # This value is consistent with own results (see Bergfest and Jahresgespräch).

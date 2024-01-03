@@ -3,9 +3,9 @@ model Hybrid
   "Bivalent Heat Pump System with boiler integration after buffer tank without DHW support"
   extends HybridHeatPumpSystem.BaseClasses.PartialHybridSystem(
     genDesTyp=BESMod.Systems.Hydraulical.Generation.Types.GenerationDesign.BivalentAlternativ,
-                                                               use_heaRod=false,
-                                                               redeclare
-      BESMod.Systems.Hydraulical.HydraulicSystem hydraulic(redeclare
+
+    use_heaRod=false,
+    redeclare BESMod.Systems.Hydraulical.HydraulicSystem hydraulic(redeclare
         HeatPumpSystemGridInteraction.HybridHeatPumpSystem.BaseClasses.HybridHeatPumpSystemCOPBased
         control(
         redeclare
@@ -16,7 +16,8 @@ model Hybrid
           parTheVal,
         dTHysBui=5,
         dTHysDHW=5,
-        meaValPriGen=BESMod.Systems.Hydraulical.Control.Components.MeasuredValue.GenerationSupplyTemperature,
+        meaValPriGen=BESMod.Systems.Hydraulical.Control.Components.BaseClasses.MeasuredValue.GenerationSupplyTemperature,
+
         redeclare model DHWHysteresis =
             BESMod.Systems.Hydraulical.Control.Components.BivalentOnOffControllers.AlternativeBivalent
             (T_biv=parameterStudy.TBiv),
@@ -25,6 +26,7 @@ model Hybrid
             (T_biv=parameterStudy.TBiv),
         redeclare model DHWSetTemperature =
             BESMod.Systems.Hydraulical.Control.Components.DHWSetControl.ConstTSet_DHW,
+
         redeclare model SummerMode =
             BESMod.Systems.Hydraulical.Control.Components.SummerMode.No,
         redeclare
@@ -41,8 +43,12 @@ model Hybrid
           parPIDBoi,
         redeclare
           HeatPumpSystemGridInteraction.HybridHeatPumpSystem.BaseClasses.NoCOPBasedHybridControl
-          boiInHybSys),
-                      redeclare
+          boiInHybSys,
+        buiAndDHWCtr(redeclare
+            BESMod.Systems.Hydraulical.Control.Components.BuildingSupplyTemperatureSetpoints.SingleZonePID
+            heaCur(redeclare
+              HeatPumpSystemGridInteraction.RecordsCollection.PIRoomControlParas
+              parPID))), redeclare
         BESMod.Systems.Hydraulical.Distribution.TwoStoragesBoilerWithDHW
         distribution(
         redeclare

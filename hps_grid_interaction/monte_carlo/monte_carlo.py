@@ -3,7 +3,7 @@ import logging
 import os
 import pickle
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 from random import choices
 
 import pandas as pd
@@ -28,88 +28,100 @@ class Quotas:
             construction_type_quota: str,
             heat_pump_quota: int,
             hybrid_quota: int,
-            pv_quotas: int,
-            pv_battery_quotas: int,
-            e_auto_quotas: int,
+            pv_quota: int,
+            pv_battery_quota: int,
+            e_mobility_quota: int,
             n_monte_carlo: int = 1000
     ):
         self.construction_type_quotas = get_construction_type_quotas(assumption=construction_type_quota)
         self.heat_supply_quotas = {
-            "monovalent": (100 - hybrid_quota) * heat_pump_quota,
-            "hybrid": hybrid_quota * heat_pump_quota,
+            "monovalent": (100 - hybrid_quota) * heat_pump_quota / 100,
+            "hybrid": hybrid_quota * heat_pump_quota / 100,
             "gas": (100 - heat_pump_quota)
         }
-        self.pv_quotas = {}
-        self.pv_battery_quotas = {}
-        self.e_auto_quotas = {}
+        self.electricity_system_quotas = {
+            "household": (100 - pv_quota - pv_battery_quota) * (1 - e_mobility_quota / 100),
+            "household+pv": pv_quota * (1 - e_mobility_quota / 100),
+            "household+pv+battery": pv_battery_quota * (1 - e_mobility_quota / 100),
+            "household+e_mobility": (100 - pv_quota - pv_battery_quota) * e_mobility_quota / 100,
+            "household+pv+e_mobility": pv_quota * e_mobility_quota / 100,
+            "household+pv+battery+e_mobility": pv_battery_quota * e_mobility_quota / 100
+        }
         self.n_monte_carlo = n_monte_carlo
 
 
-def _draw_uncertain_choice(quotas: Quotas, building_type: str, year_of_construction: int, possible_rows):
+def _draw_uncertain_choice(quotas: Quotas, building_type: str, year_of_construction: int, heat_supply: dict, house_index: int):
 
     def _draw_from_dict(d: dict):
         return choices(list(d.keys()), list(d.values()), k=1)[0]
 
     construction_type_choice = _draw_from_dict(quotas.construction_type_quotas[building_type][year_of_construction])
     heat_supply_choice = _draw_from_dict(quotas.heat_supply_quotas)
-    pv_choice = _draw_from_dict(quotas.pv_quotas)
-    pv_battery_choice = _draw_from_dict(quotas.pv_battery_quotas)
-    e_auto_choice = _draw_from_dict(quotas.e_auto_quotas)
+    electricity_system_choice = _draw_from_dict(quotas.electricity_system_quotas)
 
-    mask = (
-            (possible_rows.loc[:, "construction_type"] == construction_type_choice) &
-            (possible_rows.loc[:, "heat_supply"] == heat_supply_choice) &
-            (possible_rows.loc[:, "pv"] == pv_choice) &
-            (possible_rows.loc[:, "pv_battery"] == pv_battery_choice) &
-            (possible_rows.loc[:, "e_auto"] == e_auto_choice)
-    )
+    df_sim, time_series_data = heat_supply[heat_supply_choice]
+    possible_rows = df_sim.loc[house_index]
+    mask = possible_rows.loc[:, "construction_type"] == construction_type_choice
     if not np.any(mask):
         raise KeyError("No mask fitted, something went wrong")
-    return possible_rows.loc[mask, "simulation_result"].values[0]
+    sim_result_name = possible_rows.loc[mask, "simulation_result"].values[0]
+
+    tsd = time_series_data[sim_result_name].loc[:, electricity_system_choice]
+
+    all_choices = {
+        "heat_supply_choice": heat_supply_choice,
+        "electricity_system_choice": electricity_system_choice,
+        "construction_type_choice": construction_type_choice
+    }
+
+    return tsd, all_choices
 
 
-def load_function_kwargs_prior_to_monte_carlo(hybrid: Path, monovalent: Path, grid_case: str):
-    df_sim_hyb = pd.read_excel(
-        hybrid.joinpath("MonteCarloSimulationInputWithEmissions.xlsx"),
-        sheet_name="Sheet1",
-        index_col=0
-    )
-    df_sim_mon = pd.read_excel(
-        monovalent.joinpath("MonteCarloSimulationInputWithEmissions.xlsx"),
-        sheet_name="Sheet1",
-        index_col=0
-    )
+def load_function_kwargs_prior_to_monte_carlo(
+        hybrid: Path,
+        monovalent: Path,
+        hybrid_e_mobility: Path,
+        monovalent_e_mobility: Path,
+        grid_case: str):
 
     def _load_csv_data(path: Path):
         data = {}
         ordered_sim_results = {}
         for file in os.listdir(path.joinpath("csv_files")):
             if file.endswith(".csv"):
-                df = pd.read_csv(path.joinpath("csv_files", file)).set_index("Time")
-                assert len(df.columns) == 1, "Only one column is expected"
                 file_path = str(path.joinpath("csv_files", file).absolute())
-                data[file_path] = df.loc[:, df.columns[0]].values
+                df = pd.read_csv(file_path).set_index("Time")
+                data[file_path] = df
                 n_sim = int(file.split("_")[0])
                 ordered_sim_results[n_sim] = file_path
         ordered_sim_results = {key: ordered_sim_results[key] for key in sorted(ordered_sim_results)}
-        return data, ordered_sim_results
+        return data, list(ordered_sim_results.values())
+    cases = {
+        "hybrid": {"e_mobility": hybrid_e_mobility, "no": hybrid},
+        "monovalent": {"e_mobility": monovalent_e_mobility, "no": monovalent}
+    }
+    heat_supplys = {}
+    for heat_supply, paths in cases.items():
+        # Should not matter which xlsx is loaded, with or without e-mobility
+        df_sim = pd.read_excel(
+            paths["no"].joinpath("MonteCarloSimulationInputWithEmissions.xlsx"),
+            sheet_name="Sheet1",
+            index_col=0
+        )
+        time_series_data, simulation_result = _load_csv_data(paths["no"])
+        df_sim.loc[:, "simulation_result"] = simulation_result
+        time_series_data_e_mobility, _ = _load_csv_data(paths["e_mobility"])
+        time_series_data = pd.concat([time_series_data, time_series_data_e_mobility])
+        heat_supplys[heat_supply] = (df_sim, time_series_data)
 
-    time_series_data, sim_results = _load_csv_data(hybrid)
-    df_sim_hyb.loc[:, "simulation_result"] = list(sim_results.values())
-    df_sim_hyb.loc[:, "system_type"] = "hybrid"
-    time_series_data_m, sim_results_mon = _load_csv_data(monovalent)
-    df_sim_mon.loc[:, "simulation_result"] = list(sim_results_mon.values())
-    df_sim_mon.loc[:, "system_type"] = "monovalent"
-    df_sim = pd.concat([df_sim_hyb, df_sim_mon])
-    time_series_data.update(time_series_data_m)
-    del time_series_data_m, sim_results_mon, sim_results, df_sim_mon
+    heat_supplys["gas"] = 0
 
     df_grid = pd.read_excel(
         Path(__file__).parent.joinpath("Kerber_Vorstadtnetz.xlsx"),
         sheet_name=f"Kerber Netz {grid_case.capitalize()}",
         index_col=0
     )
-    func_kwargs = dict(df_sim=df_sim, df_grid=df_grid, time_series_data=time_series_data)
+    func_kwargs = dict(heat_supplys=heat_supplys, df_grid=df_grid)
     return func_kwargs
 
 
@@ -121,7 +133,7 @@ def run_monte_carlo_sim(quota_cases: Dict[str, Quotas], function_kwargs: dict):
     i = 0
     for quota_name, quotas in quota_cases.items():
         for _ in range(quotas.n_monte_carlo):
-            grid, _, retrofit_distribution = run_single_grid_simulation(quotas=quotas, **function_kwargs)
+            grid, retrofit_distribution = run_single_grid_simulation(quotas=quotas, **function_kwargs)
             monte_carlo_history[quota_name].append(retrofit_distribution)
             for point, data in grid.items():
                 if point not in max_data:
@@ -150,30 +162,27 @@ def run_monte_carlo_sim(quota_cases: Dict[str, Quotas], function_kwargs: dict):
 
 
 def run_single_grid_simulation(
-        df_sim: pd.DataFrame,
+        heat_supply: dict,
         df_grid: pd.DataFrame,
         quotas: Quotas,
-        time_series_data: dict
 ):
     grid = {key: 0 for key in [f"AP_{i + 1}" for i in range(10)]}
-    csv_files_for_acs = []
-    _resulting_retrofit_distribution = []
+
+    _resulting_choice_distribution = []
     for house_index, row in df_grid.iterrows():
         building_type = row["Gebäudetyp"].split(" ")[0]  # In case of MFH (..)
-        sim_result_name = _draw_uncertain_choice(
+        time_series_result, all_choices = _draw_uncertain_choice(
             quotas=quotas,
             building_type=building_type,
             year_of_construction=row["Baujahr"],
-            possible_rows=df_sim.loc[house_index]
+            heat_supply=heat_supply,
+            house_index=house_index
         )
-        _resulting_retrofit_distribution.append(sim_result_name)
-        grid[f"AP_{row['Anschlusspunkt'].split('-')[0]}"] += time_series_data[sim_result_name]
-        csv_name = "csv_files//" + "_".join(sim_result_name.split("_")[1:])
-        csv_files_for_acs.append(csv_name)
+        _resulting_choice_distribution.append(all_choices)
+        grid[f"AP_{row['Anschlusspunkt'].split('-')[0]}"] += time_series_result
+
     grid["ONT"] = np.sum(list(grid.values()), axis=0)  # Build overall sum at ONT
-    df_csv = df_grid.copy()
-    df_csv.loc[:, "Ergebnisse_EBC"] = csv_files_for_acs
-    return grid, df_csv, _resulting_retrofit_distribution
+    return grid, _resulting_choice_distribution
 
 
 def argmean(arr):
@@ -192,12 +201,12 @@ def get_grid_simulation_case_name(quota_case: str, case_name: str):
 def plot_and_export_single_monte_carlo(
         quota_cases: List[str],
         data, metric: str, save_path: Path,
-        case_name: str, grid_case: str, df_sim: pd.DataFrame
+        case_name: str, grid_case: str
 ):
     arg_function = argmean
     export_data = {}
     emissions_data = {}
-    for quota_case in ["Hybrid", "Monovalent"]:
+    for quota_case in quota_cases:
         arg = arg_function(data[metric]["ONT"][quota_case])
         # Save in excel for Lastflusssimulation:
         to_grid_simulation = data["simulations"][quota_case][arg]
@@ -215,8 +224,6 @@ def plot_and_export_single_monte_carlo(
             "max": {point: data["max"][point][quota_case][arg] for point in data["max"].keys()},
             "sum": {point: data["sum"][point][quota_case][arg] for point in data["sum"].keys()}
         }
-        save_excel(df=pd.DataFrame(export_data[quota_case]), path=save_path.parent.joinpath(f"MonteCarloResults.xlsx"),
-                   sheet_name=f"{metric}_{short_sheet_name}")
         plots.plot_time_series(data=data, quota_case=quota_case, metric=metric, save_path=save_path)
 
         sim_results = data["simulations"][quota_case][arg]
@@ -256,12 +263,13 @@ def run_save_and_plot_monte_carlo(
     pickle_path = save_path.joinpath(f"monte_carlo_{case_name}.pickle")
 
     hybrid_path = RESULTS_BES_FOLDER.joinpath(f"Hybrid{extra_case_name}_{grid_case}")
-    if not hybrid_path.exists():
-        logger.error(f"Did not find {hybrid_path}. Skipping case {case_name}")
-        return res
+    hybrid_path_e_mobility = RESULTS_BES_FOLDER.joinpath(f"Hybrid{extra_case_name}_{grid_case}_EMob")
+
     kwargs = load_function_kwargs_prior_to_monte_carlo(
         hybrid=hybrid_path,
         monovalent=RESULTS_BES_FOLDER.joinpath(f"Monovalent_{grid_case}{with_hr_str}"),
+        hybrid_e_mobility=hybrid_path_e_mobility,
+        monovalent_e_mobility=RESULTS_BES_FOLDER.joinpath(f"Monovalent_{grid_case}{with_hr_str}_EMob"),
         grid_case=grid_case
     )
 

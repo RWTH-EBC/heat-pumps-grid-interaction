@@ -42,8 +42,7 @@ model CustomInputs "Custom inputs for project"
     final extrapolation=Modelica.Blocks.Types.Extrapolation.Periodic,
     final tableName="Intgainconv_Intgainrad_COPMin",
     final fileName=fileNameAbsGai,
-    columns={2,3,4})
-                 "Profiles for internal gains of machines and lights in W"
+    columns={2,3,4}) "Profiles for internal gains of machines and lights in W"
     annotation (Placement(transformation(
         extent={{10,10},{-10,-10}},
         rotation=180,

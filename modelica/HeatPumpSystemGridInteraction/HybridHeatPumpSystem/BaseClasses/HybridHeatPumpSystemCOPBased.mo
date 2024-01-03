@@ -2,9 +2,8 @@ within HeatPumpSystemGridInteraction.HybridHeatPumpSystem.BaseClasses;
 model HybridHeatPumpSystemCOPBased "COP based approach for hybrid HPS"
   extends
     BESMod.Systems.Hydraulical.Control.BaseClasses.PartialHeatPumpSystemController(
-      final meaValSecGen=
-        if boiInGeneration then BESMod.Systems.Hydraulical.Control.Components.MeasuredValue.GenerationSupplyTemperature
-          else BESMod.Systems.Hydraulical.Control.Components.MeasuredValue.DistributionTemperature,
+      final meaValSecGen=if boiInGeneration then BESMod.Systems.Hydraulical.Control.Components.BaseClasses.MeasuredValue.GenerationSupplyTemperature
+         else BESMod.Systems.Hydraulical.Control.Components.BaseClasses.MeasuredValue.DistributionTemperature,
       anyGenDevIsOn(nu=3));
   parameter Modelica.Units.SI.Temperature TBiv "Bivalence temperature";
   parameter Modelica.Units.SI.Temperature TCutOff "Cutoff temperature";
@@ -40,7 +39,8 @@ model HybridHeatPumpSystemCOPBased "COP based approach for hybrid HPS"
     annotation (Placement(transformation(extent={{-30,-20},{-12,0}})),
       choicesAllMatching=true);
 
-  BESMod.Systems.Hydraulical.Control.Components.ParallelValveController priOrSecDevValCtrl
+  BESMod.Systems.Hydraulical.Control.Components.BaseClasses.ParallelValveController
+    priOrSecDevValCtrl
     "Control the valve to switch between primary and secondary device"
     annotation (Placement(transformation(
         extent={{-10,-10},{10,10}},

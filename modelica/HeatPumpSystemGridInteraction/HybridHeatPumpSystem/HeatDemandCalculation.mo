@@ -41,7 +41,8 @@ model HeatDemandCalculation
   extends Modelica.Icons.Example;
   Modelica.Blocks.Sources.RealExpression reaExpCOP[systemParameters.nZones](y=electrical.transfer.heaKPI.u ./ (0.5 *heatingCurve.TSet/max(heatingCurve.TSet - heatingCurve.TOda, 0.2)))
     annotation (Placement(transformation(extent={{-400,0},{-380,20}})));
-  BESMod.Systems.Hydraulical.Control.Components.HeatingCurve heatingCurve(
+  BESMod.Systems.Hydraulical.Control.Components.BuildingSupplyTemperatureSetpoints.HeatingCurve
+    heatingCurve(
     TSup_nominal=systemParameters.THydSup_nominal[1],
     TRet_nominal=systemParameters.THydSup_nominal[1] - 10,
     TOda_nominal=systemParameters.TOda_nominal,

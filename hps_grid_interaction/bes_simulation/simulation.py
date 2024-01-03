@@ -38,7 +38,7 @@ def generate_modelica_package(save_path: Path, modifiers: list):
     return explicit_model_names, new_path
 
 
-def get_simulation_config(model_name, without_heating_rod):
+def get_simulation_config(model_name, with_heating_rod):
     import json
     mo_path = Path(__file__).parents[2].joinpath("modelica", "HeatPumpSystemGridInteraction", "package.mo")
     with open("plots/hybrid_plot_config.json", "r") as file:
@@ -66,7 +66,7 @@ def get_simulation_config(model_name, without_heating_rod):
             "$T_\mathrm{BoiOut}$ in °C": "hydraulic.distribution.sigBusDistr.TBoiOut",
             "$\dot{Q}_\mathrm{Boi}$": "outputs.hydraulic.dis.QBoi_flow.value",
         })
-    elif not without_heating_rod:
+    elif with_heating_rod:
         y_variables.update({"$P_\mathrm{el,HeaRod}$": "outputs.hydraulic.gen.PEleHeaRod.value"})
 
     plot_settings = dict(

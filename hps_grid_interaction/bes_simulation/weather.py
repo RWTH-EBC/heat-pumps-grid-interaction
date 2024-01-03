@@ -1,6 +1,6 @@
 import pathlib
 from pydantic import BaseModel, FilePath
-from AixWeather import weather_tool
+from aixweather.imports.TRY import load_try_from_file
 
 
 class WeatherConfig(BaseModel):
@@ -21,4 +21,4 @@ class WeatherConfig(BaseModel):
         return pathlib.Path(self.dat_file).stem
 
     def get_hourly_weather_data(self):
-        return weather_tool.load_df_from_dat(path=str(self.dat_file))
+        return load_try_from_file(path=str(self.dat_file))

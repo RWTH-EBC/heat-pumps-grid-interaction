@@ -52,7 +52,7 @@ model CustomInputs "Custom inputs for project"
     amplitude=2,
     width=100*(houNigStart - houNigEnd)/24,
     period=3600*24,
-    offset=TSetZone_nominal - dTNigSetBac,
+    offset=TSetZone_nominal .- dTNigSetBac,
     startTime=3600*houNigEnd) if use_nigSetBac "Constant room set temperature"
     annotation (Placement(transformation(
         extent={{10,10},{-10,-10}},

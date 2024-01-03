@@ -78,6 +78,7 @@ def plot_voltage(path):
 
 
 if __name__ == '__main__':
+    from hps_grid_interaction import RESULTS_GRID_FOLDER
     PLOT_CONFIG = PlotConfig.parse_json_file(Path(__file__).parents[2].joinpath("data", "default_configs", "plotting.json"))
-    PATH = Path(r"D:\01_Projekte\09_HybridWP\01_Results\03_lastfluss\LastflussSimulationenGEGBiv-RONT\3-ph")
+    PATH = RESULTS_GRID_FOLDER.joinpath("LastflussSimulationenGEGBiv-RONT", "3-ph")
     analysis(base_path=PATH)

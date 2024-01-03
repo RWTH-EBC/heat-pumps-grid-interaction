@@ -72,8 +72,8 @@ def plot_days_in_year_over_hours_in_day(df: pd.DataFrame, variables: List[str], 
 
 if __name__ == '__main__':
     PLOT_CONFIG = load_plot_config("plots/hybrid_plot_config.json")
-
-    DF = TimeSeriesData(r"D:\01_Projekte\09_HybridWP\01_Results\02_simulations\HybridGEG_altbau\SimulationResults\0_TRY2015_523845130645_Jahr_EFH1970_standard_SingleDwelling_DHWCalc_None.mat")
+    from hps_grid_interaction import RESULTS_BES_FOLDER
+    DF = TimeSeriesData(RESULTS_BES_FOLDER.joinpath("HybridGEG_altbau", "SimulationResults", "0_TRY2015_523845130645_Jahr_EFH1970_standard_SingleDwelling_DHWCalc_None.mat"))
     DF.loc[:, ("userProfiles.useProBus.absIntGai", "raw")] = DF.loc[:, ("userProfiles.useProBus.absIntGaiRad", "raw")] + DF.loc[:, ("userProfiles.useProBus.absIntGaiConv", "raw")]
     VARIABLES = [
         "outputs.building.QIntGain[1].value",

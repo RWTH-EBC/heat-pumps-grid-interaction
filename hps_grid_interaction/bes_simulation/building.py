@@ -120,10 +120,10 @@ class BuildingConfig(BaseModel):
         default=None
     )
 
-    def get_modelica_modifier(self, input_config: "InputConfig"):
+    def get_modelica_modifier(self, TOda_nominal, TRoom_nominal=293.15):
         THyd_nominal, dTHyd_nominal = self.get_retrofit_temperatures(
-            TOda_nominal=input_config.weather.TOda_nominal,
-            TRoom_nominal=input_config.user.room_set_temperature
+            TOda_nominal=TOda_nominal,
+            TRoom_nominal=TRoom_nominal
         )
 
         TNonRetrofit_nominal, _, _ = self.get_nominal_supply_temperature(self.year_of_construction)

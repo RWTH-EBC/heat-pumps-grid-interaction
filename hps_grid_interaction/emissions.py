@@ -11,7 +11,7 @@ import numpy as np
 from ebcpy.preprocessing import convert_datetime_index_to_float_index
 from ebcpy import TimeSeriesData
 
-from hps_grid_interaction.boundary_conditions import weather
+from hps_grid_interaction.bes_simulation import weather
 from hps_grid_interaction.plotting.config import PlotConfig
 
 from utils import HybridSystemAssumptions
@@ -39,9 +39,10 @@ def load_data(interpolate: bool = False):
     # Convert the seconds-based index to a Datetime index
     df['DateTime'] = pd.to_datetime(df.index, unit='h')
     df.set_index('DateTime', inplace=True)
-
-    # Resample to 15-minute intervals and interpolate
-    df_resampled = df.resample('15T').asfreq().interpolate(method='linear')
+    from hps_grid_interaction.bes_simulation.simulation import TIME_STEP
+    interval = int(TIME_STEP / 60)
+    # Resample to minute intervals and interpolate
+    df_resampled = df.resample(f'{interval}min').asfreq().interpolate(method='linear')
     col = "Average Emissions [g_CO2/kWh]"
     years = {}
     df = convert_datetime_index_to_float_index(df_resampled)
@@ -76,8 +77,10 @@ def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
     p_el_hp_name = "outputs.hydraulic.gen.PEleHeaPum.value"
     COP_name = "hydraulic.generation.sigBusGen.COP"
     Q_boi_name = "outputs.hydraulic.dis.QBoi_flow.integral"
+    from hps_grid_interaction import RESULTS_BES_FOLDER
+    from hps_grid_interaction.bes_simulation.simulation import INIT_PERIOD, W_to_Wh
 
-    path = Path(r"D:\01_Projekte\09_HybridWP\01_Results\02_simulations").joinpath(case)
+    path = RESULTS_BES_FOLDER.joinpath(case)
     df_sim = pd.read_excel(
         path.joinpath("MonteCarloSimulationInput.xlsx"),
         sheet_name="Sheet1"
@@ -91,8 +94,8 @@ def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
         if not file.endswith(file_ending):
             continue
         tsd = TimeSeriesData(path_sim.joinpath(file)).to_df()
-        tsd = tsd.loc[86400 * 2:]
-        tsd.index -= 86400 * 2
+        tsd = tsd.loc[INIT_PERIOD:]
+        tsd.index -= INIT_PERIOD
         tsd = tsd.loc[:_until]
         idx = int(file.split("_")[0])
         with_hr = p_el_hr_name in tsd
@@ -103,10 +106,10 @@ def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
         Q_hea_pum = tsd.loc[:, p_el_hp_name] * tsd.loc[:, COP_name]
         if with_hr:
             tsd_electricity = tsd.loc[:, p_el_hp_name] / 1000 + tsd.loc[:, p_el_hr_name] / 1000
-            Q_renewable = np.sum(Q_hea_pum + tsd.loc[:, p_el_hr_name] * 0.97) * 0.25
+            Q_renewable = np.sum(Q_hea_pum + tsd.loc[:, p_el_hr_name] * 0.97) * W_to_Wh
         else:
             tsd_electricity = tsd.loc[:, p_el_hp_name] / 1000
-            Q_renewable = np.sum(Q_hea_pum) * 0.25
+            Q_renewable = np.sum(Q_hea_pum) * W_to_Wh
         if hybrid:
             Q_boi = tsd.iloc[-1][Q_boi_name] / 3600
             percent_renewables = Q_renewable / (Q_renewable + Q_boi) * 100
@@ -122,26 +125,26 @@ def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
             return _df
 
         for assumption_name, hybrid_assumption in hybrid_assumptions.items():
-            e_gas = tsd_gas.sum() * hybrid_assumption.emissions_natural_gas * 0.25 / 1000  # in kg
+            e_gas = tsd_gas.sum() * hybrid_assumption.emissions_natural_gas * W_to_Wh / 1000  # in kg
             if isinstance(hybrid_assumption.emissions_electricity, str):
                 # Dynamic emissions
                 emission_values = years[int(hybrid_assumption.emissions_electricity)]["dynamic"]
                 e_electricity = (
-                        np.sum(np.multiply(tsd_electricity, emission_values.values)) * 0.25  # in g
+                        np.sum(np.multiply(tsd_electricity, emission_values.values)) * W_to_Wh  # in g
                         / 1000  # in kg
                 )
                 #plt.figure()
-                ###plt.scatter(emission_values.values, tsd_electricity * 0.25)
+                ###plt.scatter(emission_values.values, tsd_electricity * W_to_Wh)
                 #plt.title(assumption_name)
                 #plt.ylabel("$P_\mathrm{el}$ in kWh")
                 #plt.xlabel("$e_\mathrm{el}$ in g/kWh")
                 populate_data_to_dict(df_sim, idx, assumption_name, "_Dynamic", e_gas, e_electricity)
                 # Static emissions
                 emission_value = years[int(hybrid_assumption.emissions_electricity)]["static"]
-                e_electricity = np.sum(tsd_electricity) * 0.25 * emission_value / 1000  # in kg
+                e_electricity = np.sum(tsd_electricity) * W_to_Wh * emission_value / 1000  # in kg
                 populate_data_to_dict(df_sim, idx, assumption_name, "_Static", e_gas, e_electricity)
             else:
-                e_electricity = np.sum(tsd_electricity) * 0.25 * hybrid_assumption.emissions_electricity / 1000  # in kg
+                e_electricity = np.sum(tsd_electricity) * W_to_Wh * hybrid_assumption.emissions_electricity / 1000  # in kg
                 populate_data_to_dict(df_sim, idx, assumption_name, "", e_gas, e_electricity)
             #plt.show()
             #raise Exception
@@ -304,10 +307,11 @@ def aggregate_and_save_all_cases(
 
 
 if __name__ == '__main__':
+    from hps_grid_interaction import RESULTS_GRID_FOLDER, RESULTS_BES_FOLDER
     PlotConfig.load_default()  # Trigger rc_params
     #calc_all_emissions()
     aggregate_and_save_all_cases(
-        lastfluss_xlsx=Path(r"D:\01_Projekte\09_HybridWP\01_Results\03_lastfluss\LastflussSimulationenGEGBiv-RONT\3-ph\analysis.xlsx"),
-        emissions_json=Path(r"D:\01_Projekte\09_HybridWP\01_Results\02_simulations\results_to_plot.json"),
+        lastfluss_xlsx=RESULTS_GRID_FOLDER.joinpath("LastflussSimulationenGEGBiv-RONT", "3-ph", "analysis.xlsx"),
+        emissions_json=RESULTS_BES_FOLDER.joinpath("results_to_plot.json"),
         skip_emissions=True
     )

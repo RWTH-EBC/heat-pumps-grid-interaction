@@ -12,9 +12,10 @@ from ebcpy.utils.conversion import convert_tsd_to_modelica_txt
 from pathlib import Path
 
 
-from hps_grid_interaction.building import BuildingConfig
-from hps_grid_interaction.boundary_conditions.dhw import generate_dhw_calc_tapping, DHWCalcConfig
+from hps_grid_interaction.bes_simulation.building import BuildingConfig
 from hps_grid_interaction.plotting.important_variables import plot_important_variables
+from hps_grid_interaction import PROJECT_FOLDER, KERBER_NETZ_XLSX
+from hps_grid_interaction.bes_simulation.simulation import TIME_STEP
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ class HybridSystemAssumptions:
         return emissions_electricity / self.emissions_natural_gas
 
 
-def get_sarnierungsquoten(assumption: str):
+def get_construction_type_quotas(assumption: str):
     if assumption == "average":
         return {
             "MFH": {
@@ -143,15 +144,12 @@ def create_input_for_gains(csv_path: Path, hybrid_assumptions: HybridSystemAssum
 
 def load_buildings_and_gains(sheet_name: str, hybrid_assumptions: HybridSystemAssumptions, study_path: Path):
     logger.info("Loading grid and building data")
-    df = pd.read_excel(
-        Path(__file__).parent.joinpath("Kerber_Vorstadtnetz.xlsx"),
-        sheet_name=sheet_name,
-        index_col=0
-    )
-    internal_gains = []
+    df = pd.read_excel(KERBER_NETZ_XLSX, sheet_name=sheet_name, index_col=0)
+
+    user_modifiers = []
     building_configs = []
     dhw_profiles = []
-    dhw_base_path = Path(r"D:\01_Projekte\09_HybridWP\dhw_tappings")
+    dhw_base_path = PROJECT_FOLDER.joinpath("dhw_tappings")
 
     tabula_areas_sfh = {
         2010: 187,
@@ -171,10 +169,11 @@ def load_buildings_and_gains(sheet_name: str, hybrid_assumptions: HybridSystemAs
     dhw_litre_per_person_per_day = 25
     excel_for_clustering = []
 
+    df_users = pd.read_excel(PROJECT_FOLDER.joinpath("Night_set_backs.xlsx"), sheet_name="users")
     for idx, row in df.iterrows():
         building_data = row.to_dict()
         tsd = create_input_for_gains(
-            csv_path=Path("D:/01_Projekte/09_HybridWP/Zeitreihen").joinpath(f"elec_{idx}.csv"),
+            csv_path=PROJECT_FOLDER.joinpath("Zeitreihen", f"elec_{idx}.csv"),
             hybrid_assumptions=hybrid_assumptions
         )
         file_path = study_path.joinpath("custom_inputs", f"{idx}.txt")
@@ -186,17 +185,19 @@ def load_buildings_and_gains(sheet_name: str, hybrid_assumptions: HybridSystemAs
             save_path_file=file_path
         )
         file_path = str(file_path).replace("\\", "//")
-        internal_gain = f'userProfiles(fileNameAbsGai=Modelica.Utilities.Files.loadResource("{file_path}"))'
+        from hps_grid_interaction.bes_simulation.users import get_modifier
+        night_set_back_modifier = get_modifier(
+            dT_set_back=df_users.loc[idx, "dT_set_back"], night_start=df_users.loc[idx, "night_start"]
+        )
+        user_modifier = f'userProfiles(fileNameAbsGai=Modelica.Utilities.Files.loadResource("{file_path}"),' \
+                        f'{night_set_back_modifier})'
         dhw_path = dhw_base_path.joinpath(f"DHWCalc_{idx}.txt")
         if not os.path.exists(dhw_path):
             dhw_path = None
         dhw = {
-            "profile": "DHWCalc",
-            "dhw_calc_config": {
-                "daily_volume": building_data["Anzahl Bewohner"] * dhw_litre_per_person_per_day,
-                "time_step": 900,
-                "path": dhw_path
-            }
+            "daily_volume": building_data["Anzahl Bewohner"] * dhw_litre_per_person_per_day,
+            "time_step": TIME_STEP,
+            "path": dhw_path
         }
         year_of_construction = building_data["Baujahr"]
         number_of_floors = building_data["Anzahl Etagen"]
@@ -212,7 +213,7 @@ def load_buildings_and_gains(sheet_name: str, hybrid_assumptions: HybridSystemAs
             construction_types = ["tabula_standard", "tabula_retrofit", "tabula_adv_retrofit"]
         for construction_type in construction_types:
             dhw_profiles.append(dhw)
-            internal_gains.append(internal_gain)
+            user_modifiers.append(user_modifier)
             # To create teaser-valid name from "MFH (6 WE)2010" to MFH_6_WE_2010_retrofit
             name = f'{building_data["Gebäudetyp"]}{building_data["Baujahr"]}_' \
                    f'{construction_type.replace("tabula_", "")}'.replace("(", "").replace(")", "_").replace(" ", "_")
@@ -235,44 +236,27 @@ def load_buildings_and_gains(sheet_name: str, hybrid_assumptions: HybridSystemAs
                     "construction_type": construction_type,
                     **building_data,
                 }
+
             )
     pd.DataFrame(excel_for_clustering).set_index("Index").to_excel(
         study_path.joinpath("MonteCarloSimulationInput.xlsx")
     )
     logger.info("Loaded grid and building data")
 
-    return building_configs, internal_gains, dhw_profiles
-
-
-def create_dhw_profiles():
-    import logging
-    logging.basicConfig(level="INFO")
-    path = Path(r"D:\00_temp\dhw_tappings")
-    os.makedirs(path, exist_ok=True)
-    df = pd.read_excel(
-        Path(__file__).parent.joinpath("Kerber_Vorstadtnetz.xlsx"),
-        index_col=0,
-        sheet_name="Kerber Netz Neubau"
-    )
-    dhw_litre_per_person_per_day = 25
-
-    for idx, row in df.iterrows():
-        generate_dhw_calc_tapping(
-            save_path_file=path.joinpath(f"DHWCalc_{idx}.txt"),
-            config=DHWCalcConfig(daily_volume=row["Anzahl Bewohner"] * dhw_litre_per_person_per_day, time_step=900)
-        )
+    return building_configs, user_modifiers, dhw_profiles
 
 
 def extract_electricity_and_save(tsd, path, result_name):
-    df_heat_pump_electricity = tsd.to_df().loc[86400 * 2:, "outputs.hydraulic.gen.PEleHeaPum.value"] / 1000
+    from hps_grid_interaction.bes_simulation.simulation import INIT_PERIOD
+    df_heat_pump_electricity = tsd.to_df().loc[INIT_PERIOD:, "outputs.hydraulic.gen.PEleHeaPum.value"] / 1000
     df_heat_pump_electricity.index -= df_heat_pump_electricity.index[0]
     if "outputs.hydraulic.gen.PEleHeaRod.value" in tsd:
-        df_heating_rod_electricity = tsd.to_df().loc[86400 * 2:, "outputs.hydraulic.gen.PEleHeaRod.value"] / 1000
+        df_heating_rod_electricity = tsd.to_df().loc[INIT_PERIOD:, "outputs.hydraulic.gen.PEleHeaRod.value"] / 1000
         df_heating_rod_electricity.index -= df_heating_rod_electricity.index[0]
         df_generation_electricity = df_heat_pump_electricity + df_heating_rod_electricity
     else:
         df_generation_electricity = df_heat_pump_electricity
-    if len(df_generation_electricity.index) != int(365 * 86400 / 900 + 1):
+    if len(df_generation_electricity.index) != int(365 * 86400 / TIME_STEP + 1):
         logging.error("Not 15 min sampled data: %s", result_name)
     os.makedirs(path.joinpath("csv_files"), exist_ok=True)
     df_generation_electricity.to_csv(path.joinpath("csv_files", result_name.replace(".mat", "_grid_simulation.csv")))

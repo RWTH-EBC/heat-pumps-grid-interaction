@@ -3,15 +3,22 @@ from pathlib import Path
 from ebcpy import DymolaAPI
 from typing import List
 from pydantic import BaseModel, FilePath
+from hps_grid_interaction import BESMOD_PATH
+
+
+INIT_PERIOD = 86400 * 2
+TIME_STEP = 900
+# Used to convert results in W into Wh.
+# As a results in one time-step, e.g. x W holds for this time-step,
+# the integral is x * TIME_STEP Ws. Converted to Wh gives x / 3600 Wh.
+W_to_Wh = TIME_STEP / 3600
 
 
 class SimulationConfig(BaseModel):
     model_name: str
-    startup_mos: Path
     sim_setup: dict
     packages: List[FilePath] = []
     result_names: list = []
-    init_period: float = 86400 * 2
     plot_settings: dict = {}
     convert_to_hdf_and_delete_mat: bool = True
 
@@ -33,7 +40,7 @@ def generate_modelica_package(save_path: Path, modifiers: list):
 
 def get_simulation_config(model_name, without_heating_rod):
     import json
-    mo_path = Path(__file__).parents[2].joinpath("modelica", "BESRules", "package.mo")
+    mo_path = Path(__file__).parents[2].joinpath("modelica", "HeatPumpSystemGridInteraction", "package.mo")
     with open("plots/hybrid_plot_config.json", "r") as file:
         plot_config = json.load(file)
 
@@ -69,9 +76,8 @@ def get_simulation_config(model_name, without_heating_rod):
     )
 
     return SimulationConfig(
-        startup_mos=r"D:\04_git\BESMod\startup.mos",
-        model_name=f"BESRules.HybridHeatPumpSystem.{model_name}",
-        sim_setup=dict(stop_time=86400 * 365, output_interval=900),
+        model_name=f"HeatPumpSystemGridInteraction.HybridHeatPumpSystem.{model_name}",
+        sim_setup=dict(stop_time=86400 * 365, output_interval=TIME_STEP),
         result_names=[],
         packages=[mo_path],
         convert_to_hdf_and_delete_mat=True,
@@ -80,7 +86,7 @@ def get_simulation_config(model_name, without_heating_rod):
 
 
 def start_dymola(
-        config,
+        config: SimulationConfig,
         cd,
         n_cpu,
         additional_packages: list = None
@@ -91,7 +97,7 @@ def start_dymola(
     dym_api = DymolaAPI(
         cd=cd,
         model_name=config.model_name,
-        mos_script_pre=r"D:\04_git\BESMod\startup.mos",
+        mos_script_pre=BESMOD_PATH,
         packages=list(set(packages)),
         n_cpu=n_cpu,
         show_window=True,
@@ -100,7 +106,7 @@ def start_dymola(
     )
     dym_api.model_name = config.model_name
     dym_api.set_sim_setup(config.sim_setup)
-    dym_api.sim_setup.stop_time += config.init_period
+    dym_api.sim_setup.stop_time += INIT_PERIOD
     from hps_grid_interaction.plotting.important_variables import get_names_of_plot_variables
 
     result_names_to_plot = get_names_of_plot_variables(

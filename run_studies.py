@@ -6,11 +6,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from hps_grid_interaction.boundary_conditions import weather
+from hps_grid_interaction.bes_simulation import weather
 from hps_grid_interaction.utils import HybridSystemAssumptions
 from hps_grid_interaction import utils
-from hps_grid_interaction import simulation
-from hps_grid_interaction.inputs import InputsConfig
+from hps_grid_interaction.bes_simulation import simulation
+from hps_grid_interaction.bes_simulation.inputs import InputsConfig
+from hps_grid_interaction import RESULTS_BES_FOLDER
 logger = logging.getLogger(__name__)
 
 
@@ -32,7 +33,7 @@ def run_simulations(
     if extract_only:
         n_cpu = 1
 
-    base_path = Path(r"D:\01_Projekte\09_HybridWP\01_Results\02_simulations")
+    base_path = RESULTS_BES_FOLDER
 
     sheet_name = f"Kerber Netz {grid_case.capitalize()}"
     buildings, gains_modifiers, dhw_profiles = utils.load_buildings_and_gains(
@@ -52,11 +53,13 @@ def run_simulations(
         buildings=buildings,
         dhw_profiles=dhw_profiles,
     )
-    inputs_config.generate_files(
+    from hps_grid_interaction.bes_simulation.building import create_buildings
+    inputs_config.buildings = create_buildings(
         path=study_path,
-        name="Buildings_" + case_name
+        name="Buildings_" + case_name,
+        buildings=inputs_config.buildings
     )
-    model_names, result_names = inputs_config.get_model_and_names(sim_config.model_name)
+    model_names, result_names = inputs_config.get_model_and_result_names(sim_config.model_name)
     explicit_model_names, new_path = simulation.generate_modelica_package(
         save_path=study_path,
         modifiers=model_names
@@ -76,7 +79,7 @@ def run_simulations(
         T_bivs = [None for _ in results]  # Irrelevant here.
     else:
         T_bivs = utils.get_bivalence_temperatures(
-            buildings=buildings, model_name=model_name,
+            buildings=inputs_config.buildings, model_name=model_name,
             without_heating_rod=without_heating_rod, TOda_nominal=weather_config.TOda_nominal,
             hybrid_assumptions=hybrid_assumptions, cost_optimal_design=False
         )
@@ -115,7 +118,7 @@ def run_simulations(
             )
             utils.plot_result(
                 tsd=result,
-                init_period=sim_config.init_period,
+                init_period=simulation.INIT_PERIOD,
                 save_path=study_path,
                 result_name=result_name.replace(".mat", ""),
                 plot_settings=sim_config.plot_settings
@@ -137,7 +140,7 @@ def run_simulations(
                         result_name.startswith("outputs.hydraulic.ctrl.dTComHea_abs") or
                         result_name.endswith(".integral")
                 ):
-                    res[result_name] = df.iloc[-1][result_name] - df.loc[sim_config.init_period, result_name]
+                    res[result_name] = df.iloc[-1][result_name] - df.loc[simulation.INIT_PERIOD, result_name]
                 else:
                     res[result_name] = df.iloc[-1][result_name]
             results_last_points.append(res)
@@ -158,10 +161,11 @@ if __name__ == '__main__':
     HYBRID_ASSUMPTIONS = HybridSystemAssumptions(method="costs")
     KWARGS = dict(
         hybrid_assumptions=HYBRID_ASSUMPTIONS,
+        n_cpu=1
     )
-    run_simulations(model_name="Hybrid", case_name="HybridPVBat", grid_case="altbau", **KWARGS)
+    #run_simulations(model_name="Hybrid", case_name="HybridPVBat", grid_case="altbau", **KWARGS)
     run_simulations(model_name="Hybrid", case_name="HybridPVBat", grid_case="neubau", **KWARGS)
-    run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", **KWARGS)
-    run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", **KWARGS)
-    run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", without_heating_rod=True, **KWARGS)
-    run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", without_heating_rod=True, **KWARGS)
+    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", **KWARGS)
+    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", **KWARGS)
+    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", without_heating_rod=True, **KWARGS)
+    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", without_heating_rod=True, **KWARGS)

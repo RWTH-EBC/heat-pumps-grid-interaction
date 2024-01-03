@@ -16,35 +16,33 @@ from pandapower.timeseries.data_sources.frame_data import DFData
 
 def run_lastfluss_simulation(
         trafo_kva: list,
-        input_file: pathlib.Path,
+        input_path: pathlib.Path,
         cos_phi: float = 0.95,
         save_path: pathlib.Path = None,
-        n_cpu: int = 1
+        n_cpu: int = 1,
+        sheet_name: str = "lastfluss"
 ):
     if save_path is None:
-        save_path = input_file.parent.joinpath(input_file.stem)
-    # read from overview Excel sheet and extract all relevant data, in particular the location of the time series CSV files
-    workbook = openpyxl.load_workbook(input_file)
-    worksheets = workbook.sheetnames
+        save_path = input_path
+    files = [input_path.joinpath(file) for file in os.listdir(input_path) if file.endswith(".xlsx")]
     simulations_to_run = []
     for kva in trafo_kva:
-        for sheet in worksheets:
-            if str(sheet) == "Netzplan":
-                continue
+        for file in files:
+            case = file.stem
             if cos_phi != 0.95:
-                save_path_case = save_path.joinpath(f"3-ph-{(int(cos_phi*100))}", f"{sheet}_{int(kva)}")
+                save_path_case = save_path.joinpath(f"3-ph-{(int(cos_phi*100))}", f"{case}_{int(kva)}")
             else:
-                save_path_case = save_path.joinpath("3-ph", f"{sheet}_{int(kva)}")
+                save_path_case = save_path.joinpath("3-ph", f"{case}_{int(kva)}")
             if save_path_case.exists():
                 print(f"Won't run sheet {save_path_case.name}, folder already exists.")
                 continue
             if save_path_case.name.startswith("Mon_"):  # TODO: Revert
                 print("Skipping Simulation of monovalent cases for GEG-update:", save_path_case)
                 continue
-
-            ws = workbook[str(sheet)]
+            workbook = openpyxl.load_workbook(file)
+            ws = workbook[sheet_name]
             simulations_to_run.append(dict(
-                worksheet=ws, kva=kva, sheet=sheet, cos_phi=cos_phi,
+                worksheet=ws, kva=kva, case=case, cos_phi=cos_phi,
                 save_path=save_path_case,
                 with_plot=False
             ))
@@ -63,11 +61,11 @@ def run_single_worksheet(
 ):
     worksheet = simulation_to_run["worksheet"]
     kva = simulation_to_run["kva"]
-    sheet = simulation_to_run["sheet"]
+    case = simulation_to_run["case"]
     cos_phi = simulation_to_run["cos_phi"]
     save_path = simulation_to_run["save_path"]
     with_plot = simulation_to_run["with_plot"]
-    print("Conducting the load flow simulation for scenario " + str(sheet) + " with trafo size " +
+    print("Conducting the load flow simulation for scenario " + str(case) + " with trafo size " +
           str(int(kva)) + "kVA.")
 
     connection_points = np.empty(len(worksheet["A"]) - 1, dtype=object)
@@ -124,23 +122,6 @@ def run_single_worksheet(
         ev_q_demand_timeseries[i]["power"] = \
             np.sqrt((ev_q_demand_timeseries[i]["power"] / cos_phi) ** 2 -
                     ev_q_demand_timeseries[i]["power"] ** 2)
-
-    """
-    print(elec_p_demand_timeseries)
-    summed_energy_elec = 0.0
-    for element in sum(elec_p_demand_timeseries)["power"]:
-        summed_energy_elec += float(element)*0.25
-    summed_energy_hp = 0.0
-    for element in sum(hp_p_demand_timeseries)["power"]:
-        summed_energy_hp += float(element)*0.25
-    summed_energy_ev = 0.0
-    for element in sum(ev_p_demand_timeseries)["power"]:
-        summed_energy_ev += float(element) * 0.25
-    print(summed_energy_elec)
-    print(summed_energy_hp)
-    print(summed_energy_ev)
-    exit(0)
-    """
 
     # load a pandapower network
     net = nw.create_kerber_vorstadtnetz_kabel_1()
@@ -205,10 +186,10 @@ def run_single_worksheet(
 
 
 if __name__ == '__main__':
+    from hps_grid_interaction import RESULTS_GRID_FOLDER
     run_lastfluss_simulation(
         trafo_kva=[400, 630.0, 1000, 2000],
-        input_file=pathlib.Path(
-            r"D:\01_Projekte\09_HybridWP\01_Results\03_lastfluss\LastflussSimulationenGEGBiv.xlsx"),
+        input_file=RESULTS_GRID_FOLDER.joinpath("LastflussSimulationenGEGBiv.xlsx"),
         n_cpu=2,
         cos_phi=0.95
     )

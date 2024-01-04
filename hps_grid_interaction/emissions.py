@@ -14,7 +14,7 @@ from ebcpy import TimeSeriesData
 from hps_grid_interaction.bes_simulation import weather
 from hps_grid_interaction.plotting.config import PlotConfig
 
-from utils import HybridSystemAssumptions
+from hps_grid_interaction.utils import HybridSystemAssumptions
 
 
 COLUMNS_EMISSIONS = [
@@ -29,7 +29,7 @@ COLUMNS_EMISSIONS = [
 
 
 def load_data(interpolate: bool = False):
-    df = pd.read_excel(Path(__file__).parent.joinpath("data", "Results_price_emissions_updated.xlsx"),
+    df = pd.read_excel(Path(__file__).parents[1].joinpath("data", "Results_price_emissions_updated.xlsx"),
                        sheet_name="All",
                        index_col=0,
                        header=[0, 1, 2])
@@ -59,15 +59,12 @@ def calc_all_emissions():
         **{str(year): HybridSystemAssumptions(method="costs", emissions_electricity=str(year))
            for year in [2025, 2030, 2037]}
     }
-    calc_emissions("HybridGEGBiv_altbau", hybrid_assumptions, file_ending=".hdf")
-    calc_emissions("HybridGEGBiv_neubau", hybrid_assumptions, file_ending=".hdf")
-    # calc_emissions("Monovalent_altbau_HR", hybrid_assumptions, file_ending=".hdf")
-    # calc_emissions("Monovalent_altbau", hybrid_assumptions, file_ending=".hdf")
-    # calc_emissions("Hybrid_altbau", hybrid_assumptions, file_ending=".hdf")
-    # calc_emissions("Hybrid_COP3_neubau", hybrid_assumptions, file_ending=".mat")
-    # calc_emissions("Hybrid_COP2_neubau", hybrid_assumptions, file_ending=".hdf")
-    # calc_emissions("Monovalent_neubau", hybrid_assumptions, file_ending=".mat")
-    # calc_emissions("Hybrid_neubau", hybrid_assumptions, file_ending=".mat")
+    calc_emissions("HybridPVBat_altbau", hybrid_assumptions, file_ending=".hdf")
+    calc_emissions("HybridPVBat_neubau", hybrid_assumptions, file_ending=".hdf")
+    calc_emissions("MonovalentPVBat_altbau_HR", hybrid_assumptions, file_ending=".hdf")
+    calc_emissions("MonovalentPVBat_altbau", hybrid_assumptions, file_ending=".hdf")
+    calc_emissions("MonovalentPVBat_neubau_HR", hybrid_assumptions, file_ending=".hdf")
+    calc_emissions("MonovalentPVBat_neubau", hybrid_assumptions, file_ending=".hdf")
 
 
 def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumptions], file_ending=".hdf"):
@@ -309,9 +306,9 @@ def aggregate_and_save_all_cases(
 if __name__ == '__main__':
     from hps_grid_interaction import RESULTS_GRID_FOLDER, RESULTS_BES_FOLDER
     PlotConfig.load_default()  # Trigger rc_params
-    #calc_all_emissions()
-    aggregate_and_save_all_cases(
-        lastfluss_xlsx=RESULTS_GRID_FOLDER.joinpath("LastflussSimulationenGEGBiv-RONT", "3-ph", "analysis.xlsx"),
-        emissions_json=RESULTS_BES_FOLDER.joinpath("results_to_plot.json"),
-        skip_emissions=True
-    )
+    calc_all_emissions()
+    # aggregate_and_save_all_cases(
+    #     lastfluss_xlsx=RESULTS_GRID_FOLDER.joinpath("LastflussSimulationenGEGBiv-RONT", "3-ph", "analysis.xlsx"),
+    #     emissions_json=RESULTS_BES_FOLDER.joinpath("results_to_plot.json"),
+    #     skip_emissions=True
+    # )

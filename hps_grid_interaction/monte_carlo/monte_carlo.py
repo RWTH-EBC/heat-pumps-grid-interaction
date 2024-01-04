@@ -26,11 +26,11 @@ class Quotas:
     def __init__(
             self,
             construction_type_quota: str,
-            heat_pump_quota: int,
-            hybrid_quota: int,
-            pv_quota: int,
-            pv_battery_quota: int,
-            e_mobility_quota: int,
+            heat_pump_quota: int = 100,
+            hybrid_quota: int = 0,
+            pv_quota: int = 100,
+            pv_battery_quota: int = 100,
+            e_mobility_quota: int = 0,
             n_monte_carlo: int = 1000
     ):
         self.construction_type_quotas = get_construction_type_quotas(assumption=construction_type_quota)
@@ -301,14 +301,14 @@ def run_save_and_plot_monte_carlo(
 def run_all_cases(load: bool, extra_case_name_hybrid: str = ""):
     quota_cases = {
         "average": Quotas(construction_type_quota="average"),
-        "all_retrofit": Quotas(construction_type_quota="all_retrofit"),
-        "all_adv_retrofit": Quotas(construction_type_quota="all_adv_retrofit"),
-        "no_retrofit": Quotas(construction_type_quota="no_retrofit")
+        #"all_retrofit": Quotas(construction_type_quota="all_retrofit"),
+        #"all_adv_retrofit": Quotas(construction_type_quota="all_adv_retrofit"),
+        #"no_retrofit": Quotas(construction_type_quota="no_retrofit")
     }
 
     res = {}
-    for grid_case in ["altbau", "neubau"]:
-        for with_hr in [True, False]:
+    for grid_case in ["altbau"]:#, "neubau"]:
+        for with_hr in [True]:#, False]:
             res = run_save_and_plot_monte_carlo(
                 quota_cases=quota_cases,
                 grid_case=grid_case,
@@ -324,4 +324,4 @@ def run_all_cases(load: bool, extra_case_name_hybrid: str = ""):
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    PATH = run_all_cases(load=True, extra_case_name_hybrid="GEGBiv")
+    PATH = run_all_cases(load=True, extra_case_name_hybrid="PVBat")

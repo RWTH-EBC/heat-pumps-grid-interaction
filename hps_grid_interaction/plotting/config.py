@@ -104,7 +104,7 @@ class PlotConfig(BaseModel):
     @classmethod
     def load_default(cls):
         return cls.parse_json_file(pathlib.Path(__file__).parents[2].joinpath(
-            "data", "default_configs", "plotting.json")
+            "plots", "hybrid_plot_config.json")
         )
 
 

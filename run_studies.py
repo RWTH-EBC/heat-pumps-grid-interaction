@@ -12,6 +12,7 @@ from hps_grid_interaction import utils
 from hps_grid_interaction.bes_simulation import simulation
 from hps_grid_interaction.bes_simulation.inputs import InputsConfig
 from hps_grid_interaction import RESULTS_BES_FOLDER
+from hps_grid_interaction.emissions import calc_emissions
 logger = logging.getLogger(__name__)
 
 
@@ -152,13 +153,18 @@ def run_simulations(
         pd.DataFrame(results_last_points).to_excel(study_path.joinpath("Results.xlsx"))
         if failed_data:
             pd.DataFrame(failed_data).to_excel(study_path.joinpath("failed_simulations.xlsx"))
-        return_error = False
     except KeyError as err:
         logging.error(err)
-        return_error = True
     finally:
         sim_api.close()
-    return return_error
+
+    # Calc emissions
+    hybrid_assumptions = {
+        "constant": HybridSystemAssumptions(method="costs"),
+        **{str(year): HybridSystemAssumptions(method="costs", emissions_electricity=str(year))
+           for year in [2025, 2030, 2037]}
+    }
+    calc_emissions(case_name, hybrid_assumptions, file_ending=".hdf")
 
 
 if __name__ == '__main__':

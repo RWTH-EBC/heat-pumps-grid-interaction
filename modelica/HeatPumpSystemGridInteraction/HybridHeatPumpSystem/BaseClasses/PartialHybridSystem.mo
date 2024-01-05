@@ -25,7 +25,8 @@ partial model PartialHybridSystem "Partial bivalent heat pump system"
           batteryParameters),
       redeclare BESMod.Systems.Electrical.Transfer.NoElectricalTransfer transfer,
       redeclare BESMod.Systems.Electrical.Control.NoControl control),
-    redeclare HybridHeatPumpSystem.BaseClasses.CustomTEASERThermalZone building,
+    redeclare HybridHeatPumpSystem.BaseClasses.CustomTEASERThermalZone building(
+        thermalZone(internalGainsMode=2)),
     redeclare BESMod.Systems.Control.NoControl control,
     redeclare BESMod.Systems.Hydraulical.HydraulicSystem hydraulic(redeclare
         HybridHeatPumpSystem.BaseClasses.HeatPumpAndHeatingRod generation(

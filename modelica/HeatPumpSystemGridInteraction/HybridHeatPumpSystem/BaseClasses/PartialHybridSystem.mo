@@ -11,7 +11,6 @@ partial model PartialHybridSystem "Partial bivalent heat pump system"
         tilAllMod=0.5235987755983,
         redeclare model CellTemperature =
             AixLib.Electrical.PVSystem.BaseClasses.CellTemperatureMountingContactToGround,
-
         redeclare AixLib.DataBase.SolarElectric.QPlusBFRG41285 pVParameters,
         lat=weaDat.lat,
         lon=weaDat.lon,
@@ -67,7 +66,7 @@ partial model PartialHybridSystem "Partial bivalent heat pump system"
   parameter BESMod.Systems.Hydraulical.Generation.Types.GenerationDesign
     genDesTyp=BESMod.Systems.Hydraulical.Generation.Types.GenerationDesign.BivalentPartParallel
     "Type of generation system design";
-  parameter Boolean use_eMob=true "= true to activate e mobility";
+  parameter Boolean use_eMob=false "= true to activate e mobility";
   parameter String fileNameEMob=Modelica.Utilities.Files.loadResource(
       "modelica://HeatPumpSystemGridInteraction/HybridHeatPumpSystem/CustomInputs.txt")
     "File where data for e mobility is stored";

@@ -2,10 +2,12 @@ import pathlib
 import json
 from typing import Dict
 
+import matplotlib
 import matplotlib.pyplot as plt
 from pydantic import BaseModel
 from cycler import cycler
 from ebcpy import TimeSeriesData
+matplotlib.use("TkAgg")
 
 
 class EBCColors:

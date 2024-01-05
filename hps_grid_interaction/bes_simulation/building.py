@@ -128,7 +128,7 @@ class BuildingConfig(BaseModel):
 
         TNonRetrofit_nominal, _, _ = self.get_nominal_supply_temperature(self.year_of_construction)
 
-        if TNonRetrofit_nominal == 35:
+        if TNonRetrofit_nominal == 273.15 + 35:
             transfer_system_type = \
                 "BESMod.Systems.Hydraulical.Transfer.UFHTransferSystem transfer(" \
                 "    nHeaTra=1.3, " \

@@ -48,11 +48,11 @@ model CustomInputs "Custom inputs for project"
         rotation=180,
         origin={-10,-10})));
   Modelica.Blocks.Sources.Pulse nigSetBakTSetZone[nZones](
-    amplitude=2,
-    width=100*(houNigStart - houNigEnd)/24,
-    period=3600*24,
+    each amplitude=2,
+    each width=100*(houNigStart - houNigEnd)/24,
+    each period=3600*24,
     offset=TSetZone_nominal .- dTNigSetBac,
-    startTime=3600*houNigEnd) if use_nigSetBac "Constant room set temperature"
+    each startTime=3600*houNigEnd) if use_nigSetBac "Constant room set temperature"
     annotation (Placement(transformation(
         extent={{10,10},{-10,-10}},
         rotation=180,

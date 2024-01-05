@@ -21,7 +21,7 @@ def run_simulations(
         grid_case: str,
         hybrid_assumptions: HybridSystemAssumptions,
         with_heating_rod: bool = False,
-        with_e_mobility: bool = True,
+        with_e_mobility: bool = False,
         extract_only: bool = False,
         case_name: str = None,
         n_cpu: int = 8
@@ -48,7 +48,7 @@ def run_simulations(
     weather_config = weather.WeatherConfig()
     study_path = base_path.joinpath(case_name)
 
-    sim_config = simulation.get_simulation_config(model_name=model_name, with_heating_rod=with_heating_rod)
+    sim_config = simulation.get_simulation_config(model=model, with_heating_rod=with_heating_rod)
 
     inputs_config = InputsConfig(
         weather=weather_config,
@@ -113,10 +113,18 @@ def run_simulations(
             result_name = Path(result).name
             new_path = study_path.joinpath("SimulationResults", result_name)
             shutil.move(result, new_path)
+            elec_results = [
+                "outputs.hydraulic.gen.PEleHeaPum.value",
+                "outputs.hydraulic.gen.PEleHeaRod.value",
+                "electrical.generation.internalElectricalPin.PElecGen",
+                "building.internalElectricalPin.PElecLoa",
+                "electricalGrid.PElecLoa",
+                "electricalGrid.PElecGen",
+            ]
 
             result = utils.extract_tsd_results(
                 path=Path(new_path),
-                result_names=sim_api.result_names,
+                result_names=sim_api.result_names + elec_results,
                 convert_to_hdf_and_delete_mat=True
             )
             utils.plot_result(
@@ -132,7 +140,7 @@ def run_simulations(
                 break
             utils.extract_electricity_and_save(
                 tsd=result, path=study_path, result_name=result_name,
-                with_e_mobility=with_e_mobility, with_heating_rod=with_heating_rod
+                with_heating_rod=with_heating_rod
             )
             df = result.to_df()
 
@@ -172,11 +180,12 @@ if __name__ == '__main__':
     HYBRID_ASSUMPTIONS = HybridSystemAssumptions(method="costs")
     KWARGS = dict(
         hybrid_assumptions=HYBRID_ASSUMPTIONS,
-        n_cpu=1
+        n_cpu=1,
+        extract_only=True
     )
-    #run_simulations(model_name="Hybrid", case_name="HybridPVBat", grid_case="altbau", **KWARGS)
-    run_simulations(model_name="Hybrid", case_name="HybridPVBat", grid_case="neubau", **KWARGS)
-    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", **KWARGS)
-    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", **KWARGS)
-    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", with_heating_rod=True, **KWARGS)
-    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", with_heating_rod=True, **KWARGS)
+    run_simulations(model="Hybrid", case_name="HybridPVBat", grid_case="altbau", **KWARGS)
+    #run_simulations(model="Hybrid", case_name="HybridPVBat", grid_case="neubau", **KWARGS)
+    #run_simulations(model="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", **KWARGS)
+    #run_simulations(model="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", **KWARGS)
+    run_simulations(model="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", with_heating_rod=True, **KWARGS)
+    #run_simulations(model="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", with_heating_rod=True, **KWARGS)

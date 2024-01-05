@@ -15,7 +15,7 @@ W_to_Wh = TIME_STEP / 3600
 
 
 class SimulationConfig(BaseModel):
-    model_name: str
+    model: str
     sim_setup: dict
     packages: List[FilePath] = []
     result_names: list = []
@@ -38,7 +38,7 @@ def generate_modelica_package(save_path: Path, modifiers: list):
     return explicit_model_names, new_path
 
 
-def get_simulation_config(model_name, with_heating_rod):
+def get_simulation_config(model, with_heating_rod):
     import json
     mo_path = Path(__file__).parents[2].joinpath("modelica", "HeatPumpSystemGridInteraction", "package.mo")
     with open("plots/hybrid_plot_config.json", "r") as file:
@@ -60,7 +60,7 @@ def get_simulation_config(model_name, with_heating_rod):
         "$\dot{Q}_\mathrm{Bui}$ in kW": "outputs.building.QTraGain[1].value",
         "$P_\mathrm{el,HeaPum}$": "outputs.hydraulic.gen.PEleHeaPum.value",
     }
-    if model_name == "Hybrid":
+    if model == "Hybrid":
         y_variables.update({
             "$y_\mathrm{Boi}$ in %": "hydraulic.distribution.sigBusDistr.yBoi",
             "$T_\mathrm{BoiOut}$ in °C": "hydraulic.distribution.sigBusDistr.TBoiOut",
@@ -76,7 +76,7 @@ def get_simulation_config(model_name, with_heating_rod):
     )
 
     return SimulationConfig(
-        model_name=f"HeatPumpSystemGridInteraction.HybridHeatPumpSystem.{model_name}",
+        model=f"HeatPumpSystemGridInteraction.HybridHeatPumpSystem.{model}",
         sim_setup=dict(stop_time=86400 * 365, output_interval=TIME_STEP),
         result_names=[],
         packages=[mo_path],
@@ -96,7 +96,7 @@ def start_dymola(
     packages = config.packages + additional_packages
     dym_api = DymolaAPI(
         cd=cd,
-        model_name=config.model_name,
+        model_name=config.model,
         mos_script_pre=BESMOD_PATH,
         packages=list(set(packages)),
         n_cpu=n_cpu,
@@ -104,7 +104,7 @@ def start_dymola(
         debug=False,
         modify_structural_parameters=False
     )
-    dym_api.model_name = config.model_name
+    dym_api.model_name = config.model
     dym_api.set_sim_setup(config.sim_setup)
     dym_api.sim_setup.stop_time += INIT_PERIOD
     from hps_grid_interaction.plotting.important_variables import get_names_of_plot_variables

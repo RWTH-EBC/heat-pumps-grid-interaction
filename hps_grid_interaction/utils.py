@@ -14,7 +14,7 @@ from pathlib import Path
 
 from hps_grid_interaction.bes_simulation.building import BuildingConfig
 from hps_grid_interaction.plotting.important_variables import plot_important_variables
-from hps_grid_interaction import PROJECT_FOLDER, KERBER_NETZ_XLSX
+from hps_grid_interaction import PROJECT_FOLDER, KERBER_NETZ_XLSX, E_MOBILITY_DATA, HOUSEHOLD_DATA
 from hps_grid_interaction.bes_simulation.simulation import TIME_STEP
 
 logger = logging.getLogger(__name__)
@@ -174,7 +174,7 @@ def load_buildings_and_gains(sheet_name: str, hybrid_assumptions: HybridSystemAs
     for idx, row in df.iterrows():
         building_data = row.to_dict()
         tsd = create_input_for_gains(
-            csv_path=PROJECT_FOLDER.joinpath("Zeitreihen", f"elec_{idx}.csv"),
+            csv_path=HOUSEHOLD_DATA.joinpath(f"elec_{idx}.csv"),
             hybrid_assumptions=hybrid_assumptions
         )
         file_path = study_path.joinpath("custom_inputs", f"house_elec_{idx}.txt")
@@ -196,7 +196,7 @@ def load_buildings_and_gains(sheet_name: str, hybrid_assumptions: HybridSystemAs
         if with_e_mobility:
             file_path = study_path.joinpath("custom_inputs", f"house_elec_{idx}.txt")
             tsd = TimeSeriesData(
-                PROJECT_FOLDER.joinpath("Zeitreihen", f"ev_{idx}.csv"),
+                E_MOBILITY_DATA.joinpath(f"ev_{idx}.csv"),
                 sep=","
             )
             tsd.to_float_index()
@@ -267,7 +267,7 @@ def load_buildings_and_gains(sheet_name: str, hybrid_assumptions: HybridSystemAs
     return building_configs, user_modifiers, dhw_profiles
 
 
-def extract_electricity_and_save(tsd, path, result_name, with_heating_rod: bool, with_e_mobility: bool):
+def extract_electricity_and_save(tsd, path, result_name, with_heating_rod: bool):
     from hps_grid_interaction.bes_simulation.simulation import INIT_PERIOD
 
     P_heat_pump = "outputs.hydraulic.gen.PEleHeaPum.value"
@@ -276,10 +276,9 @@ def extract_electricity_and_save(tsd, path, result_name, with_heating_rod: bool,
     P_household = "building.internalElectricalPin.PElecLoa"
     P_grid_loa = "electricalGrid.PElecLoa"
     P_grid_gen = "electricalGrid.PElecGen"
-    P_e_mobility = "electrical.generation.internalElectricalPin.PElecLoa"
 
     df = tsd.to_df().loc[INIT_PERIOD:] / 1000  # All W to kW, other units will not be selected anyways
-    df -= df.index[0]
+    df.index -= df.index[0]
     if len(df.index) != int(365 * 86400 / TIME_STEP + 1):
         logging.error("Not 15 min sampled data: %s", result_name)
 
@@ -288,19 +287,12 @@ def extract_electricity_and_save(tsd, path, result_name, with_heating_rod: bool,
     else:
         df_heat_supply = df.loc[:, P_heat_pump]
 
-    if with_e_mobility:
-        df_e_mobility = df.loc[:, P_e_mobility]
-        df_to_csv = pd.DataFrame({
-            "household+e_mobility": df.loc[:, P_household] + df_heat_supply + df_e_mobility,
-            "household+pv+e_mobility": df.loc[:, P_household] + df_heat_supply + df_e_mobility - df.loc[:, P_PV],
-            "household+pv+battery+e_mobility": - df.loc[:, P_grid_loa] - df.loc[:, P_grid_gen]
-        })
-    else:
-        df_to_csv = pd.DataFrame({
-            "household": df.loc[:, P_household] + df_heat_supply,
-            "household+pv": df.loc[:, P_household] + df_heat_supply - df.loc[:, P_PV],
-            "household+pv+battery": - df.loc[:, P_grid_loa] - df.loc[:, P_grid_gen],
-        })
+    df_to_csv = pd.DataFrame({
+        "heat_supply": df_heat_supply,
+        "household": df.loc[:, P_household] + df_heat_supply,
+        "household+pv": df.loc[:, P_household] + df_heat_supply - df.loc[:, P_PV],
+        "household+pv+battery": - df.loc[:, P_grid_loa] - df.loc[:, P_grid_gen],
+    })
 
     os.makedirs(path.joinpath("csv_files"), exist_ok=True)
     df_to_csv.to_csv(path.joinpath("csv_files", result_name.replace(".mat", "_grid_simulation.csv")))

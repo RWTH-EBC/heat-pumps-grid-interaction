@@ -1,4 +1,5 @@
 import json
+import logging
 import pathlib
 from pathlib import Path
 
@@ -9,6 +10,8 @@ from ebcpy import TimeSeriesData
 
 from hps_grid_interaction.utils import load_outdoor_air_temperature
 from hps_grid_interaction.emissions import COLUMNS_EMISSIONS, get_emission_options
+
+logger = logging.getLogger(__name__)
 
 
 def plot_time_series(data, quota_case, metric, save_path, arg):
@@ -71,14 +74,17 @@ def plot_single_draw_max(hybrid_grid, monovalent_grid):
     plt.savefig("plots/Max_results.png")
 
 
-def plot_monte_carlo_violin(data: dict, metric: str, save_path: Path):
+def plot_monte_carlo_violin(data: dict, metric: str, save_path: Path, quota_cases: dict):
+    n_subplots = len(quota_cases)
+    if n_subplots > 5:
+        logger.error("Won't plot violins, too many quota_cases: %s", n_subplots)
     y_label, factor = get_label_and_factor(metric)
     max_data = data[metric]
     # Violins
     plt.figure()
     for point, values in max_data.items():
-        fig, ax = plt.subplots(1, 2)
-        for _ax, label in zip(ax, ["Hybrid", "Monovalent"]):
+        fig, ax = plt.subplots(1, n_subplots)
+        for _ax, label in zip(ax, quota_cases.keys()):
             data = values[label]
             violin_settings = dict(points=100, showextrema=True)
             _ax.violinplot(np.array(data) * factor, **violin_settings)
@@ -99,27 +105,35 @@ def get_label_and_factor(metric):
     raise ValueError
 
 
-def plot_monte_carlo_bars(data: dict, metric: str, save_path: Path):
-    y_label, factor = get_label_and_factor(metric)
+def plot_monte_carlo_bars(data: dict, metric: str, save_path: Path, quota_cases: dict):
+    n_bars = len(quota_cases)
+    if n_bars > 5:
+        logger.error("Won't plot monte carlo bars, too many different quota_cases: %s", n_bars)
+        return
     max_data = data[metric]
+    y_label, factor = get_label_and_factor(metric)
     # Violins
     plt.figure()
-    mean_hyb = []
-    mean_mon = []
-    std_hyb = []
-    std_mon = []
+    plot_data = {quota_case: {"mean": [], "std": []} for quota_case in quota_cases}
     for point, data in max_data.items():
-        mean_hyb.append(np.mean(data["Hybrid"]) * factor)
-        std_hyb.append(np.std(data["Hybrid"]) * factor)
-        mean_mon.append(np.mean(data["Monovalent"]) * factor)
-        std_mon.append(np.std(data["Monovalent"]) * factor)
-        print(point, (1 - mean_hyb[-1] / mean_mon[-1]) * 100)
+        for quota_case in quota_cases:
+            plot_data[quota_case]["mean"].append(np.mean(data[quota_case]) * factor)
+            plot_data[quota_case]["std"].append(np.std(data[quota_case]) * factor)
     fig, ax = plt.subplots()
     points = list(max_data.keys())
+    from hps_grid_interaction.plotting.config import EBCColors
+
     x_pos = np.arange(len(points))
-    bar_args = dict(align='center', ecolor='black', width=0.4)
-    ax.bar(x_pos - 0.2, mean_hyb, yerr=std_hyb, color="blue", **bar_args, label="Hybrid")
-    ax.bar(x_pos + 0.2, mean_mon, yerr=std_mon, color="red", **bar_args, label="Monovalent")
+    bar_width = 0.8 / n_bars
+    bar_args = dict(align='center', ecolor='black', width=bar_width)
+    for idx, quota_case in enumerate(quota_cases.keys()):
+        ax.bar(
+            x_pos - 0.4 + (1 / 2 + idx) * bar_width, plot_data[quota_case]["mean"],
+            yerr=plot_data[quota_case]["std"],
+            color=EBCColors.ebc_palette_sort_2[idx],
+            label=quota_case,
+            **bar_args,
+        )
     ax.set_ylabel(y_label)
     ax.set_xticks(x_pos)
     ax.legend()

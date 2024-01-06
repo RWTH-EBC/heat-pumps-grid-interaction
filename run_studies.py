@@ -48,7 +48,7 @@ def run_simulations(
     weather_config = weather.WeatherConfig()
     study_path = base_path.joinpath(case_name)
 
-    sim_config = simulation.get_simulation_config(model=model, with_heating_rod=with_heating_rod)
+    sim_config = simulation.get_simulation_config(model=model_name, with_heating_rod=with_heating_rod)
 
     inputs_config = InputsConfig(
         weather=weather_config,
@@ -183,9 +183,9 @@ if __name__ == '__main__':
         n_cpu=1,
         extract_only=True
     )
-    run_simulations(model="Hybrid", case_name="HybridPVBat", grid_case="altbau", **KWARGS)
-    #run_simulations(model="Hybrid", case_name="HybridPVBat", grid_case="neubau", **KWARGS)
-    #run_simulations(model="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", **KWARGS)
-    #run_simulations(model="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", **KWARGS)
-    run_simulations(model="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", with_heating_rod=True, **KWARGS)
-    #run_simulations(model="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", with_heating_rod=True, **KWARGS)
+    run_simulations(model_name="Hybrid", case_name="HybridPVBat", grid_case="altbau", **KWARGS)
+    #run_simulations(model_name="Hybrid", case_name="HybridPVBat", grid_case="neubau", **KWARGS)
+    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", **KWARGS)
+    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", **KWARGS)
+    run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", with_heating_rod=True, **KWARGS)
+    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", with_heating_rod=True, **KWARGS)

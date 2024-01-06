@@ -13,7 +13,7 @@ from hps_grid_interaction.plotting.config import PlotConfig
 from hps_grid_interaction.utils import get_construction_type_quotas
 from hps_grid_interaction.emissions import COLUMNS_EMISSIONS
 from hps_grid_interaction.monte_carlo import plots
-from hps_grid_interaction import RESULTS_BES_FOLDER
+from hps_grid_interaction import RESULTS_BES_FOLDER, KERBER_NETZ_XLSX
 from hps_grid_interaction.bes_simulation.simulation import W_to_Wh
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class Quotas:
         self.n_monte_carlo = n_monte_carlo
 
 
-def _draw_uncertain_choice(quotas: Quotas, building_type: str, year_of_construction: int, heat_supplies: dict, house_index: int):
+def _draw_uncertain_choice(quotas: Quotas, building_type: str, year_of_construction: int):
 
     def _draw_from_dict(d: dict):
         return choices(list(d.keys()), list(d.values()), k=1)[0]
@@ -59,22 +59,22 @@ def _draw_uncertain_choice(quotas: Quotas, building_type: str, year_of_construct
     heat_supply_choice = _draw_from_dict(quotas.heat_supply_quotas)
     electricity_system_choice = _draw_from_dict(quotas.electricity_system_quotas)
 
-    df_sim, time_series_data = heat_supplies[heat_supply_choice]
-    possible_rows = df_sim.loc[house_index]
-    mask = possible_rows.loc[:, "construction_type"] == construction_type_choice
-    if not np.any(mask):
-        raise KeyError("No mask fitted, something went wrong")
-    sim_result_name = possible_rows.loc[mask, "simulation_result"].values[0]
-
-    tsd = time_series_data[sim_result_name].loc[:, electricity_system_choice]
-
-    all_choices = {
+    return {
         "heat_supply_choice": heat_supply_choice,
         "electricity_system_choice": electricity_system_choice,
         "construction_type_choice": construction_type_choice
     }
 
-    return tsd, all_choices
+
+def _get_time_series_data_for_choices(heat_supplies: dict, house_index: int, all_choices: dict):
+    df_sim, time_series_data = heat_supplies[all_choices["heat_supply_choice"]]
+    possible_rows = df_sim.loc[house_index]
+    mask = possible_rows.loc[:, "construction_type"] == all_choices["construction_type_choice"]
+    if not np.any(mask):
+        raise KeyError("No mask fitted, something went wrong")
+    sim_result_name = possible_rows.loc[mask, "simulation_result"].values[0]
+
+    return time_series_data[sim_result_name].loc[:, all_choices["electricity_system_choice"]]
 
 
 def load_function_kwargs_prior_to_monte_carlo(
@@ -144,12 +144,12 @@ def run_monte_carlo_sim(quota_cases: Dict[str, Quotas], function_kwargs: dict):
     max_data = {}
     sum_data = {}
     tsd_data = {}
-    monte_carlo_history = {quota_name: [] for quota_name in quota_cases.keys()}
+    choices_for_grid = {quota_name: [] for quota_name in quota_cases.keys()}
     i = 0
     for quota_name, quotas in quota_cases.items():
         for _ in range(quotas.n_monte_carlo):
-            grid, retrofit_distribution = run_single_grid_simulation(quotas=quotas, **function_kwargs)
-            monte_carlo_history[quota_name].append(retrofit_distribution)
+            grid, all_choices = run_single_grid_simulation(quotas=quotas, **function_kwargs)
+            choices_for_grid[quota_name].append(all_choices)
             for point, data in grid.items():
                 if point not in max_data:
                     max_data[point] = {quota_name: [data.max()]}
@@ -170,7 +170,7 @@ def run_monte_carlo_sim(quota_cases: Dict[str, Quotas], function_kwargs: dict):
         "max": max_data,
         "sum": sum_data,
         #"tsd_data": tsd_data,
-        "simulations": monte_carlo_history
+        "choices_for_grid": choices_for_grid
     }
 
     return monte_carlo_data
@@ -186,18 +186,49 @@ def run_single_grid_simulation(
     _resulting_choice_distribution = []
     for house_index, row in df_grid.iterrows():
         building_type = row["Gebäudetyp"].split(" ")[0]  # In case of MFH (..)
-        time_series_result, all_choices = _draw_uncertain_choice(
+        all_choices = _draw_uncertain_choice(
             quotas=quotas,
             building_type=building_type,
-            year_of_construction=row["Baujahr"],
+            year_of_construction=row["Baujahr"]
+        )
+        time_series_result = _get_time_series_data_for_choices(
             heat_supplies=heat_supplies,
-            house_index=house_index
+            house_index=house_index,
+            all_choices=all_choices
         )
         _resulting_choice_distribution.append(all_choices)
         grid[f"AP_{row['Anschlusspunkt'].split('-')[0]}"] += time_series_result
 
     grid["ONT"] = np.sum(list(grid.values()), axis=0)  # Build overall sum at ONT
     return grid, _resulting_choice_distribution
+
+
+def get_grid_simulation_input_for_choices(
+        heat_supplies: dict,
+        df_grid: pd.DataFrame,
+        choices_for_grid: dict
+):
+    grid_time_series_data = []
+    for house_index, row in df_grid.iterrows():
+        time_series_data = _get_time_series_data_for_choices(
+            heat_supplies=heat_supplies,
+            house_index=house_index,
+            all_choices=choices_for_grid[house_index]
+        )
+        grid_time_series_data.append(time_series_data)
+    return grid_time_series_data
+
+
+def save_grid_time_series_data_to_csv_folder(
+        grid_time_series_data: list,
+        save_path: Path
+):
+    _resulting_grid_csv_files = []
+    for idx, time_series_data in enumerate(grid_time_series_data):
+        csv_file_name = save_path.joinpath(f"{idx}.csv")
+        time_series_data.to_csv(csv_file_name, sep=",")
+        _resulting_grid_csv_files.append(csv_file_name)
+    return _resulting_grid_csv_files
 
 
 def argmean(arr):
@@ -214,24 +245,33 @@ def get_grid_simulation_case_name(quota_case: str, case_name: str):
 
 
 def plot_and_export_single_monte_carlo(
-        quota_cases: List[str],
+        quotas: Dict[str, Quotas],
         data, metric: str, save_path: Path,
-        case_name: str, grid_case: str
+        case_name: str, grid_case: str,
+        heat_supplies: dict, df_grid: pd.DataFrame
 ):
     arg_function = argmean
     export_data = {}
     emissions_data = {}
-    for quota_case in quota_cases:
+    for quota_case in quotas:
         arg = arg_function(data[metric]["ONT"][quota_case])
         # Save in excel for Lastflusssimulation:
-        to_grid_simulation = data["simulations"][quota_case][arg]
-
+        choices_for_grid = data["choices_for_grid"][quota_case][arg]
+        grid_time_series_data = get_grid_simulation_input_for_choices(
+            heat_supplies=heat_supplies,
+            df_grid=df_grid,
+            choices_for_grid=choices_for_grid,
+        )
+        csv_file_paths = save_grid_time_series_data_to_csv_folder(
+            save_path=save_path.joinpath(f"grid_simulation_{quota_case}"),
+            grid_time_series_data=grid_time_series_data
+        )
         df_lastfluss = pd.read_excel(
-            Path(__file__).parent.joinpath("Kerber_Vorstadtnetz.xlsx"),
+            KERBER_NETZ_XLSX,
             sheet_name=f"{grid_case}_lastfluss_template",
             index_col=0
         )
-        df_lastfluss["Wärmepumpenstrom-Zeitreihe"] = to_grid_simulation
+        df_lastfluss["electricity_time_series_data"] = csv_file_paths
         grid_simulation_case_name = get_grid_simulation_case_name(quota_case=quota_case, case_name=case_name)
         workbook_name = save_path.parent.joinpath(f"{grid_simulation_case_name}.xlsx")
         save_excel(df=df_lastfluss, path=workbook_name, sheet_name="lastfluss")
@@ -239,20 +279,21 @@ def plot_and_export_single_monte_carlo(
             "max": {point: data["max"][point][quota_case][arg] for point in data["max"].keys()},
             "sum": {point: data["sum"][point][quota_case][arg] for point in data["sum"].keys()}
         }
-        plots.plot_time_series(data=data, quota_case=quota_case, metric=metric, save_path=save_path)
+        if "tsd_data" in data:
+            plots.plot_time_series(data=data, quota_case=quota_case, metric=metric, save_path=save_path, arg=arg)
 
-        sim_results = data["simulations"][quota_case][arg]
         # TODO: Fix simulation results for cases
-        quota_case_mask = df_sim.loc[:, "system_type"] == tech.lower()
-        df_quota_case = df_sim.loc[quota_case_mask]
-        columns = COLUMNS_EMISSIONS + COLUMNS_GEG
-        sum_cols = {col: 0 for col in columns}
-        for sim_result in sim_results:
-            row = df_quota_case.loc[df_quota_case.loc[:, "simulation_result"] == sim_result]
-            for col in columns:
-                sum_cols[col] += row[col].values[0]
-        emissions_data[quota_case] = sum_cols
-    return {"grid": export_data, "emissions": emissions_data}
+        #quota_case_mask = df_sim.loc[:, "system_type"] == tech.lower()
+        #df_quota_case = df_sim.loc[quota_case_mask]
+        #columns = COLUMNS_EMISSIONS + COLUMNS_GEG
+        #sum_cols = {col: 0 for col in columns}
+        #for sim_result in grid_time_series_data:
+        #    row = df_quota_case.loc[df_quota_case.loc[:, "simulation_result"] == sim_result]
+        #    for col in columns:
+        #        sum_cols[col] += row[col].values[0]
+        #emissions_data[quota_case] = sum_cols
+    #return {"grid": export_data, "emissions": emissions_data}
+    return {"grid": export_data}
 
 
 def save_excel(df, path, sheet_name):
@@ -295,14 +336,14 @@ def run_save_and_plot_monte_carlo(
         logger.info(f"Simulations took {time.time() - t0} s")
 
     os.makedirs(save_path, exist_ok=True)
-    plots.plot_monte_carlo_bars(data=data, metric="max", save_path=save_path)
-    plots.plot_monte_carlo_bars(data=data, metric="sum", save_path=save_path)
-    plots.plot_monte_carlo_violin(data=data, metric="max", save_path=save_path)
-    plots.plot_monte_carlo_violin(data=data, metric="sum", save_path=save_path)
+    plots.plot_monte_carlo_bars(data=data, metric="max", save_path=save_path, quota_cases=quota_cases)
+    plots.plot_monte_carlo_bars(data=data, metric="sum", save_path=save_path, quota_cases=quota_cases)
+    plots.plot_monte_carlo_violin(data=data, metric="max", save_path=save_path, quota_cases=quota_cases)
+    plots.plot_monte_carlo_violin(data=data, metric="sum", save_path=save_path, quota_cases=quota_cases)
     export_data = plot_and_export_single_monte_carlo(
-        quota_cases=quota_cases,
         data=data, metric="max", df_sim=kwargs["df_sim"],
-        save_path=save_path, case_name=case_name, grid_case=grid_case
+        save_path=save_path, case_name=case_name, grid_case=grid_case,
+        **kwargs
     )
     all_results[case_name] = export_data
     with open(pickle_path, "wb") as file:

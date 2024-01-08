@@ -3,7 +3,6 @@ model Hybrid
   "Bivalent Heat Pump System with boiler integration after buffer tank without DHW support"
   extends HybridHeatPumpSystem.BaseClasses.PartialHybridSystem(
     genDesTyp=BESMod.Systems.Hydraulical.Generation.Types.GenerationDesign.BivalentAlternativ,
-
     use_heaRod=false,
     redeclare BESMod.Systems.Hydraulical.HydraulicSystem hydraulic(redeclare
         HeatPumpSystemGridInteraction.HybridHeatPumpSystem.BaseClasses.HybridHeatPumpSystemCOPBased
@@ -17,7 +16,6 @@ model Hybrid
         dTHysBui=5,
         dTHysDHW=5,
         meaValPriGen=BESMod.Systems.Hydraulical.Control.Components.BaseClasses.MeasuredValue.GenerationSupplyTemperature,
-
         redeclare model DHWHysteresis =
             BESMod.Systems.Hydraulical.Control.Components.BivalentOnOffControllers.AlternativeBivalent
             (T_biv=parameterStudy.TBiv),
@@ -43,12 +41,7 @@ model Hybrid
           parPIDBoi,
         redeclare
           HeatPumpSystemGridInteraction.HybridHeatPumpSystem.BaseClasses.NoCOPBasedHybridControl
-          boiInHybSys,
-        buiAndDHWCtr(redeclare
-            BESMod.Systems.Hydraulical.Control.Components.BuildingSupplyTemperatureSetpoints.SingleZonePID
-            heaCur(redeclare
-              HeatPumpSystemGridInteraction.RecordsCollection.PIRoomControlParas
-              parPID))), redeclare
+          boiInHybSys), redeclare
         BESMod.Systems.Hydraulical.Distribution.TwoStoragesBoilerWithDHW
         distribution(
         redeclare

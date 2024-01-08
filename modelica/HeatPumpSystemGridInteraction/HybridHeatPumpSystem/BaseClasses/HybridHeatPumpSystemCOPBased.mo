@@ -38,7 +38,6 @@ model HybridHeatPumpSystemCOPBased "COP based approach for hybrid HPS"
     "Check whether the boiler can turn on"
     annotation (Placement(transformation(extent={{-30,-20},{-12,0}})),
       choicesAllMatching=true);
-
   BESMod.Systems.Hydraulical.Control.Components.BaseClasses.ParallelValveController
     priOrSecDevValCtrl
     "Control the valve to switch between primary and secondary device"
@@ -46,6 +45,7 @@ model HybridHeatPumpSystemCOPBased "COP based approach for hybrid HPS"
         extent={{-10,-10},{10,10}},
         rotation=270,
         origin={-190,-30})));
+
 equation
   connect(boiInHybSys.secGenOn,boiPIDCtrl.setOn)  annotation (Line(points={{-9,-10},
           {76,-10},{76,19},{98,19}},

@@ -22,6 +22,7 @@ def run_simulations(
         hybrid_assumptions: HybridSystemAssumptions,
         with_heating_rod: bool = False,
         with_e_mobility: bool = False,
+        with_night_set_back: bool = False,
         extract_only: bool = False,
         case_name: str = None,
         n_cpu: int = 8
@@ -42,7 +43,8 @@ def run_simulations(
         sheet_name=sheet_name,
         study_path=base_path.joinpath(case_name),
         hybrid_assumptions=hybrid_assumptions,
-        with_e_mobility=with_e_mobility
+        with_e_mobility=with_e_mobility,
+        with_night_set_back=with_night_set_back
     )
 
     weather_config = weather.WeatherConfig()
@@ -180,12 +182,12 @@ if __name__ == '__main__':
     HYBRID_ASSUMPTIONS = HybridSystemAssumptions(method="costs")
     KWARGS = dict(
         hybrid_assumptions=HYBRID_ASSUMPTIONS,
-        n_cpu=1,
+        n_cpu=9,
         extract_only=True
     )
-    run_simulations(model_name="Hybrid", case_name="HybridPVBat", grid_case="altbau", **KWARGS)
+    run_simulations(model_name="Hybrid", case_name="HybridNoSetBack", grid_case="altbau", **KWARGS)
+    run_simulations(model_name="Monovalent", case_name="MonovalentNoSetBack", grid_case="altbau", with_heating_rod=True, **KWARGS)
     #run_simulations(model_name="Hybrid", case_name="HybridPVBat", grid_case="neubau", **KWARGS)
     #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", **KWARGS)
     #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", **KWARGS)
-    run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", with_heating_rod=True, **KWARGS)
     #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", with_heating_rod=True, **KWARGS)

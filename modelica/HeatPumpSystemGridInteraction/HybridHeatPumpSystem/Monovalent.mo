@@ -25,12 +25,7 @@ model Monovalent "Monovalent heat pump system"
           parPIDHeaPum,
         redeclare
           BESMod.Systems.Hydraulical.Control.RecordsCollection.DefaultSafetyControl
-          safetyControl,
-        buiAndDHWCtr(redeclare
-            BESMod.Systems.Hydraulical.Control.Components.BuildingSupplyTemperatureSetpoints.SingleZonePID
-            heaCur(redeclare
-              HeatPumpSystemGridInteraction.RecordsCollection.PIRoomControlParas
-              parPID))),
+          safetyControl),
              redeclare
         BESMod.Systems.Hydraulical.Distribution.TwoStoDetailedDirectLoading
         distribution(

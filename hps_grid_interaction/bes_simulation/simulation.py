@@ -38,6 +38,16 @@ def generate_modelica_package(save_path: Path, modifiers: list):
     return explicit_model_names, new_path
 
 
+def generate_mos_script(config: SimulationConfig, additional_packages: list, save_path_mos: Path):
+    with open(BESMOD_PATH, "r") as file:
+        lines = file.readlines()
+    for package in config.packages + additional_packages:
+        clean_path = str(package).replace("\\", "//")
+        lines.append(f'openModel("{clean_path}", changeDirectory=false);')
+    with open(save_path_mos, "w") as file:
+        file.writelines(lines)
+
+
 def get_simulation_config(model, with_heating_rod):
     import json
     mo_path = Path(__file__).parents[2].joinpath("modelica", "HeatPumpSystemGridInteraction", "package.mo")
@@ -87,7 +97,7 @@ def get_simulation_config(model, with_heating_rod):
 
 def start_dymola(
         config: SimulationConfig,
-        cd,
+        cd: Path,
         n_cpu,
         additional_packages: list = None
 ):
@@ -120,4 +130,11 @@ def start_dymola(
     result_names.extend(result_names_to_plot)
 
     dym_api.result_names = list(set(result_names))
+
+    generate_mos_script(
+        config=config,
+        additional_packages=additional_packages,
+        save_path_mos=cd.parent.joinpath("startup_debug.mos")
+    )
+
     return dym_api

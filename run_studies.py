@@ -23,6 +23,7 @@ def run_simulations(
         with_heating_rod: bool = False,
         with_e_mobility: bool = False,
         with_night_set_back: bool = False,
+        with_smart_thermostat: bool = True,
         extract_only: bool = False,
         case_name: str = None,
         n_cpu: int = 8
@@ -44,7 +45,8 @@ def run_simulations(
         study_path=base_path.joinpath(case_name),
         hybrid_assumptions=hybrid_assumptions,
         with_e_mobility=with_e_mobility,
-        with_night_set_back=with_night_set_back
+        with_night_set_back=with_night_set_back,
+        with_smart_thermostat=with_smart_thermostat
     )
 
     weather_config = weather.WeatherConfig()
@@ -64,18 +66,19 @@ def run_simulations(
         name="Buildings_" + case_name,
         buildings=inputs_config.buildings
     )
-    model_names, result_names = inputs_config.get_model_and_result_names(sim_config.model_name)
+    model_names, result_names = inputs_config.get_model_and_result_names(sim_config.model)
     explicit_model_names, new_path = simulation.generate_modelica_package(
         save_path=study_path,
         modifiers=model_names
     )
-    sim_config.model_name = explicit_model_names[0]
+    sim_config.model = explicit_model_names[0]
 
     sim_api = simulation.start_dymola(
         config=sim_config,
         cd=base_path.joinpath("00_DymolaWorkDir"),
         n_cpu=n_cpu,
         additional_packages=utils.get_additional_packages(inputs_config.buildings) + [new_path],
+        save_path_mos=study_path.joinpath("open_models.mos")
     )
 
     if extract_only:
@@ -182,8 +185,8 @@ if __name__ == '__main__':
     HYBRID_ASSUMPTIONS = HybridSystemAssumptions(method="costs")
     KWARGS = dict(
         hybrid_assumptions=HYBRID_ASSUMPTIONS,
-        n_cpu=9,
-        extract_only=True
+        n_cpu=10,
+        extract_only=False
     )
     run_simulations(model_name="Hybrid", case_name="HybridNoSetBack", grid_case="altbau", **KWARGS)
     run_simulations(model_name="Monovalent", case_name="MonovalentNoSetBack", grid_case="altbau", with_heating_rod=True, **KWARGS)

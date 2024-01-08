@@ -142,8 +142,11 @@ def create_input_for_gains(csv_path: Path, hybrid_assumptions: HybridSystemAssum
     return tsd
 
 
-def load_buildings_and_gains(sheet_name: str, hybrid_assumptions: HybridSystemAssumptions, study_path: Path,
-                             with_e_mobility: bool, with_night_set_back: bool):
+def load_buildings_and_gains(
+        sheet_name: str, hybrid_assumptions: HybridSystemAssumptions, study_path: Path,
+        with_e_mobility: bool,
+        with_night_set_back: bool,
+        with_smart_thermostat: bool):
     logger.info("Loading grid and building data")
     df = pd.read_excel(KERBER_NETZ_XLSX, sheet_name=sheet_name, index_col=0)
 
@@ -189,22 +192,24 @@ def load_buildings_and_gains(sheet_name: str, hybrid_assumptions: HybridSystemAs
         from hps_grid_interaction.bes_simulation.users import get_modifier
 
         if with_night_set_back:
-            control_modifier = "redeclare model BuildingSupplySetTemperature = " \
-                                "    BESMod.Systems.Hydraulical.Control.Components.BuildingSupplyTemperatureSetpoints.SingleZonePID" \
-                                "      (redeclare HeatPumpSystemGridInteraction.RecordsCollection.PIRoomControlParas parPID)"
             dT_set_back = df_users.loc[idx, "dT_set_back"]
 
         else:
-            control_modifier = "redeclare model BuildingSupplySetTemperature = " \
-                                "    BESMod.Systems.Hydraulical.Control.Components.BuildingSupplyTemperatureSetpoints.HeatingCurve"
             dT_set_back = 0
 
+        if with_smart_thermostat:
+            control_modifier = "redeclare model BuildingSupplySetTemperature = \n" \
+                                "    BESMod.Systems.Hydraulical.Control.Components.BuildingSupplyTemperatureSetpoints.SingleZonePID\n" \
+                                "      (redeclare HeatPumpSystemGridInteraction.RecordsCollection.PIRoomControlParas parPID)"
+        else:
+            control_modifier = "redeclare model BuildingSupplySetTemperature = \n" \
+                                "    BESMod.Systems.Hydraulical.Control.Components.BuildingSupplyTemperatureSetpoints.HeatingCurve"
         night_set_back_modifier = get_modifier(
             dT_set_back=dT_set_back, night_start=df_users.loc[idx, "night_start"]
         )
         user_modifier = f'userProfiles(fileNameAbsGai=Modelica.Utilities.Files.loadResource("{file_path}"),\n' \
-                        f'{night_set_back_modifier})\n' \
-                        f'{control_modifier}'
+                        f'{night_set_back_modifier}),\n' \
+                        f'hydraulic(control({control_modifier}))'
 
         if with_e_mobility:
             file_path = study_path.joinpath("custom_inputs", f"house_elec_{idx}.txt")

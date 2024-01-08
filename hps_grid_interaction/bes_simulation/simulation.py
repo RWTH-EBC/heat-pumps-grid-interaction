@@ -24,12 +24,12 @@ class SimulationConfig(BaseModel):
 
 
 def generate_modelica_package(save_path: Path, modifiers: list):
-    package_content = f'''package ModelsToSimulate'''
+    package_content = f'''package ModelsToSimulate\n'''
     explicit_model_names = []
     for i, modifier in enumerate(modifiers, start=1):
-        package_content += f'  model Case{i}' \
-                           f'    extends {modifier};' \
-                           f'  end Case{i};'
+        package_content += f'  model Case{i}\n' \
+                           f'    extends {modifier};\n' \
+                           f'  end Case{i};\n'
         explicit_model_names.append(f"ModelsToSimulate.Case{i}")
     package_content += 'end ModelsToSimulate;\n'
     new_path = save_path.joinpath('ModelsToSimulate.mo')
@@ -41,9 +41,10 @@ def generate_modelica_package(save_path: Path, modifiers: list):
 def generate_mos_script(config: SimulationConfig, additional_packages: list, save_path_mos: Path):
     with open(BESMOD_PATH, "r") as file:
         lines = file.readlines()
+    lines.append("\n")
     for package in config.packages + additional_packages:
         clean_path = str(package).replace("\\", "//")
-        lines.append(f'openModel("{clean_path}", changeDirectory=false);')
+        lines.append(f'openModel("{clean_path}", changeDirectory=false);\n')
     with open(save_path_mos, "w") as file:
         file.writelines(lines)
 
@@ -99,11 +100,20 @@ def start_dymola(
         config: SimulationConfig,
         cd: Path,
         n_cpu,
-        additional_packages: list = None
+        additional_packages: list = None,
+        save_path_mos: Path = None
 ):
     if additional_packages is None:
         additional_packages = []
     packages = config.packages + additional_packages
+
+    if save_path_mos is not None:
+        generate_mos_script(
+            config=config,
+            additional_packages=additional_packages,
+            save_path_mos=save_path_mos
+        )
+
     dym_api = DymolaAPI(
         cd=cd,
         model_name=config.model,
@@ -130,11 +140,5 @@ def start_dymola(
     result_names.extend(result_names_to_plot)
 
     dym_api.result_names = list(set(result_names))
-
-    generate_mos_script(
-        config=config,
-        additional_packages=additional_packages,
-        save_path_mos=cd.parent.joinpath("startup_debug.mos")
-    )
 
     return dym_api

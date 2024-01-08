@@ -130,23 +130,23 @@ class BuildingConfig(BaseModel):
 
         if TNonRetrofit_nominal == 273.15 + 35:
             transfer_system_type = \
-                "BESMod.Systems.Hydraulical.Transfer.UFHTransferSystem transfer(" \
-                "    nHeaTra=1.3, " \
-                "    redeclare BESMod.Systems.Hydraulical.Transfer.RecordsCollection.SteelRadiatorStandardPressureLossData parTra, " \
-                "    redeclare BESMod.Systems.Hydraulical.Transfer.RecordsCollection.DefaultUFHData UFHParameters, " \
+                "BESMod.Systems.Hydraulical.Transfer.UFHTransferSystem transfer(\n" \
+                "    nHeaTra=1.3,\n" \
+                "    redeclare BESMod.Systems.Hydraulical.Transfer.RecordsCollection.SteelRadiatorStandardPressureLossData parTra,\n" \
+                "    redeclare BESMod.Systems.Hydraulical.Transfer.RecordsCollection.DefaultUFHData UFHParameters,\n" \
                 "    redeclare BESMod.Systems.RecordsCollection.Movers.DefaultMover parPum)"
         else:
             transfer_system_type =\
-                "BESMod.Systems.Hydraulical.Transfer.IdealValveRadiator transfer(" \
-                "    redeclare BESMod.Systems.Hydraulical.Transfer.RecordsCollection.SteelRadiatorStandardPressureLossData parTra, " \
-                "    redeclare BESMod.Systems.Hydraulical.Transfer.RecordsCollection.RadiatorTransferData parRad, " \
+                "BESMod.Systems.Hydraulical.Transfer.IdealValveRadiator transfer(\n" \
+                "    redeclare BESMod.Systems.Hydraulical.Transfer.RecordsCollection.SteelRadiatorStandardPressureLossData parTra,\n" \
+                "    redeclare BESMod.Systems.Hydraulical.Transfer.RecordsCollection.RadiatorTransferData parRad,\n" \
                 "    redeclare BESMod.Systems.RecordsCollection.Movers.DefaultMover parPum)"
 
         if self.modify_transfer_system:
-            modifier = f"  hydraulic(redeclare {transfer_system_type}),\n"
+            modifier = f"\n  hydraulic(redeclare {transfer_system_type}),\n"
         else:
             modifier = ""
-        return f"{modifier}building(redeclare {self.record_name} oneZoneParam),\n" \
+        return f"{modifier}  building(redeclare {self.record_name} oneZoneParam),\n" \
                f"  THyd_nominal={THyd_nominal},\n" \
                f"  dTHyd_nominal={dTHyd_nominal}"
 

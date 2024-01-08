@@ -38,12 +38,11 @@ class DHWCalcConfig(BaseModel):
              if value is not None]
         )
         m_flow_nominal = pd.read_csv(self.path, skiprows=2, sep="\t").loc[:, "2_m_flow_"].max()
-        return f"DHW(tableName=\"DHWCalc\"," \
-               f"{fine_tuning_modifier}" \
-               f"    fileName=Modelica.Utilities.Files.loadResource(\"{self.path}\")," \
-               f"    VDHWDay={self.daily_volume / 1000}," \
-               f"    mDHW_flow_nominal={m_flow_nominal}" \
-               f")"""
+        return f"DHW(tableName=\"DHWCalc\",\n" \
+               f"    {fine_tuning_modifier}" \
+               f"    fileName=Modelica.Utilities.Files.loadResource(\"{self.path}\"),\n" \
+               f"    VDHWDay={self.daily_volume / 1000},\n" \
+               f"    mDHW_flow_nominal={m_flow_nominal})"
 
 
 def generate_dhw_calc_tapping(save_path_file: Path, config: DHWCalcConfig, with_plot: bool = False):

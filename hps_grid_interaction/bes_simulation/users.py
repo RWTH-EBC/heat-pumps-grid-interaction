@@ -11,10 +11,10 @@ def get_modifier(
         if dT > 0:
             return "true"
         return "false"
-    return f"use_nigSetBac={modelica_bool(dT_set_back)}, " \
-           f"houNigEnd={night_start + 8 - 24}, " \
-           f"houNigStart={night_start}, " \
-           f"dTNigSetBac={dT_set_back}"
+    return f"    use_nigSetBac={modelica_bool(dT_set_back)},\n" \
+           f"    houNigEnd={night_start + 8 - 24},\n" \
+           f"    houNigStart={night_start},\n" \
+           f"    dTNigSetBac={dT_set_back}"
 
 
 def create_user_sleep_schedules():

@@ -74,22 +74,26 @@ def plot_single_draw_max(hybrid_grid, monovalent_grid):
     plt.savefig("plots/Max_results.png")
 
 
-def plot_monte_carlo_violin(data: dict, metric: str, save_path: Path, quota_cases: dict):
+def plot_monte_carlo_violin(data: dict, save_path: Path, quota_cases: dict, points: list = None):
+    if points is None:
+        points = ["ONT"]
     n_subplots = len(quota_cases)
-    if n_subplots > 5:
+    if n_subplots > 8:
         logger.error("Won't plot violins, too many quota_cases: %s", n_subplots)
     y_label, factor = get_label_and_factor(metric)
-    max_data = data[metric]
     # Violins
     plt.figure()
-    for point, values in max_data.items():
-        fig, ax = plt.subplots(1, n_subplots)
+    for point in points:
+        values = data[point]
+        fig, ax = plt.subplots(1, n_subplots, sharey=True)
+        if n_subplots == 1:
+            ax = [ax]
         for _ax, label in zip(ax, quota_cases.keys()):
             data = values[label]
             violin_settings = dict(points=100, showextrema=True)
             _ax.violinplot(np.array(data) * factor, **violin_settings)
             _ax.set_xticks(np.arange(1, len([label]) + 1), labels=[label])
-            _ax.set_ylabel(y_label)
+        ax[0].set_ylabel(y_label)
         fig.tight_layout()
         fig.savefig(save_path.joinpath(f"monte_carlo_violin_{point}_{metric}.png"))
     plt.close("all")
@@ -105,40 +109,43 @@ def get_label_and_factor(metric):
     raise ValueError
 
 
-def plot_monte_carlo_bars(data: dict, metric: str, save_path: Path, quota_cases: dict):
-    n_bars = len(quota_cases)
+def plot_monte_carlo_bars(data: dict, metric: str, save_path: Path, quota_cases: dict, points: list = None):
+    n_bars = 1
     if n_bars > 5:
         logger.error("Won't plot monte carlo bars, too many different quota_cases: %s", n_bars)
         return
+    if points is None:
+        points = ["ONT"]
     max_data = data[metric]
     y_label, factor = get_label_and_factor(metric)
     # Violins
     plt.figure()
-    plot_data = {quota_case: {"mean": [], "std": []} for quota_case in quota_cases}
-    for point, data in max_data.items():
+    plot_data = {point: {"mean": [], "std": []} for point in points}
+    for point in points:
+        data = max_data[point]
         for quota_case in quota_cases:
-            plot_data[quota_case]["mean"].append(np.mean(data[quota_case]) * factor)
-            plot_data[quota_case]["std"].append(np.std(data[quota_case]) * factor)
-    fig, ax = plt.subplots()
-    points = list(max_data.keys())
+            plot_data[point]["mean"].append(np.mean(data[quota_case]) * factor)
+            plot_data[point]["std"].append(np.std(data[quota_case]) * factor)
+    fig, axes = plt.subplots(len(points), 1)
+    if len(points) == 1:
+        axes = [axes]
     from hps_grid_interaction.plotting.config import EBCColors
-
-    x_pos = np.arange(len(points))
+    x_pos = np.arange(len(quota_cases))
     bar_width = 0.8 / n_bars
     bar_args = dict(align='center', ecolor='black', width=bar_width)
-    for idx, quota_case in enumerate(quota_cases.keys()):
+    idx = 0
+    for ax, point in zip(axes, points):
         ax.bar(
-            x_pos - 0.4 + (1 / 2 + idx) * bar_width, plot_data[quota_case]["mean"],
-            yerr=plot_data[quota_case]["std"],
+            x_pos - 0.4 + (1 / 2 + idx) * bar_width, plot_data[point]["mean"],
+            yerr=plot_data[point]["std"],
             color=EBCColors.ebc_palette_sort_2[idx],
-            label=quota_case,
             **bar_args,
         )
-    ax.set_ylabel(y_label)
-    ax.set_xticks(x_pos)
-    ax.legend()
-    ax.set_xticklabels(points)
-    ax.yaxis.grid(True)
+        ax.set_ylabel(point + " " + y_label)
+        ax.set_xticks(x_pos)
+        #ax.legend()
+        ax.set_xticklabels(list(quota_cases.keys()), rotation=90)
+        ax.yaxis.grid(True)
 
     fig.tight_layout()
     fig.savefig(save_path.joinpath(f"monte_carlo_{metric}.png"))

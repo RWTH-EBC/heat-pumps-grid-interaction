@@ -223,6 +223,7 @@ def save_grid_time_series_data_to_csv_folder(
         grid_time_series_data: list,
         save_path: Path
 ):
+    os.makedirs(save_path, exist_ok=True)
     _resulting_grid_csv_files = []
     for idx, time_series_data in enumerate(grid_time_series_data):
         csv_file_name = save_path.joinpath(f"{idx}.csv")
@@ -245,7 +246,7 @@ def get_grid_simulation_case_name(quota_case: str, case_name: str):
 
 
 def plot_and_export_single_monte_carlo(
-        quotas: Dict[str, Quotas],
+        quota_cases: Dict[str, Quotas],
         data, metric: str, save_path: Path,
         case_name: str, grid_case: str,
         heat_supplies: dict, df_grid: pd.DataFrame
@@ -253,7 +254,7 @@ def plot_and_export_single_monte_carlo(
     arg_function = argmean
     export_data = {}
     emissions_data = {}
-    for quota_case in quotas:
+    for quota_case in quota_cases:
         arg = arg_function(data[metric]["ONT"][quota_case])
         # Save in excel for Lastflusssimulation:
         choices_for_grid = data["choices_for_grid"][quota_case][arg]
@@ -337,11 +338,12 @@ def run_save_and_plot_monte_carlo(
 
     os.makedirs(save_path, exist_ok=True)
     plots.plot_monte_carlo_bars(data=data, metric="max", save_path=save_path, quota_cases=quota_cases)
-    plots.plot_monte_carlo_bars(data=data, metric="sum", save_path=save_path, quota_cases=quota_cases)
-    plots.plot_monte_carlo_violin(data=data, metric="max", save_path=save_path, quota_cases=quota_cases)
-    plots.plot_monte_carlo_violin(data=data, metric="sum", save_path=save_path, quota_cases=quota_cases)
+    #plots.plot_monte_carlo_bars(data=data, metric="sum", save_path=save_path, quota_cases=quota_cases)
+    plots.plot_monte_carlo_violin(data=data["max"], save_path=save_path, quota_cases=quota_cases)
+    #plots.plot_monte_carlo_violin(data=data["sum"], save_path=save_path, quota_cases=quota_cases)
     export_data = plot_and_export_single_monte_carlo(
-        data=data, metric="max", df_sim=kwargs["df_sim"],
+        quota_cases=quota_cases,
+        data=data, metric="max",
         save_path=save_path, case_name=case_name, grid_case=grid_case,
         **kwargs
     )
@@ -352,12 +354,15 @@ def run_save_and_plot_monte_carlo(
 
 
 def run_all_cases(load: bool, extra_case_name_hybrid: str = ""):
-    quota_cases = {
-        "average": Quotas(construction_type_quota="average"),
-        #"all_retrofit": Quotas(construction_type_quota="all_retrofit"),
-        #"all_adv_retrofit": Quotas(construction_type_quota="all_adv_retrofit"),
-        #"no_retrofit": Quotas(construction_type_quota="no_retrofit")
-    }
+    quota_cases = {}
+    for pv_quota in [0, 20, 40, 60, 80, 100]:
+        quota_cases[f"av_pv_bat_{pv_quota}"] = Quotas(
+            construction_type_quota="average", pv_quota=pv_quota, pv_battery_quota=0
+        )
+
+    #"all_retrofit": Quotas(construction_type_quota="all_retrofit"),
+    #"all_adv_retrofit": Quotas(construction_type_quota="all_adv_retrofit"),
+    #"no_retrofit": Quotas(construction_type_quota="no_retrofit")
 
     res = {}
     for grid_case in ["altbau"]:#, "neubau"]:
@@ -377,4 +382,4 @@ def run_all_cases(load: bool, extra_case_name_hybrid: str = ""):
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    PATH = run_all_cases(load=True, extra_case_name_hybrid="PVBat")
+    PATH = run_all_cases(load=False, extra_case_name_hybrid="PVBat")

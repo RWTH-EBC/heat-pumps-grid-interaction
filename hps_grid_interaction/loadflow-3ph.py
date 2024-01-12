@@ -1,3 +1,4 @@
+import json
 import os
 import math
 import pathlib
@@ -16,18 +17,21 @@ from pandapower.timeseries.data_sources.frame_data import DFData
 
 def run_lastfluss_simulation(
         trafo_kva: list,
-        input_path: pathlib.Path,
+        all_results_path: pathlib.Path,
         cos_phi: float = 0.95,
-        save_path: pathlib.Path = None,
         n_cpu: int = 1,
         sheet_name: str = "lastfluss"
 ):
-    if save_path is None:
-        save_path = input_path
-    files = [input_path.joinpath(file) for file in os.listdir(input_path) if file.endswith(".xlsx")]
+    with open(all_results_path, "r") as file:
+        all_results = json.load(file)
+    files = []
+    save_paths = []
+    for quota_case, input_path in all_results["grid_simulation_inputs"].items():
+        files.append(pathlib.Path(input_path))
+        save_paths.append(pathlib.Path(input_path).parent)
     simulations_to_run = []
     for kva in trafo_kva:
-        for file in files:
+        for file, save_path in zip(files, save_paths):
             case = file.stem
             if cos_phi != 0.95:
                 save_path_case = save_path.joinpath(f"3-ph-{(int(cos_phi*100))}", f"{case}_{int(kva)}")
@@ -186,10 +190,18 @@ def run_single_worksheet(
 
 
 if __name__ == '__main__':
-    from hps_grid_interaction import RESULTS_GRID_FOLDER
-    run_lastfluss_simulation(
-        trafo_kva=[400, 630.0, 1000, 2000],
-        input_file=RESULTS_GRID_FOLDER.joinpath("LastflussSimulationenGEGBiv.xlsx"),
-        n_cpu=2,
-        cos_phi=0.95
-    )
+    from hps_grid_interaction import RESULTS_MONTE_CARLO_FOLDER
+    for quota_study in [
+        "av_e_mob_with_pv_bat",
+        "av_heat_pump",
+        "av_pv_bat",
+        "av_hyb",
+        "av_pv",
+        "av_hyb_with_pv_bat",
+    ]:
+        run_lastfluss_simulation(
+            trafo_kva=[400, 630.0, 1000, 2000],
+            all_results_path=RESULTS_MONTE_CARLO_FOLDER.joinpath(f"Altbau_{quota_study}", "results_to_plot.json"),
+            n_cpu=2,
+            cos_phi=0.95
+        )

@@ -243,7 +243,7 @@ def save_grid_time_series_data_to_csv_folder(
     for idx, time_series_data in enumerate(grid_time_series_data):
         csv_file_name = save_path.joinpath(f"{idx}.csv")
         time_series_data.to_csv(csv_file_name, sep=",")
-        _resulting_grid_csv_files.append(csv_file_name)
+        _resulting_grid_csv_files.append(f".\{save_path.name}\{csv_file_name.name}")
     return _resulting_grid_csv_files
 
 
@@ -270,6 +270,7 @@ def plot_and_export_single_monte_carlo(
     arg_function = argmean
     export_data = {}
     emissions_data = {}
+    quota_case_grid_simulation_inputs = {}
     quota_case_grid_data = {}
     for quota_case in quota_cases:
         arg = arg_function(data[metric]["ONT"][quota_case])
@@ -295,11 +296,11 @@ def plot_and_export_single_monte_carlo(
             grid_simulation_case_name = get_grid_simulation_case_name(quota_case=quota_case, case_name=case_name)
             workbook_name = save_path.joinpath(f"{grid_simulation_case_name}.xlsx")
             save_excel(df=df_lastfluss, path=workbook_name, sheet_name="lastfluss")
+            quota_case_grid_simulation_inputs[quota_case] = str(workbook_name)
         export_data[quota_case] = {
             "max": {point: data["max"][point][quota_case][arg] for point in data["max"].keys()},
             "sum": {point: data["sum"][point][quota_case][arg] for point in data["sum"].keys()}
         }
-
 
         # TODO: Fix simulation results for cases
         #quota_case_mask = df_sim.loc[:, "system_type"] == tech.lower()
@@ -317,7 +318,7 @@ def plot_and_export_single_monte_carlo(
         save_path=save_path
     )
 
-    return {"grid": export_data}
+    return {"grid": export_data, "grid_simulation_inputs": quota_case_grid_simulation_inputs}
 
 
 def save_excel(df, path, sheet_name):
@@ -335,14 +336,30 @@ def _get_case_name(grid_case: str, with_hr: bool):
 
 def run_save_and_plot_monte_carlo(
         quota_cases: Dict[str, Quotas],
-        grid_case: str, with_hr: bool, res: dict,
+        grid_case: str, with_hr: bool,
         save_path: Path,
         load: bool = False,
         extra_case_name: str = "",
 ):
-    all_results = res
     case_name = _get_case_name(grid_case, with_hr)
     os.makedirs(save_path, exist_ok=True)
+
+    # hybrid_path = RESULTS_BES_FOLDER.joinpath(f"Hybrid{extra_case_name}_{_get_case_name(grid_case, False)}")
+    # kwargs = load_function_kwargs_prior_to_monte_carlo(
+    #     hybrid=hybrid_path,
+    #     monovalent=RESULTS_BES_FOLDER.joinpath(f"Monovalent{extra_case_name}_{case_name}"),
+    #     grid_case=grid_case
+    # )
+    # pickle_path = save_path.joinpath(f"monte_carlo_{case_name}.pickle")
+    # if load:
+    #     with open(pickle_path, "rb") as file:
+    #         data = pickle.load(file)
+    #     logger.info("Loaded pickle data from %s", pickle_path)
+    # else:
+    #     data = run_monte_carlo_sim(quota_cases=quota_cases, function_kwargs=kwargs)
+    #     with open(pickle_path, "wb") as file:
+    #         pickle.dump(data, file)
+
     pickle_path = save_path.joinpath(f"monte_carlo_{case_name}.pickle")
     if load:
         with open(pickle_path, "rb") as file:
@@ -367,13 +384,12 @@ def run_save_and_plot_monte_carlo(
     plots.plot_monte_carlo_violin(data=data, metric="sum", save_path=save_path, quota_cases=quota_cases)
     export_data = plot_and_export_single_monte_carlo(
         quota_cases=quota_cases,
-        data=data, metric="max", plots_only=load,
+        data=data, metric="max", plots_only=False,
         save_path=save_path, case_name=case_name, grid_case=grid_case,
         **kwargs
     )
-    all_results[case_name] = export_data
 
-    return all_results
+    return export_data
 
 
 def run_all_cases(load: bool, quota_study: str, extra_case_name_hybrid: str = ""):
@@ -419,19 +435,20 @@ def run_all_cases(load: bool, quota_study: str, extra_case_name_hybrid: str = ""
     #"no_retrofit": Quotas(construction_type_quota="no_retrofit")
     save_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"Altbau_{quota_study}")
 
-    res = {}
+    all_results = {}
     for grid_case in ["altbau"]:#, "neubau"]:
         for with_hr in [True]:#, False]:
             res = run_save_and_plot_monte_carlo(
                 quota_cases=quota_cases,
                 grid_case=grid_case,
                 save_path=save_path,
-                with_hr=with_hr, res=res, load=load,
+                with_hr=with_hr, load=load,
                 extra_case_name=extra_case_name_hybrid
             )
+            all_results[grid_case] = res
     all_results_path = save_path.joinpath("results_to_plot.json")
     with open(all_results_path, "w") as file:
-        json.dump(res, file)
+        json.dump(all_results, file)
     return all_results_path
 
 

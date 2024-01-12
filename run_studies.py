@@ -183,11 +183,15 @@ if __name__ == '__main__':
     HYBRID_ASSUMPTIONS = HybridSystemAssumptions(method="costs")
     KWARGS = dict(
         hybrid_assumptions=HYBRID_ASSUMPTIONS,
-        n_cpu=10,
-        extract_only=True
+        n_cpu=9,
+        extract_only=False
     )
-    run_simulations(model_name="Hybrid", case_name="HybridNoSetBack", grid_case="altbau", **KWARGS)
+    #run_simulations(model_name="Hybrid", case_name="HybridNoSetBack", grid_case="altbau", **KWARGS)
     #run_simulations(model_name="Monovalent", case_name="MonovalentNoSetBack", grid_case="altbau", with_heating_rod=True, **KWARGS)
+    run_simulations(model_name="Monovalent", case_name="MonovalentNoSetBack", grid_case="altbau", with_heating_rod=False,**KWARGS)
+    run_simulations(model_name="Hybrid", case_name="HybridNoSetBack", grid_case="neubau", **KWARGS)
+    run_simulations(model_name="Monovalent", case_name="MonovalentNoSetBack", grid_case="neubau", with_heating_rod=True, **KWARGS)
+    run_simulations(model_name="Monovalent", case_name="MonovalentNoSetBack", grid_case="neubau", with_heating_rod=False,**KWARGS)
     #run_simulations(model_name="Hybrid", case_name="HybridPVBat", grid_case="neubau", **KWARGS)
     #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", **KWARGS)
     #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", **KWARGS)

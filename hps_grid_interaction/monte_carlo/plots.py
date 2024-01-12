@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from ebcpy import TimeSeriesData
+import seaborn as sns
 
 from hps_grid_interaction.utils import load_outdoor_air_temperature
 from hps_grid_interaction.emissions import COLUMNS_EMISSIONS, get_emission_options
@@ -14,15 +15,77 @@ from hps_grid_interaction.emissions import COLUMNS_EMISSIONS, get_emission_optio
 logger = logging.getLogger(__name__)
 
 
-def plot_time_series(data, quota_case, metric, save_path, arg):
-    plt.figure()
-    plt.suptitle(quota_case)
-    for point in data["tsd_data"].keys():
-        tsd = data["tsd_data"][point][quota_case][arg]
-        plt.plot(tsd, label=point)
-        plt.ylabel(get_label_and_factor("value")[0])
-    plt.legend(loc="upper right", ncol=2)
-    plt.savefig(save_path.joinpath(f"time_series_plot_{quota_case}_{metric}.png"))
+def _get_grid_sum(grid_tsd):
+    sum_grid = grid_tsd[0].copy().values
+    for df in grid_tsd[1:]:
+        sum_grid += df.values
+    return sum_grid
+
+
+def _get_quota_value(quota_case, in_percent):
+    if in_percent:
+        return quota_case.split("_")[-1] + " %"
+    return int(quota_case.split("_")[-1])
+
+
+def _get_quota_name_except_value(quota_case):
+    quota_case = _alter_quota_case(quota_case)
+    if "with" in quota_case:
+        first, second = quota_case.split("_with_")
+        return "-".join(first.split("_")[:-1] + second.split("_")[:-1])
+    return "-".join(quota_case.split("_")[:-2])
+
+
+def _alter_quota_case(quota_case):
+    quota_case = quota_case.replace("av_", "Average_")
+    quota_case = quota_case.replace("pv_bat_", "PV+Battery_")
+    quota_case = quota_case.replace("pv_", "PV_")
+    quota_case = quota_case.replace("hyb_", "Hybrid_")
+    quota_case = quota_case.replace("e_mob", "EMobility")
+    return quota_case
+
+
+def _get_quota_varying_name(quota_case):
+    quota_case = _alter_quota_case(quota_case)
+
+    if "with" in quota_case:
+        first, second = quota_case.split("_with_")
+        return first.split("_")[-1]
+    return quota_case.split("_")[-2]
+
+
+def plot_time_series(quota_case_grid_data: dict, save_path):
+    label = get_label_and_factor("value")[0]
+    fig, ax = plt.subplots(1, 2, sharey=True)
+    #ax = [ax]
+    t_oda = load_outdoor_air_temperature()
+    bins = np.linspace(t_oda.values[1:-1, 0].min(), t_oda.values[1:-1, 0].max(), num=30)
+    categories = pd.cut(t_oda.values[1:-1, 0], bins, labels=False)
+    for quota_case, grid_time_series_data in quota_case_grid_data.items():
+        df_sum = _get_grid_sum(grid_time_series_data)
+        min_curve = []
+        max_curve = []
+        for bin_idx in range(len(bins)):
+            bin_mask = (categories == bin_idx)
+            if np.any(bin_mask):
+                max_curve.append(df_sum[bin_mask].max())
+                min_curve.append(df_sum[bin_mask].min())
+            else:
+                max_curve.append(np.NAN)
+                min_curve.append(np.NAN)
+
+        ax[0].plot(np.arange(len(df_sum)) / 4, np.sort(df_sum)[::-1],
+                   label=_get_quota_value(quota_case, True))
+        #ax[1].plot(bins, min_curve, label=_get_quota_value(quota_case, True), linestyle="--")
+        ax[1].plot(bins, max_curve, label=_get_quota_value(quota_case, True), linestyle="-")
+    fig.suptitle(_get_quota_name_except_value(quota_case))
+    ax[0].set_ylabel(label)
+    ax[1].set_xlabel("$T_\mathrm{Oda}$ in °C")
+    ax[0].set_xlabel("Hours in year")
+    ax[1].legend(bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
+    #ax[0].legend(loc="upper right")
+    fig.tight_layout()
+    fig.savefig(save_path.joinpath(f"sorted_time_series_plot.png"))
 
 
 def plot_results_all_cases(path: Path, point: str = "ONT", metric: str = "sum"):
@@ -59,41 +122,24 @@ def plot_results_all_cases(path: Path, point: str = "ONT", metric: str = "sum"):
     fig.savefig(path.parent.joinpath(f"emissions.png"))
 
 
-def plot_single_draw_max(hybrid_grid, monovalent_grid):
-    # Maximal value
-    max_data = {}
-    for point, hybrid, monovalent in zip(hybrid_grid.keys(), hybrid_grid.values(), monovalent_grid.values()):
-        max_data[point] = {"Hybrid": hybrid.max(), "Monovalent": monovalent.max()}
-    df = pd.DataFrame(max_data).transpose()
-
-    label = "$P_\mathrm{el}$ in kW"
-    df.plot.bar()
-    plt.ylabel(label)
-    plt.xticks(rotation=0)
-    plt.tight_layout()
-    plt.savefig("plots/Max_results.png")
-
-
-def plot_monte_carlo_violin(data: dict, save_path: Path, quota_cases: dict, points: list = None):
+def plot_monte_carlo_violin(data: dict, metric: str, save_path: Path, quota_cases: dict, points: list = None):
+    data = data[metric]
     if points is None:
         points = ["ONT"]
     n_subplots = len(quota_cases)
     if n_subplots > 8:
         logger.error("Won't plot violins, too many quota_cases: %s", n_subplots)
-    y_label, factor = get_label_and_factor(metric)
-    # Violins
-    plt.figure()
+    label, factor = get_label_and_factor(metric)
     for point in points:
         values = data[point]
-        fig, ax = plt.subplots(1, n_subplots, sharey=True)
-        if n_subplots == 1:
-            ax = [ax]
-        for _ax, label in zip(ax, quota_cases.keys()):
-            data = values[label]
-            violin_settings = dict(points=100, showextrema=True)
-            _ax.violinplot(np.array(data) * factor, **violin_settings)
-            _ax.set_xticks(np.arange(1, len([label]) + 1), labels=[label])
-        ax[0].set_ylabel(y_label)
+        fig, axes = plt.subplots()
+        df = pd.DataFrame(
+            {_get_quota_value(quota_case, True): np.array(values[quota_case]) * factor for quota_case in quota_cases})
+        with sns.plotting_context(rc={"font.size": 14}):
+            sns.set(style="whitegrid")
+            sns.violinplot(data=df, ax=axes, orient='h')
+        axes.set_xlabel(label)
+        axes.set_ylabel(_get_quota_varying_name(list(quota_cases.keys())[0]))
         fig.tight_layout()
         fig.savefig(save_path.joinpath(f"monte_carlo_violin_{point}_{metric}.png"))
     plt.close("all")
@@ -143,9 +189,11 @@ def plot_monte_carlo_bars(data: dict, metric: str, save_path: Path, quota_cases:
         )
         ax.set_ylabel(point + " " + y_label)
         ax.set_xticks(x_pos)
-        #ax.legend()
-        ax.set_xticklabels(list(quota_cases.keys()), rotation=90)
+        # ax.legend()
+        ax.set_xticklabels([_get_quota_value(quota_case, True) for quota_case in quota_cases.keys()], rotation=90)
+        ax.set_xlabel(_get_quota_varying_name(list(quota_cases.keys())[0]))
         ax.yaxis.grid(True)
+    fig.suptitle(_get_quota_name_except_value(list(quota_cases.keys())[0]))
 
     fig.tight_layout()
     fig.savefig(save_path.joinpath(f"monte_carlo_{metric}.png"))
@@ -165,22 +213,6 @@ def plot_cop_motivation():
     plt.tight_layout()
     plt.savefig("plots/COP Motivation.png")
     plt.show()
-
-
-def plot_single_draw_violin(hybrid_grid, monovalent_grid):
-    label = "$P_\mathrm{el}$ in kW"
-    # Violins
-    plt.figure()
-    fig, ax = plt.subplots(2, 1, sharex=True)
-    position_labels = list(hybrid_grid.keys())
-    violin_settings = dict(points=100, showextrema=True)
-    ax[0].violinplot(hybrid_grid.values(), **violin_settings)
-    ax[0].set_xticks(np.arange(1, len(position_labels) + 1), labels=position_labels)
-    ax[1].violinplot(monovalent_grid.values(), **violin_settings)
-    ax[1].set_xticks(np.arange(1, len(position_labels) + 1), labels=position_labels)
-    ax[1].set_ylabel(label)
-    ax[0].set_ylabel(label)
-    fig.tight_layout()
 
 
 def plot_single_draw_scatter(hybrid_grid, monovalent_grid):

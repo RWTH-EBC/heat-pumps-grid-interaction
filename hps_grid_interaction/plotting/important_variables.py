@@ -51,17 +51,6 @@ def plot_important_variables(
 ):
     """
     Plot the most important variables during simulation.
-
-
-    Example usage:
-    ```
-    y_variables = {
-        "$T_\mathrm{Oda}$ in °C": "weaDat.weaBus.TDryBul",
-        "$T_\mathrm{Room}$ in °C": ["hydraulic.buiMeaBus.TZoneMea[1]", "hydraulic.useProBus.TZoneSet[1]"],
-        "$\dot{Q}_\mathrm{HeaPum}$": "outputs.hydraulic.gen.PEleHeaPum.value",
-    }
-    ```
-
     """
     locator = lambda x: (x, "raw") if isinstance(tsd, TimeSeriesData) else lambda x: x
 

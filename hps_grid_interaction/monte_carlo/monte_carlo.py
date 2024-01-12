@@ -5,6 +5,7 @@ import pickle
 from pathlib import Path
 from typing import Dict, List
 from random import choices
+import time
 
 import pandas as pd
 import numpy as np
@@ -13,7 +14,7 @@ from hps_grid_interaction.plotting.config import PlotConfig
 from hps_grid_interaction.utils import get_construction_type_quotas
 from hps_grid_interaction.emissions import COLUMNS_EMISSIONS
 from hps_grid_interaction.monte_carlo import plots
-from hps_grid_interaction import RESULTS_BES_FOLDER, KERBER_NETZ_XLSX
+from hps_grid_interaction import RESULTS_BES_FOLDER, KERBER_NETZ_XLSX, RESULTS_MONTE_CARLO_FOLDER, E_MOBILITY_DATA
 from hps_grid_interaction.bes_simulation.simulation import W_to_Wh
 logger = logging.getLogger(__name__)
 
@@ -26,11 +27,11 @@ class Quotas:
     def __init__(
             self,
             construction_type_quota: str,
-            heat_pump_quota: int = 100,
-            hybrid_quota: int = 0,
-            pv_quota: int = 0,
-            pv_battery_quota: int = 100,
-            e_mobility_quota: int = 0,
+            heat_pump_quota: int,
+            hybrid_quota: int,
+            pv_quota: int,
+            pv_battery_quota: int,
+            e_mobility_quota: int,
             n_monte_carlo: int = 1000
     ):
         self.construction_type_quotas = get_construction_type_quotas(assumption=construction_type_quota)
@@ -81,8 +82,7 @@ def load_function_kwargs_prior_to_monte_carlo(
         hybrid: Path,
         monovalent: Path,
         grid_case: str):
-
-    from hps_grid_interaction import KERBER_NETZ_XLSX, E_MOBILITY_DATA
+    t0 = time.time()
 
     df_grid = pd.read_excel(
         KERBER_NETZ_XLSX,
@@ -129,23 +129,37 @@ def load_function_kwargs_prior_to_monte_carlo(
             df.drop(df.tail(1).index, inplace=True)
             for col in df.columns:
                 # head and tail are dropped for sim results, head for e_mobility
-                df.loc[:, col + "+e_mobility"] = df.loc[:, col] + dfs_e_mobility[house_index][0]
+                df.loc[:, col + "+e_mobility"] = df.loc[:, col] + dfs_e_mobility[house_index][1:]
 
         heat_supplies[heat_supply] = (df_sim, time_series_data)
 
-    # TODO: Subtract heat_supply in all cases for a single technology
-    heat_supplies["gas"] = 0
+    df_sim, time_series_data = heat_supplies["hybrid"]
+    gas_time_series_data = {}
+    for key, df in time_series_data.items():
+        df_gas = df.copy()
+        for col in df_gas.columns:
+            if col != "heat_supply":
+                df_gas.loc[:, col] -= df_gas.loc[:, "heat_supply"]
+        gas_time_series_data[key] = df_gas
+    heat_supplies["gas"] = (df_sim.copy(), gas_time_series_data)
 
     func_kwargs = dict(heat_supplies=heat_supplies, df_grid=df_grid)
+    logger.info("Loading function inputs took %s s", time.time() - t0)
     return func_kwargs
 
 
 def run_monte_carlo_sim(quota_cases: Dict[str, Quotas], function_kwargs: dict):
+    t0 = time.time()
     max_data = {}
     sum_data = {}
     tsd_data = {}
     choices_for_grid = {quota_name: [] for quota_name in quota_cases.keys()}
     i = 0
+
+    def _get_electricity_sum_in_kWh(data):
+        #return data.sum() * W_to_Wh  # Also grid feed in
+        return data[data > 0].sum() * W_to_Wh  # Also grid feed in
+
     for quota_name, quotas in quota_cases.items():
         for _ in range(quotas.n_monte_carlo):
             grid, all_choices = run_single_grid_simulation(quotas=quotas, **function_kwargs)
@@ -153,15 +167,15 @@ def run_monte_carlo_sim(quota_cases: Dict[str, Quotas], function_kwargs: dict):
             for point, data in grid.items():
                 if point not in max_data:
                     max_data[point] = {quota_name: [data.max()]}
-                    sum_data[point] = {quota_name: [data.sum() * W_to_Wh]}
+                    sum_data[point] = {quota_name: [_get_electricity_sum_in_kWh(data)]}
                     #tsd_data[point] = {quota_name: [data]}
                 elif quota_name not in max_data[point]:
                     max_data[point][quota_name] = [data.max()]
-                    sum_data[point][quota_name] = [data.sum() * W_to_Wh]
+                    sum_data[point][quota_name] = [_get_electricity_sum_in_kWh(data)]
                     #tsd_data[point][quota_name] = [data]
                 else:
                     max_data[point][quota_name].append(data.max())
-                    sum_data[point][quota_name].append(data.sum() * W_to_Wh)
+                    sum_data[point][quota_name].append(_get_electricity_sum_in_kWh(data))
                     #tsd_data[point][quota_name].append(data)
         i += 1
         logger.info("Ran quota case %s of %s", i, len(quota_cases))
@@ -172,6 +186,7 @@ def run_monte_carlo_sim(quota_cases: Dict[str, Quotas], function_kwargs: dict):
         #"tsd_data": tsd_data,
         "choices_for_grid": choices_for_grid
     }
+    logger.info("Monte-Carlo simulations took %s s", time.time() - t0)
 
     return monte_carlo_data
 
@@ -249,11 +264,13 @@ def plot_and_export_single_monte_carlo(
         quota_cases: Dict[str, Quotas],
         data, metric: str, save_path: Path,
         case_name: str, grid_case: str,
+        plots_only: bool,
         heat_supplies: dict, df_grid: pd.DataFrame
 ):
     arg_function = argmean
     export_data = {}
     emissions_data = {}
+    quota_case_grid_data = {}
     for quota_case in quota_cases:
         arg = arg_function(data[metric]["ONT"][quota_case])
         # Save in excel for Lastflusssimulation:
@@ -263,25 +280,26 @@ def plot_and_export_single_monte_carlo(
             df_grid=df_grid,
             choices_for_grid=choices_for_grid,
         )
-        csv_file_paths = save_grid_time_series_data_to_csv_folder(
-            save_path=save_path.joinpath(f"grid_simulation_{quota_case}"),
-            grid_time_series_data=grid_time_series_data
-        )
-        df_lastfluss = pd.read_excel(
-            KERBER_NETZ_XLSX,
-            sheet_name=f"{grid_case}_lastfluss_template",
-            index_col=0
-        )
-        df_lastfluss["electricity_time_series_data"] = csv_file_paths
-        grid_simulation_case_name = get_grid_simulation_case_name(quota_case=quota_case, case_name=case_name)
-        workbook_name = save_path.parent.joinpath(f"{grid_simulation_case_name}.xlsx")
-        save_excel(df=df_lastfluss, path=workbook_name, sheet_name="lastfluss")
+        quota_case_grid_data[quota_case] = grid_time_series_data
+        if not plots_only:
+            csv_file_paths = save_grid_time_series_data_to_csv_folder(
+                save_path=save_path.joinpath(f"grid_simulation_{quota_case}"),
+                grid_time_series_data=grid_time_series_data
+            )
+            df_lastfluss = pd.read_excel(
+                KERBER_NETZ_XLSX,
+                sheet_name=f"{grid_case}_lastfluss_template",
+                index_col=0
+            )
+            df_lastfluss["electricity_time_series_data"] = csv_file_paths
+            grid_simulation_case_name = get_grid_simulation_case_name(quota_case=quota_case, case_name=case_name)
+            workbook_name = save_path.joinpath(f"{grid_simulation_case_name}.xlsx")
+            save_excel(df=df_lastfluss, path=workbook_name, sheet_name="lastfluss")
         export_data[quota_case] = {
             "max": {point: data["max"][point][quota_case][arg] for point in data["max"].keys()},
             "sum": {point: data["sum"][point][quota_case][arg] for point in data["sum"].keys()}
         }
-        if "tsd_data" in data:
-            plots.plot_time_series(data=data, quota_case=quota_case, metric=metric, save_path=save_path, arg=arg)
+
 
         # TODO: Fix simulation results for cases
         #quota_case_mask = df_sim.loc[:, "system_type"] == tech.lower()
@@ -294,6 +312,11 @@ def plot_and_export_single_monte_carlo(
         #        sum_cols[col] += row[col].values[0]
         #emissions_data[quota_case] = sum_cols
     #return {"grid": export_data, "emissions": emissions_data}
+    plots.plot_time_series(
+        quota_case_grid_data=quota_case_grid_data,
+        save_path=save_path
+    )
+
     return {"grid": export_data}
 
 
@@ -305,64 +328,96 @@ def save_excel(df, path, sheet_name):
         df.to_excel(path, sheet_name=sheet_name)
 
 
+def _get_case_name(grid_case: str, with_hr: bool):
+    with_hr_str = "_HR" if with_hr else ""
+    return f"{grid_case}{with_hr_str}"
+
+
 def run_save_and_plot_monte_carlo(
         quota_cases: Dict[str, Quotas],
         grid_case: str, with_hr: bool, res: dict,
+        save_path: Path,
         load: bool = False,
-        extra_case_name: str = ""
+        extra_case_name: str = "",
 ):
     all_results = res
-
-    with_hr_str = "_HR" if with_hr else ""
-    case_name = f"{grid_case}{with_hr_str}"
-
-    save_path = RESULTS_BES_FOLDER.joinpath(f"MonteCarloResults_{case_name}")
-    pickle_path = save_path.joinpath(f"monte_carlo_{case_name}.pickle")
-
-    hybrid_path = RESULTS_BES_FOLDER.joinpath(f"Hybrid{extra_case_name}_{grid_case}")
-
-    kwargs = load_function_kwargs_prior_to_monte_carlo(
-        hybrid=hybrid_path,
-        monovalent=RESULTS_BES_FOLDER.joinpath(f"Monovalent{extra_case_name}_{grid_case}{with_hr_str}"),
-        grid_case=grid_case
-    )
-
-    if load and pickle_path.exists():
-        with open(pickle_path, "rb") as file:
-            data = pickle.load(file)
-    else:
-        import time
-        t0 = time.time()
-        data = run_monte_carlo_sim(quota_cases=quota_cases, function_kwargs=kwargs)
-        logger.info(f"Simulations took {time.time() - t0} s")
-
+    case_name = _get_case_name(grid_case, with_hr)
     os.makedirs(save_path, exist_ok=True)
+    pickle_path = save_path.joinpath(f"monte_carlo_{case_name}.pickle")
+    if load:
+        with open(pickle_path, "rb") as file:
+            loaded_pickle = pickle.load(file)
+            data = loaded_pickle["data"]
+            kwargs = loaded_pickle["kwargs"]
+        logger.info("Loaded pickle data from %s", pickle_path)
+    else:
+        hybrid_path = RESULTS_BES_FOLDER.joinpath(f"Hybrid{extra_case_name}_{_get_case_name(grid_case, False)}")
+        kwargs = load_function_kwargs_prior_to_monte_carlo(
+            hybrid=hybrid_path,
+            monovalent=RESULTS_BES_FOLDER.joinpath(f"Monovalent{extra_case_name}_{case_name}"),
+            grid_case=grid_case
+        )
+        data = run_monte_carlo_sim(quota_cases=quota_cases, function_kwargs=kwargs)
+        with open(pickle_path, "wb") as file:
+            pickle.dump({"data": data, "kwargs": kwargs}, file)
+
     plots.plot_monte_carlo_bars(data=data, metric="max", save_path=save_path, quota_cases=quota_cases)
-    #plots.plot_monte_carlo_bars(data=data, metric="sum", save_path=save_path, quota_cases=quota_cases)
-    plots.plot_monte_carlo_violin(data=data["max"], save_path=save_path, quota_cases=quota_cases)
-    #plots.plot_monte_carlo_violin(data=data["sum"], save_path=save_path, quota_cases=quota_cases)
+    plots.plot_monte_carlo_bars(data=data, metric="sum", save_path=save_path, quota_cases=quota_cases)
+    plots.plot_monte_carlo_violin(data=data, metric="max", save_path=save_path, quota_cases=quota_cases)
+    plots.plot_monte_carlo_violin(data=data, metric="sum", save_path=save_path, quota_cases=quota_cases)
     export_data = plot_and_export_single_monte_carlo(
         quota_cases=quota_cases,
-        data=data, metric="max",
+        data=data, metric="max", plots_only=load,
         save_path=save_path, case_name=case_name, grid_case=grid_case,
         **kwargs
     )
     all_results[case_name] = export_data
-    with open(pickle_path, "wb") as file:
-        pickle.dump(data, file)
+
     return all_results
 
 
-def run_all_cases(load: bool, extra_case_name_hybrid: str = ""):
+def run_all_cases(load: bool, quota_study: str, extra_case_name_hybrid: str = ""):
     quota_cases = {}
-    for pv_quota in [0, 20, 40, 60, 80, 100]:
-        quota_cases[f"av_pv_bat_{pv_quota}"] = Quotas(
-            construction_type_quota="average", pv_quota=pv_quota, pv_battery_quota=0
-        )
-
+    if quota_study == "av_pv":
+        for quota in [0, 20, 40, 60, 80, 100]:
+            quota_cases[f"{quota_study}_{quota}"] = Quotas(
+                construction_type_quota="average", pv_quota=quota, pv_battery_quota=0,
+                e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=0
+            )
+    elif quota_study == "av_pv_bat":
+        for quota in [0, 20, 40, 60, 80, 100]:
+            quota_cases[f"{quota_study}_{quota}"] = Quotas(
+                construction_type_quota="average", pv_quota=0, pv_battery_quota=quota,
+                e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=0
+            )
+    elif quota_study == "av_hyb":
+        for quota in [0, 20, 40, 60, 80, 100]:
+            quota_cases[f"{quota_study}_{quota}"] = Quotas(
+                construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+                e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=quota
+            )
+    elif quota_study == "av_heat_pump":
+        for quota in [0, 20, 40, 60, 80, 100]:
+            quota_cases[f"{quota_study}_{quota}"] = Quotas(
+                construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+                e_mobility_quota=0, heat_pump_quota=quota, hybrid_quota=0
+            )
+    elif quota_study == "av_hyb_with_pv_bat":
+        for quota in [0, 20, 40, 60, 80, 100]:
+            quota_cases[f"{quota_study}_{quota}"] = Quotas(
+                construction_type_quota="average", pv_quota=0, pv_battery_quota=100,
+                e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=quota
+            )
+    elif quota_study == "av_e_mob_with_pv_bat":
+        for quota in [0, 20, 40, 60, 80, 100]:
+            quota_cases[f"{quota_study}_{quota}"] = Quotas(
+                construction_type_quota="average", pv_quota=0, pv_battery_quota=100,
+                e_mobility_quota=quota, heat_pump_quota=100, hybrid_quota=0
+            )
     #"all_retrofit": Quotas(construction_type_quota="all_retrofit"),
     #"all_adv_retrofit": Quotas(construction_type_quota="all_adv_retrofit"),
     #"no_retrofit": Quotas(construction_type_quota="no_retrofit")
+    save_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"Altbau_{quota_study}")
 
     res = {}
     for grid_case in ["altbau"]:#, "neubau"]:
@@ -370,10 +425,11 @@ def run_all_cases(load: bool, extra_case_name_hybrid: str = ""):
             res = run_save_and_plot_monte_carlo(
                 quota_cases=quota_cases,
                 grid_case=grid_case,
+                save_path=save_path,
                 with_hr=with_hr, res=res, load=load,
                 extra_case_name=extra_case_name_hybrid
             )
-    all_results_path = RESULTS_BES_FOLDER.joinpath("results_to_plot.json")
+    all_results_path = save_path.joinpath("results_to_plot.json")
     with open(all_results_path, "w") as file:
         json.dump(res, file)
     return all_results_path
@@ -382,4 +438,9 @@ def run_all_cases(load: bool, extra_case_name_hybrid: str = ""):
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    PATH = run_all_cases(load=False, extra_case_name_hybrid="PVBat")
+    run_all_cases(load=True, extra_case_name_hybrid="NoSetBack", quota_study="av_e_mob_with_pv_bat")
+    run_all_cases(load=True, extra_case_name_hybrid="NoSetBack", quota_study="av_heat_pump")
+    run_all_cases(load=True, extra_case_name_hybrid="NoSetBack", quota_study="av_pv_bat")
+    run_all_cases(load=True, extra_case_name_hybrid="NoSetBack", quota_study="av_hyb")
+    run_all_cases(load=True, extra_case_name_hybrid="NoSetBack", quota_study="av_pv")
+    run_all_cases(load=True, extra_case_name_hybrid="NoSetBack", quota_study="av_hyb_with_pv_bat")

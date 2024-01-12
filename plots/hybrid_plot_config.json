@@ -3,7 +3,7 @@
     "font.size": 14
   },
   "variables": {
-    "hydraulic.generation.weaBus.TDryBul": {
+    "weaDat.weaBus.TDryBul": {
       "factor": 1.0,
       "offset": 273.15,
       "unit": "°C",
@@ -109,7 +109,13 @@
       "factor": 1000,
       "offset": 0,
       "unit": "kW",
-      "label": "$\\dot{Q}_\\mathrm{HeaPum}$"
+      "label": "$P_\\mathrm{el,HeaPum}$"
+    },
+    "outputs.hydraulic.gen.PEleHeaRod.value": {
+      "factor": 1000,
+      "offset": 0,
+      "unit": "kW",
+      "label": "$P_\\mathrm{el,HeaRod}$"
     },
     "outputs.DHW.Q_flow.value": {
       "factor": 1000,

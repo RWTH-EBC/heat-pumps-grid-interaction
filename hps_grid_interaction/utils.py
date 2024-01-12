@@ -114,7 +114,7 @@ def get_construction_type_quotas(assumption: str):
 
 
 def load_outdoor_air_temperature():
-    df_oda = pd.read_csv(Path(__file__).parent.joinpath("data", "t_oda.csv"), index_col=0)
+    df_oda = pd.read_csv(Path(__file__).parents[1].joinpath("data", "t_oda.csv"), index_col=0)
     df_oda.index -= df_oda.index[0]
     df_oda.index /= 3600
     return df_oda

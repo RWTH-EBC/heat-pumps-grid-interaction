@@ -100,7 +100,7 @@ def run_simulations(
             parameters=[{"parameterStudy.TBiv": t_biv} for t_biv in T_bivs],
             result_file_name=result_names,
             model_names=explicit_model_names,
-            savepath="\\\\?\\" + str(sim_api.cd),  # Fix long path issue
+            savepath="\\\\?\\" + str(study_path.joinpath("SimulationResults")),  # Fix long path issue
             return_option="savepath",
             fail_on_error=False
         )
@@ -116,8 +116,6 @@ def run_simulations(
                 ))
                 continue
             result_name = Path(result).name
-            new_path = study_path.joinpath("SimulationResults", result_name)
-            shutil.move(result, new_path)
             elec_results = [
                 "outputs.hydraulic.gen.PEleHeaPum.value",
                 "outputs.hydraulic.gen.PEleHeaRod.value",
@@ -128,7 +126,7 @@ def run_simulations(
             ]
 
             result = utils.extract_tsd_results(
-                path=Path(new_path),
+                path=Path(result),
                 result_names=sim_api.result_names + elec_results,
                 convert_to_hdf_and_delete_mat=True
             )
@@ -186,10 +184,10 @@ if __name__ == '__main__':
     KWARGS = dict(
         hybrid_assumptions=HYBRID_ASSUMPTIONS,
         n_cpu=10,
-        extract_only=False
+        extract_only=True
     )
     run_simulations(model_name="Hybrid", case_name="HybridNoSetBack", grid_case="altbau", **KWARGS)
-    run_simulations(model_name="Monovalent", case_name="MonovalentNoSetBack", grid_case="altbau", with_heating_rod=True, **KWARGS)
+    #run_simulations(model_name="Monovalent", case_name="MonovalentNoSetBack", grid_case="altbau", with_heating_rod=True, **KWARGS)
     #run_simulations(model_name="Hybrid", case_name="HybridPVBat", grid_case="neubau", **KWARGS)
     #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", **KWARGS)
     #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", **KWARGS)

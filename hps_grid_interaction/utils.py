@@ -14,7 +14,7 @@ from pathlib import Path
 
 from hps_grid_interaction.bes_simulation.building import BuildingConfig
 from hps_grid_interaction.plotting.important_variables import plot_important_variables
-from hps_grid_interaction import PROJECT_FOLDER, KERBER_NETZ_XLSX, E_MOBILITY_DATA, HOUSEHOLD_DATA
+from hps_grid_interaction import PROJECT_FOLDER, KERBER_NETZ_XLSX, E_MOBILITY_DATA, HOUSEHOLD_DATA, DATA_PATH
 from hps_grid_interaction.bes_simulation.simulation import TIME_STEP
 
 logger = logging.getLogger(__name__)
@@ -114,7 +114,7 @@ def get_construction_type_quotas(assumption: str):
 
 
 def load_outdoor_air_temperature():
-    df_oda = pd.read_csv(Path(__file__).parents[1].joinpath("data", "t_oda.csv"), index_col=0)
+    df_oda = pd.read_csv(DATA_PATH.joinpath("t_oda.csv"), index_col=0)
     df_oda.index -= df_oda.index[0]
     df_oda.index /= 3600
     return df_oda
@@ -371,25 +371,10 @@ def get_bivalence_temperatures(buildings, with_heating_rod: bool, TOda_nominal, 
     T_bivs = []
     T_biv_for_building = {}
     for idx, building in enumerate(buildings):
-        if cost_optimal_design:
-            THyd_nominal, dTHyd_nominal = building.get_retrofit_temperatures(
-                TOda_nominal=TOda_nominal,
-                TRoom_nominal=273.15 + 20
-            )
-            logging.info(f"{THyd_nominal=}, {dTHyd_nominal=}")
-            df = TimeSeriesData(
-                Path(__file__).parent.joinpath("data", f"GetCOPCurve{int(THyd_nominal)}.mat")
-            ).to_df().loc[1:]
-            T_bivs.append(
-                df.loc[
-                    df.loc[:, "sigBusGen.COP"] > hybrid_assumptions.get_minimum_cop(),
-                    "TOda"].min()
-            )
+        # GEG-based design
+        if building.name in T_biv_for_building:
+            T_bivs.append(T_biv_for_building[building.name])
         else:
-            # GEG-based design
-            if building.name in T_biv_for_building:
-                T_bivs.append(T_biv_for_building[building.name])
-            else:
-                T_bivs.append(274.25)
-                T_biv_for_building[building.name] = T_bivs[-1]
+            T_bivs.append(274.25)
+            T_biv_for_building[building.name] = T_bivs[-1]
     return T_bivs

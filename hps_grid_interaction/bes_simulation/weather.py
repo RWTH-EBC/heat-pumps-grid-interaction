@@ -2,11 +2,13 @@ import pathlib
 from pydantic import BaseModel, FilePath
 from aixweather.imports.TRY import load_try_from_file
 
+from hps_grid_interaction import DATA_PATH
+
 
 class WeatherConfig(BaseModel):
-    dat_file: FilePath = pathlib.Path(__file__).absolute().parents[2].joinpath("data", "TRY2015_523845130645_Jahr.dat")
+    dat_file: FilePath = DATA_PATH.joinpath("TRY2015_523845130645_Jahr.dat")
     TOda_nominal: float = 273.15 - 12.6
-    mos_path: FilePath = pathlib.Path(__file__).absolute().parents[2].joinpath("data", "TRY2015_523845130645_Jahr.mos")
+    mos_path: FilePath = DATA_PATH.joinpath("TRY2015_523845130645_Jahr.mos")
 
     def get_modelica_modifier(self):
         mos_file = str(self.mos_path).replace("\\", "//")

@@ -57,6 +57,12 @@
       "unit": "°C",
       "label": "$T_\\mathrm{HeaPum,In}$"
     },
+    "parameterStudy.TBiv": {
+      "factor": 1.0,
+      "offset": 273.15,
+      "unit": "°C",
+      "label": "$T_\\mathrm{Biv}$"
+    },
     "hydraulic.distribution.sigBusDistr.TBoiOut": {
       "factor": 1.0,
       "offset": 273.15,

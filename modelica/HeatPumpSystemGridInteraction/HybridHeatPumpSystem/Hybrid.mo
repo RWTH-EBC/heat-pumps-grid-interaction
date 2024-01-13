@@ -13,8 +13,8 @@ model Hybrid
         redeclare
           BESMod.Systems.Hydraulical.Control.RecordsCollection.ThermostaticValveDataDefinition
           parTheVal,
-        dTHysBui=5,
-        dTHysDHW=5,
+        dTHysBui=10,
+        dTHysDHW=10,
         meaValPriGen=BESMod.Systems.Hydraulical.Control.Components.BaseClasses.MeasuredValue.GenerationSupplyTemperature,
         redeclare model DHWHysteresis =
             BESMod.Systems.Hydraulical.Control.Components.BivalentOnOffControllers.AlternativeBivalent

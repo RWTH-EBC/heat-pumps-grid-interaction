@@ -3,7 +3,7 @@ from pathlib import Path
 from ebcpy import DymolaAPI
 from typing import List
 from pydantic import BaseModel, FilePath
-from hps_grid_interaction import BESMOD_PATH
+from hps_grid_interaction import BESMOD_PATH, MODELICA_PATH
 
 
 INIT_PERIOD = 86400 * 2
@@ -51,7 +51,6 @@ def generate_mos_script(config: SimulationConfig, additional_packages: list, sav
 
 def get_simulation_config(model, with_heating_rod):
     import json
-    mo_path = Path(__file__).parents[2].joinpath("modelica", "HeatPumpSystemGridInteraction", "package.mo")
     with open("plots/hybrid_plot_config.json", "r") as file:
         plot_config = json.load(file)
 
@@ -90,7 +89,7 @@ def get_simulation_config(model, with_heating_rod):
         model=f"HeatPumpSystemGridInteraction.HybridHeatPumpSystem.{model}",
         sim_setup=dict(stop_time=86400 * 365, output_interval=TIME_STEP),
         result_names=[],
-        packages=[mo_path],
+        packages=[MODELICA_PATH],
         convert_to_hdf_and_delete_mat=True,
         plot_settings=plot_settings
     )

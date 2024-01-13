@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from pydantic import BaseModel
 from cycler import cycler
 from ebcpy import TimeSeriesData
-matplotlib.use("TkAgg")
+
+from hps_grid_interaction import PLOTS_PATH
 
 
 class EBCColors:
@@ -105,9 +106,7 @@ class PlotConfig(BaseModel):
 
     @classmethod
     def load_default(cls):
-        return cls.parse_json_file(pathlib.Path(__file__).parents[2].joinpath(
-            "plots", "hybrid_plot_config.json")
-        )
+        return cls.parse_json_file(PLOTS_PATH.joinpath("hybrid_plot_config.json"))
 
 
 def load_plot_config(plot_config: dict = None):

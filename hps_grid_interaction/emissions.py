@@ -13,7 +13,7 @@ from ebcpy import TimeSeriesData
 
 from hps_grid_interaction.bes_simulation import weather
 from hps_grid_interaction.plotting.config import PlotConfig
-
+from hps_grid_interaction import DATA_PATH, PLOTS_PATH
 from hps_grid_interaction.utils import HybridSystemAssumptions
 
 
@@ -29,7 +29,7 @@ COLUMNS_EMISSIONS = [
 
 
 def load_data(interpolate: bool = False):
-    df = pd.read_excel(Path(__file__).parents[1].joinpath("data", "Results_price_emissions_updated.xlsx"),
+    df = pd.read_excel(DATA_PATH.joinpath("Results_price_emissions_updated.xlsx"),
                        sheet_name="All",
                        index_col=0,
                        header=[0, 1, 2])
@@ -181,7 +181,7 @@ def plot_emissions_scatter():
             ax.set_ylabel(f"Emissions in g/kWh")
             ax.scatter(df_weather.loc[:, sensor], df_emissions.loc[:, (variable, col)])
             fig.tight_layout()
-            fig.savefig(Path(__file__).parent.joinpath("plots", f"Emissions_{sensor}_{variable}.png"))
+            fig.savefig(PLOTS_PATH.joinpath(f"Emissions_{sensor}_{variable}.png"))
 
     plt.show()
 

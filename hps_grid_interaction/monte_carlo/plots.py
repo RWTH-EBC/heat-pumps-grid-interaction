@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from ebcpy import TimeSeriesData
 import seaborn as sns
 
+from hps_grid_interaction import DATA_PATH
 from hps_grid_interaction.utils import load_outdoor_air_temperature
 from hps_grid_interaction.emissions import COLUMNS_EMISSIONS, get_emission_options
 
@@ -201,10 +202,9 @@ def plot_monte_carlo_bars(data: dict, metric: str, save_path: Path, quota_cases:
 
 
 def plot_cop_motivation():
-    path = pathlib.Path(__file__).absolute().parents[1].joinpath("data")
     plt.rcParams.update({"figure.figsize": [6.24 * 1.2, 5.78 / 1.3]})
-    tsd35 = TimeSeriesData(path.joinpath("GetCOPCurve308.mat")).to_df()
-    tsd70 = TimeSeriesData(path.joinpath("GetCOPCurve343.mat")).to_df()
+    tsd35 = TimeSeriesData(DATA_PATH.joinpath("GetCOPCurve308.mat")).to_df()
+    tsd70 = TimeSeriesData(DATA_PATH.joinpath("GetCOPCurve343.mat")).to_df()
     plt.plot(tsd35.loc[1:, "TOda"] - 273.15, tsd35.loc[1:, "sigBusGen.COP"], label="FBH 35 °C")
     plt.plot(tsd70.loc[1:, "TOda"] - 273.15, tsd70.loc[1:, "sigBusGen.COP"], label="Radiator 70 °C")
     plt.legend()

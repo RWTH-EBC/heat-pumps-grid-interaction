@@ -36,7 +36,6 @@ def create_user_sleep_schedules():
 def plot():
     import matplotlib.pyplot as plt
     import matplotlib
-    matplotlib.use("TkAgg")
 
     def plot_normal_distribution(mean, sigma, num_draws=10000):
         # Generate 1000 random draws from a normal distribution

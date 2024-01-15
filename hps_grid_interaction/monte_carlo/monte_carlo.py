@@ -28,6 +28,7 @@ class Quotas:
             self,
             construction_type_quota: str,
             heat_pump_quota: int,
+            heating_rod_quota: int,
             hybrid_quota: int,
             pv_quota: int,
             pv_battery_quota: int,
@@ -35,10 +36,12 @@ class Quotas:
             n_monte_carlo: int = 1000
     ):
         self.construction_type_quotas = get_construction_type_quotas(assumption=construction_type_quota)
+        monoenergetic_quota = (100 - hybrid_quota) * heat_pump_quota
         self.heat_supply_quotas = {
-            "monovalent": (100 - hybrid_quota) * heat_pump_quota / 100,
+            "monovalent": (100 - heating_rod_quota) * monoenergetic_quota / 100,
             "hybrid": hybrid_quota * heat_pump_quota / 100,
-            "gas": (100 - heat_pump_quota)
+            "gas": (100 - heat_pump_quota),
+            "heating_rod": heating_rod_quota * monoenergetic_quota / 100
         }
         self.electricity_system_quotas = {
             "household": (100 - pv_quota - pv_battery_quota) * (1 - e_mobility_quota / 100),
@@ -81,6 +84,7 @@ def _get_time_series_data_for_choices(heat_supplies: dict, house_index: int, all
 def load_function_kwargs_prior_to_monte_carlo(
         hybrid: Path,
         monovalent: Path,
+        heating_rod: Path,
         grid_case: str):
     t0 = time.time()
 
@@ -111,7 +115,8 @@ def load_function_kwargs_prior_to_monte_carlo(
         return data, list(ordered_sim_results.values())
     cases = {
         "hybrid": hybrid,
-        "monovalent": monovalent
+        "monovalent": monovalent,
+        "heating_rod": heating_rod
     }
     heat_supplies = {}
     for heat_supply, path_study in cases.items():
@@ -256,8 +261,8 @@ def argmean(arr):
     return np.argmin(abs_diff)
 
 
-def get_grid_simulation_case_name(quota_case: str, case_name: str):
-    return quota_case + "_" + case_name
+def get_grid_simulation_case_name(quota_case: str, grid_case: str):
+    return quota_case + "_" + grid_case
 
 
 def plot_and_export_single_monte_carlo(
@@ -293,7 +298,7 @@ def plot_and_export_single_monte_carlo(
                 index_col=0
             )
             df_lastfluss["electricity_time_series_data"] = csv_file_paths
-            grid_simulation_case_name = get_grid_simulation_case_name(quota_case=quota_case, case_name=case_name)
+            grid_simulation_case_name = get_grid_simulation_case_name(quota_case=quota_case, grid_case=grid_case)
             workbook_name = save_path.joinpath(f"{grid_simulation_case_name}.xlsx")
             save_excel(df=df_lastfluss, path=workbook_name, sheet_name="lastfluss")
             quota_case_grid_simulation_inputs[quota_case] = str(workbook_name)
@@ -328,12 +333,6 @@ def save_excel(df, path, sheet_name):
     else:
         df.to_excel(path, sheet_name=sheet_name)
 
-
-def _get_case_name(grid_case: str, with_hr: bool):
-    with_hr_str = "_HR" if with_hr else ""
-    return f"{grid_case}{with_hr_str}"
-
-
 def run_save_and_plot_monte_carlo(
         quota_cases: Dict[str, Quotas],
         grid_case: str, with_hr: bool,
@@ -341,42 +340,23 @@ def run_save_and_plot_monte_carlo(
         load: bool = False,
         extra_case_name: str = "",
 ):
-    case_name = _get_case_name(grid_case, with_hr)
     os.makedirs(save_path, exist_ok=True)
 
-    # hybrid_path = RESULTS_BES_FOLDER.joinpath(f"Hybrid{extra_case_name}_{_get_case_name(grid_case, False)}")
-    # kwargs = load_function_kwargs_prior_to_monte_carlo(
-    #     hybrid=hybrid_path,
-    #     monovalent=RESULTS_BES_FOLDER.joinpath(f"Monovalent{extra_case_name}_{case_name}"),
-    #     grid_case=grid_case
-    # )
-    # pickle_path = save_path.joinpath(f"monte_carlo_{case_name}.pickle")
-    # if load:
-    #     with open(pickle_path, "rb") as file:
-    #         data = pickle.load(file)
-    #     logger.info("Loaded pickle data from %s", pickle_path)
-    # else:
-    #     data = run_monte_carlo_sim(quota_cases=quota_cases, function_kwargs=kwargs)
-    #     with open(pickle_path, "wb") as file:
-    #         pickle.dump(data, file)
-
-    pickle_path = save_path.joinpath(f"monte_carlo_{case_name}.pickle")
+    kwargs = load_function_kwargs_prior_to_monte_carlo(
+        hybrid=RESULTS_BES_FOLDER.joinpath(f"Hybrid{extra_case_name}_{grid_case}"),
+        monovalent=RESULTS_BES_FOLDER.joinpath(f"Monovalent{extra_case_name}_{grid_case}"),
+        heating_rod=RESULTS_BES_FOLDER.joinpath(f"Monovalent{extra_case_name}_{grid_case}_HR"),
+        grid_case=grid_case
+    )
+    pickle_path = save_path.joinpath(f"monte_carlo_{grid_case}.pickle")
     if load:
         with open(pickle_path, "rb") as file:
-            loaded_pickle = pickle.load(file)
-            data = loaded_pickle["data"]
-            kwargs = loaded_pickle["kwargs"]
+            data = pickle.load(file)
         logger.info("Loaded pickle data from %s", pickle_path)
     else:
-        hybrid_path = RESULTS_BES_FOLDER.joinpath(f"Hybrid{extra_case_name}_{_get_case_name(grid_case, False)}")
-        kwargs = load_function_kwargs_prior_to_monte_carlo(
-            hybrid=hybrid_path,
-            monovalent=RESULTS_BES_FOLDER.joinpath(f"Monovalent{extra_case_name}_{case_name}"),
-            grid_case=grid_case
-        )
         data = run_monte_carlo_sim(quota_cases=quota_cases, function_kwargs=kwargs)
         with open(pickle_path, "wb") as file:
-            pickle.dump({"data": data, "kwargs": kwargs}, file)
+            pickle.dump(data, file)
 
     plots.plot_monte_carlo_bars(data=data, metric="max", save_path=save_path, quota_cases=quota_cases)
     plots.plot_monte_carlo_bars(data=data, metric="sum", save_path=save_path, quota_cases=quota_cases)
@@ -385,7 +365,7 @@ def run_save_and_plot_monte_carlo(
     export_data = plot_and_export_single_monte_carlo(
         quota_cases=quota_cases,
         data=data, metric="max", plots_only=False,
-        save_path=save_path, case_name=case_name, grid_case=grid_case,
+        save_path=save_path, grid_case=grid_case,
         **kwargs
     )
 
@@ -437,15 +417,14 @@ def run_all_cases(load: bool, quota_study: str, extra_case_name_hybrid: str = ""
 
     all_results = {}
     for grid_case in ["altbau"]:#, "neubau"]:
-        for with_hr in [True]:#, False]:
-            res = run_save_and_plot_monte_carlo(
-                quota_cases=quota_cases,
-                grid_case=grid_case,
-                save_path=save_path,
-                with_hr=with_hr, load=load,
-                extra_case_name=extra_case_name_hybrid
-            )
-            all_results[grid_case] = res
+        res = run_save_and_plot_monte_carlo(
+            quota_cases=quota_cases,
+            grid_case=grid_case,
+            save_path=save_path,
+            with_hr=with_hr, load=load,
+            extra_case_name=extra_case_name_hybrid
+        )
+        all_results[grid_case] = res
     all_results_path = save_path.joinpath("results_to_plot.json")
     with open(all_results_path, "w") as file:
         json.dump(all_results, file)

@@ -81,6 +81,15 @@ def run_simulations(
         save_path_mos=study_path.joinpath("open_models.mos")
     )
 
+    sim_results_to_extract = sim_api.result_names + [
+        "outputs.hydraulic.gen.PEleHeaPum.value",
+        "outputs.hydraulic.gen.PEleHeaRod.value",
+        "electrical.generation.internalElectricalPin.PElecGen",
+        "building.internalElectricalPin.PElecLoa",
+        "electricalGrid.PElecLoa",
+        "electricalGrid.PElecGen",
+    ]
+
     if extract_only:
         results = [Path(study_path.joinpath("SimulationResults")).joinpath(result_name + ".mat")
                    for result_name in result_names]
@@ -104,6 +113,7 @@ def run_simulations(
             return_option="savepath",
             fail_on_error=False
         )
+    sim_api.close()
     try:
         os.makedirs(study_path.joinpath("SimulationResults"), exist_ok=True)
         results_last_points = []
@@ -116,18 +126,10 @@ def run_simulations(
                 ))
                 continue
             result_name = Path(result).name
-            elec_results = [
-                "outputs.hydraulic.gen.PEleHeaPum.value",
-                "outputs.hydraulic.gen.PEleHeaRod.value",
-                "electrical.generation.internalElectricalPin.PElecGen",
-                "building.internalElectricalPin.PElecLoa",
-                "electricalGrid.PElecLoa",
-                "electricalGrid.PElecGen",
-            ]
 
             result = utils.extract_tsd_results(
                 path=Path(result),
-                result_names=sim_api.result_names + elec_results,
+                result_names=sim_results_to_extract,
                 convert_to_hdf_and_delete_mat=True
             )
             utils.plot_result(
@@ -164,10 +166,8 @@ def run_simulations(
         pd.DataFrame(results_last_points).to_excel(study_path.joinpath("Results.xlsx"))
         if failed_data:
             pd.DataFrame(failed_data).to_excel(study_path.joinpath("failed_simulations.xlsx"))
-    except KeyError as err:
-        logging.error(err)
-    finally:
-        sim_api.close()
+    except (KeyError, AttributeError) as err:
+        logging.error(err)   
 
     # Calc emissions
     hybrid_assumptions = {
@@ -183,17 +183,13 @@ if __name__ == '__main__':
     HYBRID_ASSUMPTIONS = HybridSystemAssumptions(method="costs")
     KWARGS = dict(
         hybrid_assumptions=HYBRID_ASSUMPTIONS,
-        n_cpu=10,
+        n_cpu=12,
         extract_only=False,
         with_smart_thermostat=False
     )
-    #run_simulations(model_name="Hybrid", case_name="HybridNoSetBack", grid_case="altbau", **KWARGS)
-    #run_simulations(model_name="Monovalent", case_name="MonovalentNoSetBack", grid_case="altbau", with_heating_rod=True, **KWARGS)
+    run_simulations(model_name="Hybrid", case_name="HybridHeaCur", grid_case="altbau", **KWARGS)
+    run_simulations(model_name="Monovalent", case_name="MonovalentHeaCur", grid_case="altbau", with_heating_rod=True, **KWARGS)
     run_simulations(model_name="Monovalent", case_name="MonovalentHeaCur", grid_case="altbau", with_heating_rod=False, **KWARGS)
-    run_simulations(model_name="Hybrid", case_name="HybridHeaCur", grid_case="neubau", **KWARGS)
+    #run_simulations(model_name="Hybrid", case_name="HybridHeaCur", grid_case="neubau", **KWARGS)
     run_simulations(model_name="Monovalent", case_name="MonovalentHeaCur", grid_case="neubau", with_heating_rod=True, **KWARGS)
     run_simulations(model_name="Monovalent", case_name="MonovalentHeaCur", grid_case="neubau", with_heating_rod=False, **KWARGS)
-    #run_simulations(model_name="Hybrid", case_name="HybridPVBat", grid_case="neubau", **KWARGS)
-    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="altbau", **KWARGS)
-    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", **KWARGS)
-    #run_simulations(model_name="Monovalent", case_name="MonovalentPVBat", grid_case="neubau", with_heating_rod=True, **KWARGS)

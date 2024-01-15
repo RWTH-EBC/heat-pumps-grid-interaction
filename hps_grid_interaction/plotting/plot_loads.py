@@ -38,7 +38,7 @@ def plot_variable_correlation(df: pd.DataFrame, variables: List[str], plot_confi
         plt.scatter(df.loc[:, var_x], df.loc[:, var_y])
         plt.ylabel(plot_config.get_label_and_unit(var_y))
         plt.xlabel(plot_config.get_label_and_unit(var_x))
-    plt.show()
+    #plt.show()
 
 
 def plot_days_in_year_over_hours_in_day(df: pd.DataFrame, variables: List[str], plot_config: PlotConfig):

@@ -100,5 +100,6 @@ def plot_important_variables(
     os.makedirs(save_path.parent, exist_ok=True)
     plt.savefig(save_path)
     if show:
-        plt.show()
+        pass
+        #plt.show()
     plt.close("all")

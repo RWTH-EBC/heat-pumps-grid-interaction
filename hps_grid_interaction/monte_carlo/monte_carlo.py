@@ -420,8 +420,7 @@ def run_all_cases(load: bool, quota_study: str, extra_case_name_hybrid: str = ""
         res = run_save_and_plot_monte_carlo(
             quota_cases=quota_cases,
             grid_case=grid_case,
-            save_path=save_path,
-            with_hr=with_hr, load=load,
+            save_path=save_path, load=load,
             extra_case_name=extra_case_name_hybrid
         )
         all_results[grid_case] = res

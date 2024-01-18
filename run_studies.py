@@ -106,9 +106,9 @@ def run_simulations(
             T_bivs=T_bivs
         )).to_excel(study_path.joinpath("simulation_inputs.xlsx"))
         results = sim_api.simulate(
-            parameters=[{"parameterStudy.TBiv": t_biv} for t_biv in T_bivs],
-            result_file_name=result_names,
-            model_names=explicit_model_names,
+            parameters=[{"parameterStudy.TBiv": t_biv} for t_biv in T_bivs][231:],
+            result_file_name=result_names[231:],
+            model_names=explicit_model_names[231:],
             savepath="\\\\?\\" + str(study_path.joinpath("SimulationResults")),  # Fix long path issue
             return_option="savepath",
             fail_on_error=False
@@ -183,13 +183,13 @@ if __name__ == '__main__':
     HYBRID_ASSUMPTIONS = HybridSystemAssumptions(method="costs")
     KWARGS = dict(
         hybrid_assumptions=HYBRID_ASSUMPTIONS,
-        n_cpu=12,
+        n_cpu=11,
         extract_only=False,
         with_smart_thermostat=False
     )
-    run_simulations(model_name="Hybrid", case_name="HybridHeaCur", grid_case="altbau", **KWARGS)
+    #run_simulations(model_name="Hybrid", case_name="HybridHeaCur", grid_case="altbau", **KWARGS)
     run_simulations(model_name="Monovalent", case_name="MonovalentHeaCur", grid_case="altbau", with_heating_rod=True, **KWARGS)
-    run_simulations(model_name="Monovalent", case_name="MonovalentHeaCur", grid_case="altbau", with_heating_rod=False, **KWARGS)
+    #run_simulations(model_name="Monovalent", case_name="MonovalentHeaCur", grid_case="altbau", with_heating_rod=False, **KWARGS)
     #run_simulations(model_name="Hybrid", case_name="HybridHeaCur", grid_case="neubau", **KWARGS)
-    run_simulations(model_name="Monovalent", case_name="MonovalentHeaCur", grid_case="neubau", with_heating_rod=True, **KWARGS)
-    run_simulations(model_name="Monovalent", case_name="MonovalentHeaCur", grid_case="neubau", with_heating_rod=False, **KWARGS)
+    #run_simulations(model_name="Monovalent", case_name="MonovalentHeaCur", grid_case="neubau", with_heating_rod=True, **KWARGS)
+    #run_simulations(model_name="Monovalent", case_name="MonovalentHeaCur", grid_case="neubau", with_heating_rod=False, **KWARGS)

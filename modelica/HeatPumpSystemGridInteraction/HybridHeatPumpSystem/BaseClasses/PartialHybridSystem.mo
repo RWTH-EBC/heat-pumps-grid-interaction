@@ -11,11 +11,12 @@ partial model PartialHybridSystem "Partial bivalent heat pump system"
         tilAllMod=0.5235987755983,
         redeclare model CellTemperature =
             AixLib.Electrical.PVSystem.BaseClasses.CellTemperatureMountingContactToGround,
+
         redeclare AixLib.DataBase.SolarElectric.QPlusBFRG41285 pVParameters,
         lat=weaDat.lat,
         lon=weaDat.lon,
         alt=weaDat.alt,
-        timZon=3600,
+        timZon=weaDat.timZon,
         ARoo=building.ARoo/2,
         use_eMob=use_eMob,
         fileNameEMob=fileNameEMob),

@@ -3,7 +3,7 @@ model Monovalent "Monovalent heat pump system"
   extends
     HeatPumpSystemGridInteraction.HybridHeatPumpSystem.BaseClasses.PartialHybridSystem(
     genDesTyp=BESMod.Systems.Hydraulical.Generation.Types.GenerationDesign.BivalentParallel,
-    use_heaRod=true,
+    use_eleHea=true,
     redeclare BESMod.Systems.Hydraulical.HydraulicSystem hydraulic(redeclare
         BESMod.Systems.Hydraulical.Control.MonoenergeticHeatPumpSystem control(
         redeclare

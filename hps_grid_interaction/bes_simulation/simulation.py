@@ -77,7 +77,7 @@ def get_simulation_config(model, with_heating_rod):
             "$\dot{Q}_\mathrm{Boi}$": "outputs.hydraulic.dis.QBoi_flow.value",
         })
     elif with_heating_rod:
-        y_variables.update({"$P_\mathrm{el,HeaRod}$": "outputs.hydraulic.gen.PEleHeaRod.value"})
+        y_variables.update({"$P_\mathrm{el,EleHea}$": "outputs.hydraulic.gen.PEleEleHea.value"})
 
     plot_settings = dict(
         x_vertical_lines=["parameterStudy.TBiv"],

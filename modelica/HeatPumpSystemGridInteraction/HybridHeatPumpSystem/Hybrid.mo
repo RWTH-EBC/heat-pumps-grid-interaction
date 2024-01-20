@@ -3,7 +3,7 @@ model Hybrid
   "Bivalent Heat Pump System with boiler integration after buffer tank without DHW support"
   extends HybridHeatPumpSystem.BaseClasses.PartialHybridSystem(
     genDesTyp=BESMod.Systems.Hydraulical.Generation.Types.GenerationDesign.BivalentAlternativ,
-    use_heaRod=false,
+    use_eleHea=false,
     redeclare BESMod.Systems.Hydraulical.HydraulicSystem hydraulic(redeclare
         HeatPumpSystemGridInteraction.HybridHeatPumpSystem.BaseClasses.HybridHeatPumpSystemCOPBased
         control(

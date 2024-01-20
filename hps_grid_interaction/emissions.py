@@ -70,7 +70,7 @@ def calc_all_emissions():
 def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumptions], file_ending=".hdf"):
     print(f"Extracting case {case}")
     gas_name = "outputs.hydraulic.dis.PBoiAftBuf.value"
-    p_el_hr_name = "outputs.hydraulic.gen.PEleHeaRod.value"
+    p_el_hr_name = "outputs.hydraulic.gen.PEleEleHea.value"
     p_el_hp_name = "outputs.hydraulic.gen.PEleHeaPum.value"
     COP_name = "hydraulic.generation.sigBusGen.COP"
     Q_boi_name = "outputs.hydraulic.dis.QBoi_flow.integral"

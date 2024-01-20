@@ -5,7 +5,7 @@ HybridHeatPumpSystemCOPBased
 COPBasedHybridControl
 ParameterStudy
 GetCOPCurve
-HeatPumpAndHeatingRod
+HeatPumpAndElectricHeater
 PartialCOPBasedHybridControl
 NoCOPBasedHybridControl
 PVSystemWithElectricCar

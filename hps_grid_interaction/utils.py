@@ -203,7 +203,7 @@ def load_buildings_and_gains(
                                 "      (redeclare HeatPumpSystemGridInteraction.RecordsCollection.PIRoomControlParas parPID)"
         else:
             control_modifier = "redeclare model BuildingSupplySetTemperature = \n" \
-                                "    BESMod.Systems.Hydraulical.Control.Components.BuildingSupplyTemperatureSetpoints.HeatingCurve"
+                                "    BESMod.Systems.Hydraulical.Control.Components.BuildingSupplyTemperatureSetpoints.IdealHeatingCurve"
         night_set_back_modifier = get_modifier(
             dT_set_back=dT_set_back, night_start=df_users.loc[idx, "night_start"]
         )

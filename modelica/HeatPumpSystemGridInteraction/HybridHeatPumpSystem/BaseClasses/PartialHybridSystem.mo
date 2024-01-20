@@ -11,7 +11,6 @@ partial model PartialHybridSystem "Partial bivalent heat pump system"
         tilAllMod=0.5235987755983,
         redeclare model CellTemperature =
             AixLib.Electrical.PVSystem.BaseClasses.CellTemperatureMountingContactToGround,
-
         redeclare AixLib.DataBase.SolarElectric.QPlusBFRG41285 pVParameters,
         lat=weaDat.lat,
         lon=weaDat.lon,
@@ -50,7 +49,7 @@ partial model PartialHybridSystem "Partial bivalent heat pump system"
           parTemSen(transferHeat=true),
         use_eleHea=use_eleHea,
         redeclare
-          BESMod.Systems.Hydraulical.Generation.RecordsCollection.DefaultHR
+          BESMod.Systems.Hydraulical.Generation.RecordsCollection.DefaultElectricHeater
           parEleHea,
         redeclare HeatPumpSystemGridInteraction.RecordsCollection.VitoCal250
           dataTable)),

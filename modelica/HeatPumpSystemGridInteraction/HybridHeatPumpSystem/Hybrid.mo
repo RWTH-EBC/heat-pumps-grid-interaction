@@ -3,19 +3,17 @@ model Hybrid
   "Bivalent Heat Pump System with boiler integration after buffer tank without DHW support"
   extends HybridHeatPumpSystem.BaseClasses.PartialHybridSystem(
     genDesTyp=BESMod.Systems.Hydraulical.Generation.Types.GenerationDesign.BivalentAlternativ,
-    use_heaRod=false,
+    use_eleHea=false,
     redeclare BESMod.Systems.Hydraulical.HydraulicSystem hydraulic(redeclare
         HeatPumpSystemGridInteraction.HybridHeatPumpSystem.BaseClasses.HybridHeatPumpSystemCOPBased
         control(
         redeclare
           BESMod.Systems.Hydraulical.Control.Components.ThermostaticValveController.ThermostaticValvePIControlled
           valCtrl,
-        redeclare
-          BESMod.Systems.Hydraulical.Control.RecordsCollection.ThermostaticValveDataDefinition
-          parTheVal,
         dTHysBui=10,
         dTHysDHW=10,
         meaValPriGen=BESMod.Systems.Hydraulical.Control.Components.BaseClasses.MeasuredValue.GenerationSupplyTemperature,
+
         redeclare model DHWHysteresis =
             BESMod.Systems.Hydraulical.Control.Components.BivalentOnOffControllers.AlternativeBivalent
             (T_biv=parameterStudy.TBiv),
@@ -47,14 +45,14 @@ model Hybrid
         redeclare
           BESMod.Systems.RecordsCollection.TemperatureSensors.DefaultSensor
           parTemSen,
+        redeclare BESMod.Systems.RecordsCollection.Valves.DefaultThreeWayValve
+          parThrWayVal,
         redeclare
           BESMod.Systems.Hydraulical.Distribution.RecordsCollection.BufferStorage.DefaultDetailedStorage
           parStoBuf(VPerQ_flow=parameterStudy.VPerQFlow),
         redeclare
           BESMod.Systems.Hydraulical.Distribution.RecordsCollection.BufferStorage.DefaultDetailedStorage
           parStoDHW(dTLoadingHC1=10),
-        redeclare BESMod.Systems.RecordsCollection.Valves.DefaultThreeWayValve
-          parThrWayVal,
         dTBoiDHWLoa=10,
         redeclare BESMod.Systems.RecordsCollection.Movers.DefaultMover parPum,
         redeclare BESMod.Systems.RecordsCollection.Valves.DefaultThreeWayValve

@@ -3,21 +3,18 @@ model Monovalent "Monovalent heat pump system"
   extends
     HeatPumpSystemGridInteraction.HybridHeatPumpSystem.BaseClasses.PartialHybridSystem(
     genDesTyp=BESMod.Systems.Hydraulical.Generation.Types.GenerationDesign.BivalentParallel,
-    use_heaRod=true,
+    use_eleHea=true,
     redeclare BESMod.Systems.Hydraulical.HydraulicSystem hydraulic(redeclare
         BESMod.Systems.Hydraulical.Control.MonoenergeticHeatPumpSystem control(
         redeclare
           BESMod.Systems.Hydraulical.Control.Components.ThermostaticValveController.ThermostaticValvePIControlled
           valCtrl,
-        redeclare
-          BESMod.Systems.Hydraulical.Control.RecordsCollection.ThermostaticValveDataDefinition
-          parTheVal,
         dTHysBui=10,
         dTHysDHW=10,
         redeclare model DHWHysteresis =
-            BESMod.Systems.Hydraulical.Control.Components.BivalentOnOffControllers.ConstantHysteresisTimeBasedHeatingRod,
+            BESMod.Systems.Hydraulical.Control.Components.BivalentOnOffControllers.TimeBasedElectricHeater,
         redeclare model BuildingHysteresis =
-            BESMod.Systems.Hydraulical.Control.Components.BivalentOnOffControllers.ConstantHysteresisTimeBasedHeatingRod,
+            BESMod.Systems.Hydraulical.Control.Components.BivalentOnOffControllers.TimeBasedElectricHeater,
         redeclare model SummerMode =
             BESMod.Systems.Hydraulical.Control.Components.SummerMode.No,
         redeclare

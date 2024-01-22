@@ -1,6 +1,6 @@
 within HeatPumpSystemGridInteraction.HybridHeatPumpSystem.BaseClasses;
-model HeatPumpAndHeatingRod "Monovalent heat pump with COP measurement"
-  extends BESMod.Systems.Hydraulical.Generation.HeatPumpAndHeatingRod(
+model HeatPumpAndElectricHeater "Monovalent heat pump with COP measurement"
+  extends BESMod.Systems.Hydraulical.Generation.HeatPumpAndElectricHeater(
     final TSoilConst=283.15,
     redeclare final package Medium_eva = IBPSA.Media.Air,
     final use_airSource=true,
@@ -21,4 +21,4 @@ equation
       index=1,
       extent={{-3,6},{-3,6}},
       horizontalAlignment=TextAlignment.Right));
-end HeatPumpAndHeatingRod;
+end HeatPumpAndElectricHeater;

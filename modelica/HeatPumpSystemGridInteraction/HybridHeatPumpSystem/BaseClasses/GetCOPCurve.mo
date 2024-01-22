@@ -4,16 +4,16 @@ model GetCOPCurve
     redeclare BESMod.Examples.UseCaseDesignOptimization.AachenSystem
       systemParameters(THydSup_nominal={THyd_nominal}),
     redeclare
-      HeatPumpSystemGridInteraction.HybridHeatPumpSystem.BaseClasses.HeatPumpAndHeatingRod
+      HeatPumpSystemGridInteraction.HybridHeatPumpSystem.BaseClasses.HeatPumpAndElectricHeater
       generation(
       redeclare BESMod.Systems.Hydraulical.Generation.RecordsCollection.DefaultHP
         parHeaPum,
       redeclare BESMod.Systems.RecordsCollection.Movers.DefaultMover parPum,
       redeclare BESMod.Systems.RecordsCollection.TemperatureSensors.DefaultSensor
         parTemSen,
-      use_heaRod=false,
+      use_eleHea=false,
       redeclare BESMod.Systems.Hydraulical.Generation.RecordsCollection.DefaultHR
-        parHeaRod,
+        parEleHea,
       redeclare HeatPumpSystemGridInteraction.RecordsCollection.VitoCal250
         dataTable),
     ramp(

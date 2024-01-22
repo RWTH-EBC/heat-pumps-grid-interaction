@@ -118,11 +118,11 @@
       "unit": "kW",
       "label": "$P_\\mathrm{el,HeaPum}$"
     },
-    "outputs.hydraulic.gen.PEleHeaRod.value": {
+    "outputs.hydraulic.gen.PEleEleHea.value": {
       "factor": 1000,
       "offset": 0,
       "unit": "kW",
-      "label": "$P_\\mathrm{el,HeaRod}$"
+      "label": "$P_\\mathrm{el,EleHea}$"
     },
     "outputs.DHW.Q_flow.value": {
       "factor": 1000,

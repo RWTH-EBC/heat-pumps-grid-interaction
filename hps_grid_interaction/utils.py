@@ -203,7 +203,7 @@ def load_buildings_and_gains(
                                 "      (redeclare HeatPumpSystemGridInteraction.RecordsCollection.PIRoomControlParas parPID)"
         else:
             control_modifier = "redeclare model BuildingSupplySetTemperature = \n" \
-                                "    BESMod.Systems.Hydraulical.Control.Components.BuildingSupplyTemperatureSetpoints.HeatingCurve"
+                                "    BESMod.Systems.Hydraulical.Control.Components.BuildingSupplyTemperatureSetpoints.IdealHeatingCurve"
         night_set_back_modifier = get_modifier(
             dT_set_back=dT_set_back, night_start=df_users.loc[idx, "night_start"]
         )
@@ -289,7 +289,7 @@ def extract_electricity_and_save(tsd, path, result_name, with_heating_rod: bool)
     from hps_grid_interaction.bes_simulation.simulation import INIT_PERIOD
 
     P_heat_pump = "outputs.hydraulic.gen.PEleHeaPum.value"
-    P_heating_rod = "outputs.hydraulic.gen.PEleHeaRod.value"
+    P_heating_rod = "outputs.hydraulic.gen.PEleEleHea.value"
     P_PV = "electrical.generation.internalElectricalPin.PElecGen"
     P_household = "building.internalElectricalPin.PElecLoa"
     P_grid_loa = "electricalGrid.PElecLoa"

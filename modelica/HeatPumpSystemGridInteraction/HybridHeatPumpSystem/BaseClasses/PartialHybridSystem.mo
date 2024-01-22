@@ -15,7 +15,7 @@ partial model PartialHybridSystem "Partial bivalent heat pump system"
         lat=weaDat.lat,
         lon=weaDat.lon,
         alt=weaDat.alt,
-        timZon=3600,
+        timZon=weaDat.timZon,
         ARoo=building.ARoo/2,
         use_eMob=use_eMob,
         fileNameEMob=fileNameEMob),
@@ -29,7 +29,7 @@ partial model PartialHybridSystem "Partial bivalent heat pump system"
         thermalZone(internalGainsMode=2)),
     redeclare BESMod.Systems.Control.NoControl control,
     redeclare BESMod.Systems.Hydraulical.HydraulicSystem hydraulic(redeclare
-        HybridHeatPumpSystem.BaseClasses.HeatPumpAndHeatingRod generation(
+        HybridHeatPumpSystem.BaseClasses.HeatPumpAndElectricHeater generation(
         redeclare
           BESMod.Systems.Hydraulical.Generation.RecordsCollection.DefaultHP
           parHeaPum(
@@ -47,10 +47,10 @@ partial model PartialHybridSystem "Partial bivalent heat pump system"
         redeclare
           BESMod.Systems.RecordsCollection.TemperatureSensors.DefaultSensor
           parTemSen(transferHeat=true),
-        use_heaRod=use_heaRod,
+        use_eleHea=use_eleHea,
         redeclare
-          BESMod.Systems.Hydraulical.Generation.RecordsCollection.DefaultHR
-          parHeaRod,
+          BESMod.Systems.Hydraulical.Generation.RecordsCollection.DefaultElectricHeater
+          parEleHea,
         redeclare HeatPumpSystemGridInteraction.RecordsCollection.VitoCal250
           dataTable)),
     redeclare BESMod.Systems.Demand.DHW.DHWCalc DHW(redeclare
@@ -63,7 +63,7 @@ partial model PartialHybridSystem "Partial bivalent heat pump system"
       HeatPumpSystemGridInteraction.HybridHeatPumpSystem.BaseClasses.ParameterStudy
       parameterStudy);
 
-  parameter Boolean use_heaRod=true "=false to disable the heating rod";
+  parameter Boolean use_eleHea=true "=false to disable the electric heater";
   parameter BESMod.Systems.Hydraulical.Generation.Types.GenerationDesign
     genDesTyp=BESMod.Systems.Hydraulical.Generation.Types.GenerationDesign.BivalentPartParallel
     "Type of generation system design";

@@ -55,3 +55,18 @@
 	- Hausstrom + WP
 	- Hausstrom + WP + E-Auto
 	- Hausstrom + WP + E-Auto +  PV + Batterie
+
+
+## Graphical Abstract ideas
+
+- Central image: Kerber Netz (new / old buildings icon?!)
+  - Old and new
+- Step 1: BESMod Simulations --> X thousand simulations and X million possible system configurations
+  - Different system configurations
+    - Heat supply: fossil based, monovalent heat pump, bivalent hp with electric heater, hybrid heat pump
+    - electric system: household, + pv, +pv+bat, +pv+bat+e-mob
+    - Building envelope: standard, retrofit, advanced retrofit
+- Step 2: Monte Carlo Analysis --> N thousand simulations to determine typical (median / mean maximal power) system configuration
+  - With different quotas
+- Step 3: Grid simulation of typical system configuration
+  - With different trafo-sizes

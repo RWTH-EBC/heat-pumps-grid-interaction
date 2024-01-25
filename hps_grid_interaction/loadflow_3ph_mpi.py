@@ -104,9 +104,7 @@ def run_single_worksheet(
 
     # load a pandapower network
     net = nw.create_kerber_vorstadtnetz_kabel_1()
-    net.trafo.sn_mva = kva / 1000.0 / 3.0
-    net.trafo.tap_min = 0
-    net.trafo.tap_max = 0
+    net.trafo.sn_mva = kva / 1000.0
 
     # assemble the loads from the different CSV files and make it fit to the pandapower's Kerber grid model
     busdict = net.bus.to_dict()
@@ -120,10 +118,8 @@ def run_single_worksheet(
     for i in range(len(worksheet["A"]) - 1):
         load_id = loadbusdict[connection_points[i]]
         df_active[load_id] = elec_p_demand_timeseries[load_id]["power"]
-        df_active[load_id] = df_active[load_id].multiply(1.0 / 3.0)
         df_active[load_id] = df_active[load_id].multiply(1.0 / 1000.0)
         df_reactive[load_id] = elec_q_demand_timeseries[load_id]["power"]
-        df_reactive[load_id] = df_reactive[load_id].multiply(1.0 / 3.0)
         df_reactive[load_id] = df_reactive[load_id].multiply(1.0 / 1000.0)
     df_active = df_active.reindex(sorted(df_active.columns), axis=1)
     df_active.index = range(0, len(df_active))
@@ -217,7 +213,7 @@ if __name__ == '__main__':
     from loadflow_scenarios import LOADFLOW_SCENARIOS
 
     run_lastfluss_simulation(
-        trafo_kva=[1000.0, 1200.0, 1400.0, 1600.0, 1800.0, 2000.0],
+        trafo_kva=[600.0, 800.0, 1000.0, 1200.0, 1400.0, 1600.0, 1800.0, 2000.0],
         loadflow_scenarios=LOADFLOW_SCENARIOS,
         cos_phi=0.95
     )

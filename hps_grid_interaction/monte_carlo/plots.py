@@ -23,9 +23,25 @@ def _get_grid_sum(grid_tsd):
     return sum_grid
 
 
+def is_number(s: str):
+    try:
+        _ = float(s)
+        return True
+    except ValueError:
+        return False
+
+
 def _get_quota_value(quota_case, in_percent):
+    quota_case_value = quota_case.split("_")[-1]
     if in_percent:
-        return quota_case.split("_")[-1] + " %"
+        if is_number(quota_case_value):
+            quota_case_value += " %"
+        if len(quota_case_value) > 15:
+            return quota_case_value[len(quota_case_value)-15:]
+        else:
+            return quota_case_value
+    if not is_number(quota_case_value):
+        raise ValueError(f"Given quota_case is not a number: {quota_case_value}")
     return int(quota_case.split("_")[-1])
 
 
@@ -128,8 +144,8 @@ def plot_monte_carlo_violin(data: dict, metric: str, save_path: Path, quota_case
     if points is None:
         points = ["ONT"]
     n_subplots = len(quota_cases)
-    if n_subplots > 8:
-        logger.error("Won't plot violins, too many quota_cases: %s", n_subplots)
+    #if n_subplots > 8:
+    #    logger.error("Won't plot violins, too many quota_cases: %s", n_subplots)
     label, factor = get_label_and_factor(metric)
     for point in points:
         values = data[point]

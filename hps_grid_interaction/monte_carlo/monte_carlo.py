@@ -73,10 +73,15 @@ def _draw_uncertain_choice(quotas: Quotas, building_type: str, year_of_construct
 def _get_time_series_data_for_choices(heat_supplies: dict, house_index: int, all_choices: dict):
     df_sim, time_series_data = heat_supplies[all_choices["heat_supply_choice"]]
     possible_rows = df_sim.loc[house_index]
-    mask = possible_rows.loc[:, "construction_type"] == all_choices["construction_type_choice"]
-    if not np.any(mask):
-        raise KeyError("No mask fitted, something went wrong")
-    sim_result_name = possible_rows.loc[mask, "simulation_result"].values[0]
+    if isinstance(possible_rows, pd.Series):
+        if not possible_rows["Baujahr"] == 2010:
+            raise KeyError("Only one type even though not 2010, something went wrong")
+        sim_result_name = possible_rows["simulation_result"]
+    else:
+        mask = possible_rows.loc[:, "construction_type"] == all_choices["construction_type_choice"]
+        if not np.any(mask):
+            raise KeyError("No mask fitted, something went wrong")
+        sim_result_name = possible_rows.loc[mask, "simulation_result"].values[0]
 
     return time_series_data[sim_result_name].loc[:, all_choices["electricity_system_choice"]]
 
@@ -456,10 +461,13 @@ def run_all_cases(load: bool, quota_study: str, extra_case_name_hybrid: str = ""
     #"all_retrofit": Quotas(construction_type_quota="all_retrofit"),
     #"all_adv_retrofit": Quotas(construction_type_quota="all_adv_retrofit"),
     #"no_retrofit": Quotas(construction_type_quota="no_retrofit")
-    save_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"Altbau_{quota_study}")
-
+    grid_cases = [
+        #"altbau",
+        "neubau"
+    ]
     all_results = {}
-    for grid_case in ["altbau"]:#, "neubau"]:
+    for grid_case in grid_cases:
+        save_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"{grid_case.capitalize()}_{quota_study}")
         res = run_save_and_plot_monte_carlo(
             quota_cases=quota_cases,
             grid_case=grid_case,
@@ -476,11 +484,11 @@ def run_all_cases(load: bool, quota_study: str, extra_case_name_hybrid: str = ""
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    #run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_hyb_with_pv_bat")
-    run_all_cases(load=True, extra_case_name_hybrid="Weather", quota_study="show_extremas")
-    #run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_e_mob_with_pv_bat")
-    #run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_heat_pump")
-    #run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_heating_rod")
-    #run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_pv_bat")
-    #run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_hyb")
-    #run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_pv")
+    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_hyb_with_pv_bat")
+    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="show_extremas")
+    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_e_mob_with_pv_bat")
+    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_heat_pump")
+    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_heating_rod")
+    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_pv_bat")
+    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_hyb")
+    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_pv")

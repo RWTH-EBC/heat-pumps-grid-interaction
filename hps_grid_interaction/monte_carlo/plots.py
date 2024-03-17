@@ -12,6 +12,7 @@ import seaborn as sns
 from hps_grid_interaction import DATA_PATH
 from hps_grid_interaction.utils import load_outdoor_air_temperature
 from hps_grid_interaction.emissions import COLUMNS_EMISSIONS, get_emission_options
+from hps_grid_interaction.plotting.config import EBCColors
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +72,36 @@ def _get_quota_varying_name(quota_case):
     return quota_case.split("_")[-2]
 
 
+def plot_quota_case_with_images(x_ticks: list, quota_cases: list, ax: plt.axes, image_width: float = 0.4):
+    from matplotlib.image import BboxImage, imread
+    from matplotlib.transforms import Bbox
+    # remove tick labels
+    ax.set_xticklabels([])
+    for x_tick, quota_case in zip(x_ticks, quota_cases):
+        technologies = _get_technologies(quota_case)
+        for idx, technology in enumerate(technologies):
+            tick_y_position = -0.2 - image_width * (1 + idx)
+
+            lower_corner = ax.transData.transform((x_tick - image_width / 2, tick_y_position - image_width / 2))
+            upper_corner = ax.transData.transform((x_tick + image_width / 2, tick_y_position + image_width / 2))
+
+            bbox_image = BboxImage(
+                Bbox([lower_corner[0], lower_corner[1], upper_corner[0], upper_corner[1], ]),
+                norm=None,
+                origin=None,
+                clip_on=False,
+            )
+
+            bbox_image.set_data(imread(DATA_PATH.joinpath("icons", f"{technology}.png")))
+            ax.add_artist(bbox_image)
+    return ax
+
+
 def plot_time_series(quota_case_grid_data: dict, save_path):
     label = get_label_and_factor("value")[0]
     fig, ax = plt.subplots(1, 2, sharey=True)
+    fig_yearly, ax_yearly = plt.subplots(1, 1, figsize=(27, 9))
+
     #ax = [ax]
     t_oda = load_outdoor_air_temperature()
     bins = np.linspace(t_oda.values[1:-1, 0].min(), t_oda.values[1:-1, 0].max(), num=30)
@@ -95,6 +123,9 @@ def plot_time_series(quota_case_grid_data: dict, save_path):
                    label=_get_quota_value(quota_case, True))
         #ax[1].plot(bins, min_curve, label=_get_quota_value(quota_case, True), linestyle="--")
         ax[1].plot(bins, max_curve, label=_get_quota_value(quota_case, True), linestyle="-")
+        ax_yearly.plot()
+        ax_yearly.plot(np.arange(len(df_sum)) / 4, df_sum,
+                       label=_get_quota_value(quota_case, True))
     fig.suptitle(_get_quota_name_except_value(quota_case))
     ax[0].set_ylabel(label)
     ax[1].set_xlabel("$T_\mathrm{Oda}$ in °C")
@@ -103,6 +134,11 @@ def plot_time_series(quota_case_grid_data: dict, save_path):
     #ax[0].legend(loc="upper right")
     fig.tight_layout()
     fig.savefig(save_path.joinpath(f"sorted_time_series_plot.png"))
+    ax_yearly.set_ylabel(label)
+    ax_yearly.set_xlabel("Hour of year in h")
+    ax_yearly.legend(bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
+    fig_yearly.tight_layout()
+    fig_yearly.savefig(save_path.joinpath(f"annual_time_series_plot.png"))
 
 
 def plot_results_all_cases(path: Path, point: str = "ONT", metric: str = "sum"):
@@ -192,7 +228,6 @@ def plot_monte_carlo_bars(data: dict, metric: str, save_path: Path, quota_cases:
     fig, axes = plt.subplots(len(points), 1)
     if len(points) == 1:
         axes = [axes]
-    from hps_grid_interaction.plotting.config import EBCColors
     x_pos = np.arange(len(quota_cases))
     bar_width = 0.8 / n_bars
     bar_args = dict(align='center', ecolor='black', width=bar_width)

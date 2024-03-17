@@ -7,15 +7,24 @@ import numpy as np
 
 from hps_grid_interaction.plotting.config import PlotConfig
 from hps_grid_interaction.utils import load_outdoor_air_temperature
-from hps_grid_interaction.monte_carlo.plots import _get_quota_value, _get_quota_name_except_value
+from hps_grid_interaction.monte_carlo.plots import _get_quota_value
+from hps_grid_interaction.plotting.config import EBCColors
+
 
 metric_data = {
-    "p_trafo": {"label": "$P$ in kVA", "opt": "max"},
-    "q_trafo": {"label": "$Q$ in kVA", "opt": "max"},
+    "p_trafo": {"label": "$P$ in kW", "opt": "max"},
+    "q_trafo": {"label": "$Q$ in kW", "opt": "max"},
     "s_trafo": {"label": "$S$ in kVA", "opt": "max"},
     "vm_pu_min": {"label": "$V_\mathrm{min}$ in p.u.", "opt": "min",
                   "axhlines": [0.9, 0.95, 0.97]},
-    "max_line_loading": {"label": "$p_\mathrm{max}$ in kVA", "opt": "max"},
+    "max_line_loading": {"label": "$p_\mathrm{max}$ in %", "opt": "max"},
+}
+
+calculated_metrics = {
+    "vm_pu_min smaller 0.97": {"label": "$V_\mathrm{min}$ < 0.97 p.u. in %/a"},
+    "vm_pu_min smaller 0.9": {"label": "$V_\mathrm{min}$ < 0.9 p.u. in %/a"},
+    "vm_pu_min smaller 0.95": {"label": "$V_\mathrm{min}$ < 0.95 p.u. in %/a"},
+    "percent_max_trafo_load in %": {"label": "Maximal Transformer Load in %"}
 }
 
 
@@ -112,7 +121,19 @@ def get_statistics(case_and_trafo_data: dict, path: Path):
                             trafo_results[metric], axhline_value
                         )
             idx += 1
+    df.loc[:, "percent_max_trafo_load in %"] = df.loc[:, "s_trafo_max"] / df.loc[:, "Trafo-Size"] * 100
     df.to_excel(path.joinpath(f"grid_statistics_{path.name}.xlsx"), sheet_name=path.name)
+
+    for second_metric in calculated_metrics.keys():
+        plot_required_trafo_size(
+            path=path.joinpath("plots"),
+            df=df,
+            cases=list(case_and_trafo_data.keys()),
+            design_metric="percent_max_trafo_load in %",
+            design_value=100,
+            second_metric=second_metric
+        )
+
     return df
 
 
@@ -142,12 +163,12 @@ def generate_all_cases(path: Path, with_plot: bool, altbau=True):
     else:
         grid_case = "Neubau_"
     cases = [
-        "av_e_mob_with_pv_bat",
-        "av_heat_pump",
-        "av_heating_rod",
-        "av_pv_bat",
-        "av_hyb",
-        "av_pv",
+        #"av_e_mob_with_pv_bat",
+        #"av_heat_pump",
+        #"av_heating_rod",
+        #"av_pv_bat",
+        #"av_hyb",
+        #"av_pv",
         "show_extremas",
         "av_hyb_with_pv_bat",
     ]
@@ -163,6 +184,40 @@ def generate_all_cases(path: Path, with_plot: bool, altbau=True):
     dfs = pd.concat(dfs)
     dfs.index = range(len(dfs))
     dfs.to_excel(path.joinpath(f"{grid_case}all_grid_results_ex.xlsx"))
+
+
+def plot_required_trafo_size(
+        path: Path,
+        df: pd.DataFrame(),
+        cases: list,
+        design_metric: str = "percent_max_trafo_load in %",
+        design_value: float = 100,
+        second_metric: str = "vm_pu_min smaller 0.97"
+):
+    df_plot = pd.DataFrame(columns=df.columns)
+    for case in cases:
+        df_case = df.loc[(df.loc[:, "case"] == case) & (df.loc[:, design_metric] < design_value)]
+        min_idx = df_case.loc[:, "Trafo-Size"].argmin()
+        df_plot.loc[case] = df_case.iloc[min_idx]
+    fig, ax = plt.subplots(1, 1)
+    ax_twin = ax.twiny()
+    x_pos = np.arange(len(df_plot.index))
+    bar_width = 0.8 / 1
+    bar_args = dict(align='center', ecolor='black', height=bar_width)
+    ax.barh(
+        x_pos, df_plot.loc[:, "Trafo-Size"],
+        color=EBCColors.ebc_palette_sort_2[0],
+        **bar_args,
+    )
+    ax.set_xlabel("Minimal Transformer Size in kVA")
+    ax.set_yticks(x_pos)
+    ax.set_yticklabels(df_plot.index)
+    ax.xaxis.grid(True)
+    ax.set_xlim([df_plot.loc[:, "Trafo-Size"].min()-100, df_plot.loc[:, "Trafo-Size"].max()+100])
+    ax_twin.plot(df_plot.loc[:, second_metric], x_pos, linewidth=5, color=EBCColors.ebc_palette_sort_2[1])
+    ax_twin.set_xlabel(calculated_metrics[second_metric]["label"])
+    fig.tight_layout()
+    fig.savefig(path.joinpath(f"MinTrafoDesign_{second_metric}.png"))
 
 
 if __name__ == '__main__':

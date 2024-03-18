@@ -13,6 +13,7 @@ from hps_grid_interaction import DATA_PATH
 from hps_grid_interaction.utils import load_outdoor_air_temperature
 from hps_grid_interaction.emissions import COLUMNS_EMISSIONS, get_emission_options
 from hps_grid_interaction.plotting.config import EBCColors
+from hps_grid_interaction.monte_carlo.monte_carlo import Quotas
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,7 @@ def plot_quota_case_with_images(x_ticks: list, quota_cases: list, ax: plt.axes, 
     # remove tick labels
     ax.set_xticklabels([])
     for x_tick, quota_case in zip(x_ticks, quota_cases):
-        technologies = _get_technologies(quota_case)
+        technologies, _ = _get_technologies(quota_case)
         for idx, technology in enumerate(technologies):
             tick_y_position = -0.2 - image_width * (1 + idx)
 
@@ -95,6 +96,24 @@ def plot_quota_case_with_images(x_ticks: list, quota_cases: list, ax: plt.axes, 
             bbox_image.set_data(imread(DATA_PATH.joinpath("icons", f"{technology}.png")))
             ax.add_artist(bbox_image)
     return ax
+
+
+def _get_technologies(quota_case: Quotas):
+    # Building:
+    fixed_technologies = []
+    varying_technologies = []
+    fixed_technologies.append(quota_case.construction_type_quota)
+
+    def _append_fixed_and_varying(quotes: dict, fixed: list, varying: list):
+        for name, case_value in quotes.items():
+            if case_value == 100:
+                fixed.append(name)
+            elif case_value > 0:
+                varying.append(name)
+
+    _append_fixed_and_varying(quota_case.heat_supply_quotas, fixed_technologies, varying_technologies)
+    _append_fixed_and_varying(quota_case.electricity_system_quotas, fixed_technologies, varying_technologies)
+    return fixed_technologies, varying_technologies
 
 
 def plot_time_series(quota_case_grid_data: dict, save_path):

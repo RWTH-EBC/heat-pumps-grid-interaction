@@ -1,3 +1,4 @@
+import itertools
 import json
 import logging
 import os
@@ -6,7 +7,7 @@ from pathlib import Path
 from typing import Dict, List
 from random import choices
 import time
-
+import multiprocessing
 import pandas as pd
 import numpy as np
 
@@ -36,6 +37,7 @@ class Quotas:
             n_monte_carlo: int = 1000
     ):
         self.construction_type_quotas = get_construction_type_quotas(assumption=construction_type_quota)
+        self.construction_type_quota = construction_type_quota
         monoenergetic_quota = (100 - hybrid_quota) * heat_pump_quota / 100
         self.heat_supply_quotas = {
             "monovalent": (100 - heating_rod_quota) * monoenergetic_quota / 100,
@@ -338,13 +340,19 @@ def save_excel(df, path, sheet_name):
     else:
         df.to_excel(path, sheet_name=sheet_name)
 
+
 def run_save_and_plot_monte_carlo(
-        quota_cases: Dict[str, Quotas],
-        grid_case: str,
-        save_path: Path,
-        load: bool = False,
-        extra_case_name: str = "",
+    kwargs: dict
 ):
+    if not logging.getLogger().hasHandlers():
+        logging.basicConfig(level="INFO")
+
+    quota_cases = kwargs["quota_cases"]
+    grid_case = kwargs["grid_case"]
+    save_path = kwargs["save_path"]
+    load = kwargs["load"]
+    extra_case_name = kwargs["extra_case_name"]
+
     os.makedirs(save_path, exist_ok=True)
 
     kwargs = load_function_kwargs_prior_to_monte_carlo(
@@ -373,122 +381,178 @@ def run_save_and_plot_monte_carlo(
         save_path=save_path, grid_case=grid_case,
         **kwargs
     )
-
-    return export_data
-
-
-def run_all_cases(load: bool, quota_study: str, extra_case_name_hybrid: str = ""):
-    quota_cases = {}
-    if quota_study == "av_pv":
-        for quota in [0, 20, 40, 60, 80, 100]:
-            quota_cases[f"{quota_study}_{quota}"] = Quotas(
-                construction_type_quota="average", pv_quota=quota, pv_battery_quota=0,
-                e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=0
-            )
-    elif quota_study == "av_pv_bat":
-        for quota in [0, 20, 40, 60, 80, 100]:
-            quota_cases[f"{quota_study}_{quota}"] = Quotas(
-                construction_type_quota="average", pv_quota=0, pv_battery_quota=quota,
-                e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=0
-            )
-    elif quota_study == "av_hyb":
-        for quota in [0, 20, 40, 60, 80, 100]:
-            quota_cases[f"{quota_study}_{quota}"] = Quotas(
-                construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
-                e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=quota, heating_rod_quota=0
-            )
-    elif quota_study == "av_heat_pump":
-        for quota in [0, 20, 40, 60, 80, 100]:
-            quota_cases[f"{quota_study}_{quota}"] = Quotas(
-                construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
-                e_mobility_quota=0, heat_pump_quota=quota, hybrid_quota=0, heating_rod_quota=0
-            )
-    elif quota_study == "av_hyb_with_pv_bat":
-        for quota in [0, 20, 40, 60, 80, 100]:
-            quota_cases[f"{quota_study}_{quota}"] = Quotas(
-                construction_type_quota="average", pv_quota=0, pv_battery_quota=100,
-                e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=quota, heating_rod_quota=0
-            )
-    elif quota_study == "av_e_mob_with_pv_bat":
-        for quota in [0, 20, 40, 60, 80, 100]:
-            quota_cases[f"{quota_study}_{quota}"] = Quotas(
-                construction_type_quota="average", pv_quota=0, pv_battery_quota=100,
-                e_mobility_quota=quota, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=0
-            )
-    elif quota_study == "av_heating_rod":
-        for quota in [0, 20, 40, 60, 80, 100]:
-            quota_cases[f"{quota_study}_{quota}"] = Quotas(
-                construction_type_quota="average", pv_quota=0, pv_battery_quota=100,
-                e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=quota
-            )
-    elif quota_study == "show_extremas":
-        quota_cases[f"{quota_study}_" + "GasAverage"] = Quotas(
-            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
-            e_mobility_quota=0, heat_pump_quota=0, hybrid_quota=0, heating_rod_quota=0
-        )
-        quota_cases[f"{quota_study}_" + "HybAverage"] = Quotas(
-            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
-            e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=100, heating_rod_quota=0
-        )
-        quota_cases[f"{quota_study}_" + "MonAverage"] = Quotas(
-            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
-            e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=0
-        )
-        quota_cases[f"{quota_study}_" + "HeaRodAverage"] = Quotas(
-            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
-            e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
-        )
-        quota_cases[f"{quota_study}_" + "HeaRodAverageEMob"] = Quotas(
-            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
-            e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
-        )
-        quota_cases[f"{quota_study}_" + "HeaRodAverageEMobPV"] = Quotas(
-            construction_type_quota="average", pv_quota=100, pv_battery_quota=0,
-            e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
-        )
-        quota_cases[f"{quota_study}_" + "HeaRodAverageEMobPVBat"] = Quotas(
-            construction_type_quota="average", pv_quota=0, pv_battery_quota=100,
-            e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
-        )
-        quota_cases[f"{quota_study}_" + "HeaRodAllRetroEMobPVBat"] = Quotas(
-            construction_type_quota="all_retrofit", pv_quota=0, pv_battery_quota=100,
-            e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
-        )
-        quota_cases[f"{quota_study}_" + "HeaRodAllAdvRetroEMobPVBat"] = Quotas(
-            construction_type_quota="all_adv_retrofit", pv_quota=0, pv_battery_quota=100,
-            e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
-        )
-    #"all_retrofit": Quotas(construction_type_quota="all_retrofit"),
-    #"all_adv_retrofit": Quotas(construction_type_quota="all_adv_retrofit"),
-    #"no_retrofit": Quotas(construction_type_quota="no_retrofit")
-    grid_cases = [
-        #"altbau",
-        "neubau"
-    ]
-    all_results = {}
-    for grid_case in grid_cases:
-        save_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"{grid_case.capitalize()}_{quota_study}")
-        res = run_save_and_plot_monte_carlo(
-            quota_cases=quota_cases,
-            grid_case=grid_case,
-            save_path=save_path, load=load,
-            extra_case_name=extra_case_name_hybrid
-        )
-        all_results[grid_case] = res
     all_results_path = save_path.joinpath("results_to_plot.json")
     with open(all_results_path, "w") as file:
-        json.dump(all_results, file)
-    return all_results_path
+        json.dump(export_data, file)
+    return True
+
+
+def get_all_quota_studies():
+    all_quota_studies = {}
+
+    fixed_pv_quotas = [0, 100]
+    fixed_pv_battery_quotas = [0, 100]
+    fixed_e_mobility_quotas = [0, 100]
+    fixed_heat_pump_quotas = [0, 100]
+    fixed_heating_rod_quotas = [0, 100]
+    fixed_hybrid_quotas = [0, 100]
+
+    def _create_quotas_from_0_to_100(
+            quota_study_name: str,
+            quota_variable: str,
+            arg_wrapper: callable = None,
+            zero_to_hundred: list = None,
+            **quota_kwargs
+    ):
+        if arg_wrapper is None:
+            arg_wrapper = lambda x: x
+        if zero_to_hundred is None:
+            zero_to_hundred = [0, 20, 40, 60, 80, 100]
+        quota_cases = {}
+        for quota in zero_to_hundred:
+            quota_cases[f"{quota_variable}_{quota_study_name}_{quota}"] = Quotas(
+                **{
+                    quota_variable: arg_wrapper(quota),
+                    **quota_kwargs
+                }
+            )
+        return quota_cases
+
+    # Gap-1: Hybrid
+    for pv, pv_bat, e_mob, hp, hr in itertools.product(
+           fixed_pv_quotas,
+           fixed_pv_battery_quotas,
+           fixed_e_mobility_quotas,
+           fixed_heat_pump_quotas,
+           fixed_heating_rod_quotas,
+    ):
+        tech_values = {
+            "PV": pv,
+            "PVBat": pv_bat,
+            "EMob": e_mob,
+            "HP": hp,
+            "HR": hr,
+        }
+        identifier = "_".join([tech for tech, value in tech_values.items() if value == 100])
+        all_quota_studies[f"hybrid_{identifier}"] = _create_quotas_from_0_to_100(
+            quota_study_name=identifier,
+            quota_variable="hybrid_quota",
+            construction_type_quota="average",
+            pv_quota=pv,
+            pv_battery_quota=pv_bat,
+            e_mobility_quota=e_mob,
+            heat_pump_quota=hp,
+            heating_rod_quota=hr
+        )
+
+    # Gap-2: Building retrofit
+    for pv, pv_bat, e_mob, hp, hr, hyb in itertools.product(
+           fixed_pv_quotas,
+           fixed_pv_battery_quotas,
+           fixed_e_mobility_quotas,
+           fixed_heat_pump_quotas,
+           fixed_heating_rod_quotas,
+           fixed_hybrid_quotas
+    ):
+        tech_values = {
+            "PV": pv,
+            "PVBat": pv_bat,
+            "EMob": e_mob,
+            "HP": hp,
+            "HR": hr,
+            "Hyb": hyb
+        }
+        identifier = "_".join([tech for tech, value in tech_values.items() if value == 100])
+        kwargs = dict(
+            quota_study_name=identifier,
+            quota_variable="construction_type_quota",
+            pv_quota=pv,
+            pv_battery_quota=pv_bat,
+            e_mobility_quota=e_mob,
+            heat_pump_quota=hp,
+            heating_rod_quota=hr,
+            hybrid_quota=hyb
+        )
+        all_quota_studies[f"extrema_{identifier}"] = _create_quotas_from_0_to_100(
+            zero_to_hundred=["no_retrofit", "all_retrofit", "all_adv_retrofit"], **kwargs
+        )
+        all_quota_studies[f"retrofit_{identifier}"] = _create_quotas_from_0_to_100(
+            arg_wrapper=lambda x: dict(p_ret=x / 100), **kwargs
+        )
+        all_quota_studies[f"adv_retrofit_{identifier}"] = _create_quotas_from_0_to_100(
+            arg_wrapper=lambda x: dict(p_adv_ret=x / 100), **kwargs
+        )
+
+    all_quota_studies["GraphicalAbstract"] = {
+        "GraphicalAbstract_GasAverage": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=0, heat_pump_quota=0, hybrid_quota=0, heating_rod_quota=0
+        ),
+        "GraphicalAbstract_HybAverage": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=100, heating_rod_quota=0
+        ),
+        "GraphicalAbstract_MonAverage": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=0
+        ),
+        "GraphicalAbstract_HeaRodAverage": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+        ),
+        "GraphicalAbstract_HeaRodAverageEMob": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+        ),
+        "GraphicalAbstract_HeaRodAverageEMobPV": Quotas(
+            construction_type_quota="average", pv_quota=100, pv_battery_quota=0,
+            e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+        ),
+        "GraphicalAbstract_HeaRodAverageEMobPVBat": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=100,
+            e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+        ),
+        "GraphicalAbstract_HeaRodAllRetroEMobPVBat": Quotas(
+            construction_type_quota="all_retrofit", pv_quota=0, pv_battery_quota=100,
+            e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+        ),
+        "GraphicalAbstract_HeaRodAllAdvRetroEMobPVBat": Quotas(
+            construction_type_quota="all_adv_retrofit", pv_quota=0, pv_battery_quota=100,
+            e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+        )}
+    return all_quota_studies
+
+
+def run_all_cases(load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1):
+    all_quota_cases = get_all_quota_studies()
+    grid_cases = [
+        "altbau",
+        "#neubau"
+    ]
+    function_kwargs = []
+    for grid_case in grid_cases:
+        for quota_study_name, quota_cases in all_quota_cases.items():
+            save_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"{grid_case.capitalize()}_{quota_study_name}")
+            function_kwargs.append(dict(
+                quota_cases=quota_cases,
+                grid_case=grid_case,
+                save_path=save_path,
+                load=load,
+                extra_case_name=extra_case_name_hybrid
+            ))
+    if n_cpu > 1:
+        pool = multiprocessing.Pool(processes=n_cpu)
+        i = 0
+        for res in pool.imap(run_save_and_plot_monte_carlo, function_kwargs):
+            logger.info("Solved %s of %s cases", i, len(function_kwargs))
+            i += 1
+    else:
+        for i, kwargs in enumerate(function_kwargs):
+            run_save_and_plot_monte_carlo(kwargs)
+            logger.info("Solved %s of %s cases", i, len(function_kwargs))
 
 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_hyb_with_pv_bat")
-    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="show_extremas")
-    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_e_mob_with_pv_bat")
-    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_heat_pump")
-    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_heating_rod")
-    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_pv_bat")
-    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_hyb")
-    run_all_cases(load=False, extra_case_name_hybrid="Weather", quota_study="av_pv")
+    run_all_cases(load=False, extra_case_name_hybrid="Weather", n_cpu=8)

@@ -42,75 +42,44 @@ class HybridSystemAssumptions:
 
 
 def get_construction_type_quotas(assumption: str):
+
+    def _get_ct_quotas(tabula_standard, tabula_retrofit, tabula_adv_retrofit):
+        assert tabula_standard + tabula_retrofit + tabula_adv_retrofit == 100, "Quotas do not match 100 % in total"
+        d = {"tabula_standard": tabula_standard, "tabula_retrofit": tabula_retrofit, "tabula_adv_retrofit": tabula_adv_retrofit}
+        q = {
+            2010: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
+            1980: d, 1970: d, 1960: d, 1950: d,
+        }
+        return {"MFH": q, "EFH": q}
+
+    def _retrofit_percentage_of_stock(p_ret: float = 0, p_adv_ret: float = 0):
+        return {
+            "MFH": {
+                2010: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
+                1980: {"tabula_standard": 75 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 17 + 75 * p_ret, "tabula_adv_retrofit": 8 + 75 * p_adv_ret},
+                1970: {"tabula_standard": 29 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 35 + 29 * p_ret, "tabula_adv_retrofit": 36 + 29 * p_adv_ret},
+                1960: {"tabula_standard": 29 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 35 + 29 * p_ret, "tabula_adv_retrofit": 36 + 29 * p_adv_ret},
+                1950: {"tabula_standard": 29 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 35 + 29 * p_ret, "tabula_adv_retrofit": 36 + 29 * p_adv_ret},
+            },
+            "EFH": {
+                2010: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
+                1980: {"tabula_standard": 65 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 29 + 65 * p_ret, "tabula_adv_retrofit": 6 + 65 + p_adv_ret},
+                1970: {"tabula_standard": 35 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 45 + 35 * p_ret, "tabula_adv_retrofit": 20 + 35 + p_adv_ret},
+                1960: {"tabula_standard": 35 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 45 + 35 * p_ret, "tabula_adv_retrofit": 20 + 35 + p_adv_ret},
+                1950: {"tabula_standard": 35 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 45 + 35 * p_ret, "tabula_adv_retrofit": 20 + 35 + p_adv_ret}
+            }
+        }
     if assumption == "average":
-        return {
-            "MFH": {
-                2010: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1980: {"tabula_standard": 75, "tabula_retrofit": 17, "tabula_adv_retrofit": 8},
-                1970: {"tabula_standard": 29, "tabula_retrofit": 35, "tabula_adv_retrofit": 36},
-                1960: {"tabula_standard": 29, "tabula_retrofit": 35, "tabula_adv_retrofit": 36},
-                1950: {"tabula_standard": 29, "tabula_retrofit": 35, "tabula_adv_retrofit": 36},
-            },
-            "EFH": {
-                2010: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1980: {"tabula_standard": 65, "tabula_retrofit": 29, "tabula_adv_retrofit": 6},
-                1970: {"tabula_standard": 35, "tabula_retrofit": 45, "tabula_adv_retrofit": 20},
-                1960: {"tabula_standard": 35, "tabula_retrofit": 45, "tabula_adv_retrofit": 20},
-                1950: {"tabula_standard": 35, "tabula_retrofit": 45, "tabula_adv_retrofit": 20}
-            }
-        }
+        return _retrofit_percentage_of_stock(p_ret=0, p_adv_ret=0)
     elif assumption == "no_retrofit":
-        return {
-            "MFH": {
-                2010: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1980: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1970: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1960: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1950: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-            },
-            "EFH": {
-                2010: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1980: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1970: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1960: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1950: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0}
-            }
-        }
+        return _get_ct_quotas(tabula_standard=100, tabula_retrofit=0, tabula_adv_retrofit=0)
     elif assumption == "all_adv_retrofit":
-        return {
-            "MFH": {
-                2010: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1980: {"tabula_standard": 0, "tabula_retrofit": 0, "tabula_adv_retrofit": 100},
-                1970: {"tabula_standard": 0, "tabula_retrofit": 0, "tabula_adv_retrofit": 100},
-                1960: {"tabula_standard": 0, "tabula_retrofit": 0, "tabula_adv_retrofit": 100},
-                1950: {"tabula_standard": 0, "tabula_retrofit": 0, "tabula_adv_retrofit": 100},
-            },
-            "EFH": {
-                2010: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1980: {"tabula_standard": 0, "tabula_retrofit": 0, "tabula_adv_retrofit": 100},
-                1970: {"tabula_standard": 0, "tabula_retrofit": 0, "tabula_adv_retrofit": 100},
-                1960: {"tabula_standard": 0, "tabula_retrofit": 0, "tabula_adv_retrofit": 100},
-                1950: {"tabula_standard": 0, "tabula_retrofit": 0, "tabula_adv_retrofit": 100}
-            }
-        }
+        return _get_ct_quotas(tabula_standard=0, tabula_retrofit=0, tabula_adv_retrofit=100)
     elif assumption == "all_retrofit":
-        return {
-            "MFH": {
-                2010: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1980: {"tabula_standard": 0, "tabula_retrofit": 100, "tabula_adv_retrofit": 0},
-                1970: {"tabula_standard": 0, "tabula_retrofit": 100, "tabula_adv_retrofit": 0},
-                1960: {"tabula_standard": 0, "tabula_retrofit": 100, "tabula_adv_retrofit": 0},
-                1950: {"tabula_standard": 0, "tabula_retrofit": 100, "tabula_adv_retrofit": 0},
-            },
-            "EFH": {
-                2010: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1980: {"tabula_standard": 0, "tabula_retrofit": 100, "tabula_adv_retrofit": 0},
-                1970: {"tabula_standard": 0, "tabula_retrofit": 100, "tabula_adv_retrofit": 0},
-                1960: {"tabula_standard": 0, "tabula_retrofit": 100, "tabula_adv_retrofit": 0},
-                1950: {"tabula_standard": 0, "tabula_retrofit": 100, "tabula_adv_retrofit": 0}
-            }
-        }
-    raise KeyError
+        return _get_ct_quotas(tabula_standard=0, tabula_retrofit=100, tabula_adv_retrofit=0)
+    elif isinstance(assumption, dict):
+        return _retrofit_percentage_of_stock(**assumption)
+    raise KeyError(f"Assumption {assumption} not supported")
 
 
 def load_outdoor_air_temperature():

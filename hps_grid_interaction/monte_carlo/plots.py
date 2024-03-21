@@ -1,7 +1,7 @@
 import json
 import logging
-import pathlib
 from pathlib import Path
+from typing import List
 
 import pandas as pd
 import numpy as np
@@ -13,9 +13,19 @@ from hps_grid_interaction import DATA_PATH
 from hps_grid_interaction.utils import load_outdoor_air_temperature
 from hps_grid_interaction.emissions import COLUMNS_EMISSIONS, get_emission_options
 from hps_grid_interaction.plotting.config import EBCColors
-from hps_grid_interaction.monte_carlo.monte_carlo import Quotas
+from hps_grid_interaction.plotting import get_figure_size, icon_plotting
 
 logger = logging.getLogger(__name__)
+
+
+def get_label_and_factor(metric):
+    if metric == "max":
+        return "$P_\mathrm{el,max}$ in kW", 1
+    elif metric == "sum":
+        return "$W_\mathrm{el,Ges}$ in MWh", 1e-3
+    elif metric == "value":
+        return "$P_\mathrm{el}$ in kW", 1
+    raise ValueError
 
 
 def _get_grid_sum(grid_tsd):
@@ -25,106 +35,40 @@ def _get_grid_sum(grid_tsd):
     return sum_grid
 
 
-def is_number(s: str):
-    try:
-        _ = float(s)
-        return True
-    except ValueError:
-        return False
-
-
-def _get_quota_value(quota_case, in_percent):
-    quota_case_value = quota_case.split("_")[-1]
-    if in_percent:
-        if is_number(quota_case_value):
-            quota_case_value += " %"
-        if len(quota_case_value) > 15:
-            return quota_case_value[len(quota_case_value)-15:]
-        else:
-            return quota_case_value
-    if not is_number(quota_case_value):
-        raise ValueError(f"Given quota_case is not a number: {quota_case_value}")
-    return int(quota_case.split("_")[-1])
-
-
-def _get_quota_name_except_value(quota_case):
-    quota_case = _alter_quota_case(quota_case)
-    if "with" in quota_case:
-        first, second = quota_case.split("_with_")
-        return "-".join(first.split("_")[:-1] + second.split("_")[:-1])
-    return "-".join(quota_case.split("_")[:-2])
-
-
-def _alter_quota_case(quota_case):
-    quota_case = quota_case.replace("av_", "Average_")
-    quota_case = quota_case.replace("pv_bat_", "PV+Battery_")
-    quota_case = quota_case.replace("pv_", "PV_")
-    quota_case = quota_case.replace("hyb_", "Hybrid_")
-    quota_case = quota_case.replace("e_mob", "EMobility")
-    return quota_case
-
-
-def _get_quota_varying_name(quota_case):
-    quota_case = _alter_quota_case(quota_case)
-
-    if "with" in quota_case:
-        first, second = quota_case.split("_with_")
-        return first.split("_")[-1]
-    return quota_case.split("_")[-2]
-
-
-def plot_quota_case_with_images(x_ticks: list, quota_cases: list, ax: plt.axes, image_width: float = 0.4):
-    from matplotlib.image import BboxImage, imread
-    from matplotlib.transforms import Bbox
-    # remove tick labels
-    ax.set_xticklabels([])
-    for x_tick, quota_case in zip(x_ticks, quota_cases):
-        technologies, _ = _get_technologies(quota_case)
-        for idx, technology in enumerate(technologies):
-            tick_y_position = -0.2 - image_width * (1 + idx)
-
-            lower_corner = ax.transData.transform((x_tick - image_width / 2, tick_y_position - image_width / 2))
-            upper_corner = ax.transData.transform((x_tick + image_width / 2, tick_y_position + image_width / 2))
-
-            bbox_image = BboxImage(
-                Bbox([lower_corner[0], lower_corner[1], upper_corner[0], upper_corner[1], ]),
-                norm=None,
-                origin=None,
-                clip_on=False,
-            )
-
-            bbox_image.set_data(imread(DATA_PATH.joinpath("icons", f"{technology}.png")))
-            ax.add_artist(bbox_image)
+def plot_quota_case_with_images(
+        quota_variation: "QuotaVariation",
+        ax: plt.axes,
+        which_axis: str = None,
+        width: float = 0.1
+):
+    icon_plotting.add_images_to_title(technologies=quota_variation.fixed_technologies, ax=ax, width=width)
+    if which_axis is None:
+        return ax
+    if isinstance(quota_variation.varying_technologies, dict):
+        technology, _ = quota_variation.get_single_varying_technology_name_and_quotas()
+        icon_plotting.add_image_and_text_as_label(
+            ax=ax, which_axis=which_axis, technology=technology, width=width,
+            quotas=quota_variation.get_varying_technology_ids()
+        )
+    else:
+        icon_plotting.add_images_to_axis(
+            technologies=quota_variation.varying_technologies, ax=ax,
+            which_axis=which_axis, width=width
+        )
     return ax
 
 
-def _get_technologies(quota_case: Quotas):
-    # Building:
-    fixed_technologies = []
-    varying_technologies = []
-    fixed_technologies.append(quota_case.construction_type_quota)
-
-    def _append_fixed_and_varying(quotes: dict, fixed: list, varying: list):
-        for name, case_value in quotes.items():
-            if case_value == 100:
-                fixed.append(name)
-            elif case_value > 0:
-                varying.append(name)
-
-    _append_fixed_and_varying(quota_case.heat_supply_quotas, fixed_technologies, varying_technologies)
-    _append_fixed_and_varying(quota_case.electricity_system_quotas, fixed_technologies, varying_technologies)
-    return fixed_technologies, varying_technologies
-
-
-def plot_time_series(quota_case_grid_data: dict, save_path):
+def plot_time_series(quota_case_grid_data: dict, save_path, quota_variation: "QuotaVariation"):
     label = get_label_and_factor("value")[0]
-    fig, ax = plt.subplots(1, 2, sharey=True)
-    fig_yearly, ax_yearly = plt.subplots(1, 1, figsize=(27, 9))
+    fig, ax = plt.subplots(1, 2, sharey=True, figsize=get_figure_size(n_columns=2))
+    fig_yearly, ax_yearly = plt.subplots(1, 1, figsize=get_figure_size(n_columns=2))
 
     #ax = [ax]
     t_oda = load_outdoor_air_temperature()
     bins = np.linspace(t_oda.values[1:-1, 0].min(), t_oda.values[1:-1, 0].max(), num=30)
     categories = pd.cut(t_oda.values[1:-1, 0], bins, labels=False)
+    idx = 0
+    quota_values = quota_variation.get_varying_technology_ids()
     for quota_case, grid_time_series_data in quota_case_grid_data.items():
         df_sum = _get_grid_sum(grid_time_series_data)
         min_curve = []
@@ -139,25 +83,30 @@ def plot_time_series(quota_case_grid_data: dict, save_path):
                 min_curve.append(np.NAN)
 
         ax[0].plot(np.arange(len(df_sum)) / 4, np.sort(df_sum)[::-1],
-                   label=_get_quota_value(quota_case, True))
-        #ax[1].plot(bins, min_curve, label=_get_quota_value(quota_case, True), linestyle="--")
-        ax[1].plot(bins, max_curve, label=_get_quota_value(quota_case, True), linestyle="-")
+                   label=quota_values[idx])
+        ax[1].plot(bins, max_curve, label=quota_values[idx], linestyle="-")
         ax_yearly.plot()
         ax_yearly.plot(np.arange(len(df_sum)) / 4, df_sum,
-                       label=_get_quota_value(quota_case, True))
-    fig.suptitle(_get_quota_name_except_value(quota_case))
+                       label=quota_values[idx])
+        idx += 1
+    if isinstance(quota_variation.varying_technologies, dict):
+        tech_name = quota_variation.get_single_varying_technology_name_and_quotas()[0]
+        fig.suptitle(f"Variation of {tech_name.capitalize()}-quota")
+
     ax[0].set_ylabel(label)
     ax[1].set_xlabel("$T_\mathrm{Oda}$ in °C")
     ax[0].set_xlabel("Hours in year")
     ax[1].legend(bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
-    #ax[0].legend(loc="upper right")
+    plot_quota_case_with_images(quota_variation=quota_variation, ax=ax[0])
+    plot_quota_case_with_images(quota_variation=quota_variation, ax=ax[1])
     fig.tight_layout()
-    fig.savefig(save_path.joinpath(f"sorted_time_series_plot.png"))
+    fig.savefig(save_path.joinpath(f"sorted_time_series_plot.png"), dpi=400)
     ax_yearly.set_ylabel(label)
     ax_yearly.set_xlabel("Hour of year in h")
     ax_yearly.legend(bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
+    plot_quota_case_with_images(quota_variation=quota_variation, ax=ax_yearly, width=0.05)
     fig_yearly.tight_layout()
-    fig_yearly.savefig(save_path.joinpath(f"annual_time_series_plot.png"))
+    fig_yearly.savefig(save_path.joinpath(f"annual_time_series_plot.png"), dpi=400)
 
 
 def plot_results_all_cases(path: Path, point: str = "ONT", metric: str = "sum"):
@@ -194,44 +143,45 @@ def plot_results_all_cases(path: Path, point: str = "ONT", metric: str = "sum"):
     fig.savefig(path.parent.joinpath(f"emissions.png"))
 
 
-def plot_monte_carlo_violin(data: dict, metric: str, save_path: Path, quota_cases: dict, points: list = None):
+def plot_monte_carlo_violin(
+        data: dict,
+        metric: str,
+        save_path: Path,
+        quota_variation: "QuotaVariation",
+        points: list = None
+):
     data = data[metric]
     if points is None:
         points = ["ONT"]
-    n_subplots = len(quota_cases)
-    #if n_subplots > 8:
-    #    logger.error("Won't plot violins, too many quota_cases: %s", n_subplots)
+    n_subplots = len(quota_variation.quota_cases)
     label, factor = get_label_and_factor(metric)
     for point in points:
         values = data[point]
-        fig, axes = plt.subplots()
-        df = pd.DataFrame(
-            {_get_quota_value(quota_case, True): np.array(values[quota_case]) * factor for quota_case in quota_cases})
-        with sns.plotting_context(rc={"font.size": 14}):
-            sns.set(style="whitegrid")
-            sns.violinplot(data=df, ax=axes, orient='h')
+        fig, axes = plt.subplots(figsize=get_figure_size(n_columns=1))
+        data_dict = {}
+        for varying_tech, quota_case in zip(
+                quota_variation.get_varying_technology_ids(),
+                quota_variation.quota_cases.keys()
+        ):
+            data_dict[varying_tech] = np.array(values[quota_case]) * factor
+        df = pd.DataFrame(dict([(key, pd.Series(value)) for key, value in data_dict.items()]))
+        sns.violinplot(data=df, ax=axes, orient='h')
         axes.set_xlabel(label)
-        axes.set_ylabel(_get_quota_varying_name(list(quota_cases.keys())[0]))
+        axes.set_yticks(list(range(len(quota_variation.quota_cases))))
+        plot_quota_case_with_images(quota_variation=quota_variation, ax=axes, which_axis="y")
         fig.tight_layout()
-        fig.savefig(save_path.joinpath(f"monte_carlo_violin_{point}_{metric}.png"))
+        fig.savefig(save_path.joinpath(f"monte_carlo_violin_{point}_{metric}.png"), dpi=400)
     plt.close("all")
 
 
-def get_label_and_factor(metric):
-    if metric == "max":
-        return "$P_\mathrm{el,max}$ in kW", 1
-    elif metric == "sum":
-        return "$W_\mathrm{el,Ges}$ in MWh", 1e-3
-    elif metric == "value":
-        return "$P_\mathrm{el}$ in kW", 1
-    raise ValueError
-
-
-def plot_monte_carlo_bars(data: dict, metric: str, save_path: Path, quota_cases: dict, points: list = None):
+def plot_monte_carlo_bars(
+        data: dict,
+        metric: str,
+        save_path: Path,
+        quota_variation: "QuotaVariation",
+        points: list = None
+):
     n_bars = 1
-    if n_bars > 5:
-        logger.error("Won't plot monte carlo bars, too many different quota_cases: %s", n_bars)
-        return
     if points is None:
         points = ["ONT"]
     max_data = data[metric]
@@ -241,13 +191,13 @@ def plot_monte_carlo_bars(data: dict, metric: str, save_path: Path, quota_cases:
     plot_data = {point: {"mean": [], "std": []} for point in points}
     for point in points:
         data = max_data[point]
-        for quota_case in quota_cases:
+        for quota_case in quota_variation.quota_cases:
             plot_data[point]["mean"].append(np.mean(data[quota_case]) * factor)
             plot_data[point]["std"].append(np.std(data[quota_case]) * factor)
-    fig, axes = plt.subplots(len(points), 1)
+    fig, axes = plt.subplots(len(points), 1, figsize=get_figure_size(n_columns=1))
     if len(points) == 1:
         axes = [axes]
-    x_pos = np.arange(len(quota_cases))
+    x_pos = np.arange(len(quota_variation.quota_cases))
     bar_width = 0.8 / n_bars
     bar_args = dict(align='center', ecolor='black', width=bar_width)
     idx = 0
@@ -260,14 +210,11 @@ def plot_monte_carlo_bars(data: dict, metric: str, save_path: Path, quota_cases:
         )
         ax.set_ylabel(point + " " + y_label)
         ax.set_xticks(x_pos)
-        # ax.legend()
-        ax.set_xticklabels([_get_quota_value(quota_case, True) for quota_case in quota_cases.keys()], rotation=90)
-        ax.set_xlabel(_get_quota_varying_name(list(quota_cases.keys())[0]))
+        plot_quota_case_with_images(ax=ax, quota_variation=quota_variation, which_axis="x")
         ax.yaxis.grid(True)
-    fig.suptitle(_get_quota_name_except_value(list(quota_cases.keys())[0]))
 
     fig.tight_layout()
-    fig.savefig(save_path.joinpath(f"monte_carlo_{metric}.png"))
+    fig.savefig(save_path.joinpath(f"monte_carlo_{metric}.png"), dpi=400)
     plt.close("all")
 
 
@@ -284,19 +231,3 @@ def plot_cop_motivation():
     plt.savefig("plots/COP Motivation.png")
     plt.show()
 
-
-def plot_single_draw_scatter(hybrid_grid, monovalent_grid):
-    label = "$P_\mathrm{el}$ in kW"
-
-    t_oda = load_outdoor_air_temperature()
-    scatter_kwargs = dict(s=2, marker="o")
-    for name, hybrid, monovalent in zip(hybrid_grid.keys(), hybrid_grid.values(), monovalent_grid.values()):
-        fig, ax = plt.subplots(1, 1, sharey=True)
-        ax.set_ylabel(label)
-        ax.set_xlabel("$T_\mathrm{Oda}$ in °C")
-        ax.scatter(t_oda, monovalent, color="red", **scatter_kwargs, label="Monovalent")
-        ax.scatter(t_oda, hybrid, color="blue", **scatter_kwargs, label="Hybrid")
-        ax.legend()
-        fig.suptitle(name)
-        fig.savefig(f"plots/Scatter_results_{name}.png")
-        plt.close(fig)

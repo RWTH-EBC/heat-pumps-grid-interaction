@@ -7,72 +7,29 @@ import numpy as np
 
 from hps_grid_interaction.plotting.config import PlotConfig
 from hps_grid_interaction.utils import load_outdoor_air_temperature
-from hps_grid_interaction.monte_carlo.plots import _get_quota_value, _get_quota_name_except_value
+from hps_grid_interaction.monte_carlo.plots import _get_quota_value
+from hps_grid_interaction.plotting.config import EBCColors
+
 
 metric_data = {
-    "p_trafo": {"label": "$P$ in kVA", "opt": "max"},
-    "q_trafo": {"label": "$Q$ in kVA", "opt": "max"},
+    "p_trafo": {"label": "$P$ in kW", "opt": "max"},
+    "q_trafo": {"label": "$Q$ in kW", "opt": "max"},
     "s_trafo": {"label": "$S$ in kVA", "opt": "max"},
     "vm_pu_min": {"label": "$V_\mathrm{min}$ in p.u.", "opt": "min",
                   "axhlines": [0.9, 0.95, 0.97]},
-    "max_line_loading": {"label": "$p_\mathrm{max}$ in kVA", "opt": "max"},
+    "max_line_loading": {"label": "$p_\mathrm{max}$ in %", "opt": "max"},
+}
+
+calculated_metrics = {
+    "vm_pu_min smaller 0.97": {"label": "$V_\mathrm{min}$ < 0.97 p.u. in %/a"},
+    "vm_pu_min smaller 0.9": {"label": "$V_\mathrm{min}$ < 0.9 p.u. in %/a"},
+    "vm_pu_min smaller 0.95": {"label": "$V_\mathrm{min}$ < 0.95 p.u. in %/a"},
+    "percent_max_trafo_load in %": {"label": "Maximal Transformer Load in %"}
 }
 
 
-def get_percent_smaller_than(df, metric, threshold):
-    return np.count_nonzero(df.loc[:, metric] < threshold) / len(df) * 100
-
-
-def analysis(base_path: Path):
-    case_data = {}
-
-    def is_float(s):
-        try:
-            float(s)
-            return True
-        except ValueError:
-            return False
-
-    for case_name in os.listdir(base_path):
-        if case_name.endswith(".xlsx") or is_float(case_name):
-            continue
-        print("Loading case", case_name)
-        file_path = base_path.joinpath(case_name, "res_bus", "vm_pu_extracted.xlsx")
-        if not file_path.exists():
-            file_path = extract_data(base_path.joinpath(case_name, "res_bus", "vm_pu.xlsx"))
-        plot_voltage(file_path)
-        df_v = pd.read_excel(file_path, index_col=0)
-        file_path = base_path.joinpath(case_name, "res_line", "loading_percent_extracted.xlsx")
-        if not file_path.exists():
-            file_path = extract_data(base_path.joinpath(case_name, "res_line", "loading_percent.xlsx"))
-        df_line = pd.read_excel(file_path, index_col=0)
-        case_data[case_name] = {
-            "min_V_pu": df_v.loc[:, "min"].min(),
-            "max_line": df_line.loc[:, "max"].max(),
-            "time_smaller_95": get_percent_smaller_than(df_v, "min", 0.95),
-            "time_smaller_97": get_percent_smaller_than(df_v, "min", 0.97)
-        }
-    pd.DataFrame(case_data).to_excel(base_path.joinpath("analysis.xlsx"))
-
-
-def plot_voltage(path):
-    df = pd.read_excel(path, index_col=0)
-    df.index /= 4
-    df_oda = load_outdoor_air_temperature()
-    df_oda = df_oda.loc[:df.index[-1]]
-    for variable in ["min", "max", "mean"]:
-        fig, ax = plt.subplots(1, 2, sharey=True)
-        ax[1].set_xlabel("$T_\mathrm{oda}$ in °C")
-        ax[0].set_xlabel("Time in h")
-        ax[0].set_ylabel(f"{variable.casefold()} Voltage in p.u.")
-        ax[0].plot(df.index, df.loc[:, variable])
-        ax[1].scatter(df_oda, df.loc[:, variable], s=1)
-        ax[1].set_ylim([0.94, 1])
-        ax[0].set_ylim([0.94, 1])
-        fig.tight_layout()
-        fig.savefig(path.parent.joinpath(path.stem + f"_{variable}.png"))
-    plt.close(fig)
-    #plt.show()
+def get_percent_smaller_than(np_array, threshold):
+    return np.count_nonzero(np_array < threshold) / len(np_array) * 100
 
 
 def load_case_and_trafo_data(path: Path):
@@ -83,12 +40,13 @@ def load_case_and_trafo_data(path: Path):
     for grid, data in results.items():
         for case, case_data in data["grid"].items():
             trafo_data = {}
-            startswith = f"results_{case}_{grid}_HR_3-ph_"  # TODO REVERT
+            startswith = f"results_{case}_{grid}_3-ph_"  # TODO REVERT
             for file_name in os.listdir(path):
                 if file_name.startswith(startswith) and file_name.endswith(".json"):
                     trafo_size = int(file_name.replace(startswith, "").replace(".json", ""))
                     with open(path.joinpath(file_name), "r") as file:
-                        trafo_data[trafo_size] = json.load(file)
+                        trafo_results = json.load(file)
+                    trafo_data[trafo_size] = {metric: np.array(values) for metric, values in trafo_results.items()}
             case_and_tafo_data[_get_quota_value(case, True)] = trafo_data
     return case_and_tafo_data
 
@@ -102,11 +60,11 @@ def plot_time_series(
     if fixed_case is not None and fixed_trafo_size is not None:
         raise ValueError("Not both case or trafo_size can be fixed")
     if fixed_trafo_size is None:
-        _data = {f"{key} kVA": np.array(value[metric]) for key, value in case_trafo_data[fixed_case].items()}
+        _data = {f"{key} kVA": value[metric] for key, value in case_trafo_data[fixed_case].items()}
         fig_title = f"Case: {fixed_case}"
         save_name = f"case={fixed_case}"
     else:
-        _data = {case: np.array(trafo_data[fixed_trafo_size][metric]) for case, trafo_data in case_trafo_data.items()}
+        _data = {case: trafo_data[fixed_trafo_size][metric] for case, trafo_data in case_trafo_data.items()}
         fig_title = f"Transformer: {fixed_trafo_size} kVA"
         save_name = f"trafo={fixed_trafo_size}"
 
@@ -141,10 +99,45 @@ def plot_time_series(
     ax[1].legend(bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
     fig.tight_layout()
     fig.savefig(save_path.joinpath(f"{metric}_{save_name}.png"))
+    plt.close("all")
 
 
-def plot_all_metrics_and_trafos(path):
-    case_and_trafo_data = load_case_and_trafo_data(path)
+def get_statistics(case_and_trafo_data: dict, path: Path):
+    df = pd.DataFrame()
+    idx = 0
+    for case, trafo_data in case_and_trafo_data.items():
+        for trafo_size, trafo_results in trafo_data.items():
+            df.loc[idx, "Trafo-Size"] = trafo_size
+            df.loc[idx, "case"] = case
+            for metric, settings in metric_data.items():
+                opt = settings["opt"]
+                if opt == "min":
+                    df.loc[idx, f"{metric}_{opt}"] = trafo_results[metric].min()
+                if opt == "max":
+                    df.loc[idx, f"{metric}_{opt}"] = trafo_results[metric].max()
+                if "axhlines" in settings:
+                    for axhline_value in settings["axhlines"]:
+                        df.loc[idx, f"{metric} smaller {axhline_value}"] = get_percent_smaller_than(
+                            trafo_results[metric], axhline_value
+                        )
+            idx += 1
+    df.loc[:, "percent_max_trafo_load in %"] = df.loc[:, "s_trafo_max"] / df.loc[:, "Trafo-Size"] * 100
+    df.to_excel(path.joinpath(f"grid_statistics_{path.name}.xlsx"), sheet_name=path.name)
+
+    for second_metric in calculated_metrics.keys():
+        plot_required_trafo_size(
+            path=path.joinpath("plots"),
+            df=df,
+            cases=list(case_and_trafo_data.keys()),
+            design_metric="percent_max_trafo_load in %",
+            design_value=100,
+            second_metric=second_metric
+        )
+
+    return df
+
+
+def plot_all_metrics_and_trafos(case_and_trafo_data: dict, path: Path):
     cases = list(case_and_trafo_data.keys())
     trafo_sizes = list(case_and_trafo_data[cases[0]])
     save_path = path.joinpath("plots")
@@ -164,8 +157,70 @@ def plot_all_metrics_and_trafos(path):
                              metric=metric, fixed_case=case)
 
 
+def generate_all_cases(path: Path, with_plot: bool, altbau=True):
+    if altbau:
+        grid_case = "Altbau_"
+    else:
+        grid_case = "Neubau_"
+    cases = [
+        #"av_e_mob_with_pv_bat",
+        #"av_heat_pump",
+        #"av_heating_rod",
+        #"av_pv_bat",
+        #"av_hyb",
+        #"av_pv",
+        "show_extremas",
+        "av_hyb_with_pv_bat",
+    ]
+    dfs = []
+    for case in cases:
+        case_path = PATH.joinpath(grid_case + case)
+        case_and_trafo_data = load_case_and_trafo_data(case_path)
+        if with_plot:
+            plot_all_metrics_and_trafos(case_and_trafo_data, case_path)
+        df = get_statistics(case_and_trafo_data, case_path)
+        df.loc[:, "quota_cases"] = case
+        dfs.append(df)
+    dfs = pd.concat(dfs)
+    dfs.index = range(len(dfs))
+    dfs.to_excel(path.joinpath(f"{grid_case}all_grid_results_ex.xlsx"))
+
+
+def plot_required_trafo_size(
+        path: Path,
+        df: pd.DataFrame(),
+        cases: list,
+        design_metric: str = "percent_max_trafo_load in %",
+        design_value: float = 100,
+        second_metric: str = "vm_pu_min smaller 0.97"
+):
+    df_plot = pd.DataFrame(columns=df.columns)
+    for case in cases:
+        df_case = df.loc[(df.loc[:, "case"] == case) & (df.loc[:, design_metric] < design_value)]
+        min_idx = df_case.loc[:, "Trafo-Size"].argmin()
+        df_plot.loc[case] = df_case.iloc[min_idx]
+    fig, ax = plt.subplots(1, 1)
+    ax_twin = ax.twiny()
+    x_pos = np.arange(len(df_plot.index))
+    bar_width = 0.8 / 1
+    bar_args = dict(align='center', ecolor='black', height=bar_width)
+    ax.barh(
+        x_pos, df_plot.loc[:, "Trafo-Size"],
+        color=EBCColors.ebc_palette_sort_2[0],
+        **bar_args,
+    )
+    ax.set_xlabel("Minimal Transformer Size in kVA")
+    ax.set_yticks(x_pos)
+    ax.set_yticklabels(df_plot.index)
+    ax.xaxis.grid(True)
+    ax.set_xlim([df_plot.loc[:, "Trafo-Size"].min()-100, df_plot.loc[:, "Trafo-Size"].max()+100])
+    ax_twin.plot(df_plot.loc[:, second_metric], x_pos, linewidth=5, color=EBCColors.ebc_palette_sort_2[1])
+    ax_twin.set_xlabel(calculated_metrics[second_metric]["label"])
+    fig.tight_layout()
+    fig.savefig(path.joinpath(f"MinTrafoDesign_{second_metric}.png"))
+
+
 if __name__ == '__main__':
-    from hps_grid_interaction import RESULTS_MONTE_CARLO_FOLDER
     PlotConfig.load_default()
-    PATH = RESULTS_MONTE_CARLO_FOLDER.joinpath("Altbau_av_hyb_with_pv_bat")
-    plot_all_metrics_and_trafos(PATH)
+    PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
+    generate_all_cases(PATH, with_plot=True)

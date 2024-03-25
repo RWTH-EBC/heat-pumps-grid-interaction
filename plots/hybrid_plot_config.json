@@ -1,6 +1,7 @@
 {
   "rcParams": {
     "font.size": 11,
+    "figure.titlesize": 11,
     "backend": "agg",
     "figure.dpi": 250
   },

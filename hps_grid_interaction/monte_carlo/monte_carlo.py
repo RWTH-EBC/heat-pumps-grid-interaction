@@ -123,6 +123,16 @@ class QuotaVariation:
         tech = next(iter(self.varying_technologies))
         return tech, self.varying_technologies[tech]
 
+    def get_quota_case_name_and_value_dict(self):
+        return dict(zip(self.quota_cases.keys(), self.get_varying_technology_ids()))
+
+    def pretty_name(self, technology):
+        pretty_name_map = {
+            "p_adv_ret": "Advanced-retrofit",
+            "p_ret": "Retrofit",
+        }
+        return pretty_name_map.get(technology, technology.capitalize())
+
 
 def _draw_uncertain_choice(quotas: Quotas, building_type: str, year_of_construction: int):
     def _draw_from_dict(d: dict):

@@ -39,21 +39,29 @@ def plot_quota_case_with_images(
         quota_variation: "QuotaVariation",
         ax: plt.axes,
         which_axis: str = None,
-        width: float = 0.1
+        width: float = 0.1,
+        title_offset: float = 0.0,
+        distance_to_others: float = 0.01
 ):
-    icon_plotting.add_images_to_title(technologies=quota_variation.fixed_technologies, ax=ax, width=width)
+    icon_plotting.add_images_to_title(
+        technologies=quota_variation.fixed_technologies, ax=ax,
+        width=width, offset=title_offset,
+        distance_to_others=distance_to_others
+    )
     if which_axis is None:
         return ax
     if isinstance(quota_variation.varying_technologies, dict):
         technology, _ = quota_variation.get_single_varying_technology_name_and_quotas()
         icon_plotting.add_image_and_text_as_label(
             ax=ax, which_axis=which_axis, technology=technology, width=width,
-            ticklabels=quota_variation.get_varying_technology_ids()
+            ticklabels=quota_variation.get_varying_technology_ids(),
+            distance_to_others=distance_to_others
         )
     else:
         icon_plotting.add_images_to_axis(
             technologies=quota_variation.varying_technologies, ax=ax,
-            which_axis=which_axis, width=width
+            which_axis=which_axis, width=width,
+            distance_to_others=distance_to_others
         )
     return ax
 

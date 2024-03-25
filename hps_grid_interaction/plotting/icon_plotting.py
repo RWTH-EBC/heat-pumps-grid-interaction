@@ -56,7 +56,8 @@ def add_images_to_title(
         technologies: List[str],
         ax: plt.axes,
         width: float,
-        distance_to_others: float = 0.001
+        distance_to_others: float = 0.001,
+        offset: float = 0.0
 ) -> None:
     """
     Adds images to the title of the plot.
@@ -66,6 +67,7 @@ def add_images_to_title(
         ax (plt.axes): The axis object to which the images are added.
         width (float): The width of the bounding box for each image.
         distance_to_others (float, optional): Distance between images. Defaults to 0.001.
+        offset (float): Additional offset above axis
 
     Returns:
         None
@@ -73,7 +75,7 @@ def add_images_to_title(
     n_images = len(technologies)
     assert width * n_images < 1, (f"Images won't fit, width should be "
                                   f"smaller than 1 but is {width * n_images}")
-    y_start = 1 + distance_to_others * width
+    y_start = 1 + distance_to_others * width + offset
     x_start = 0.5 - (width + distance_to_others) * n_images / 2
     for idx, tech in enumerate(technologies):
         x_curr = x_start + width * (1 + distance_to_others) * idx

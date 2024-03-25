@@ -48,7 +48,7 @@ def plot_quota_case_with_images(
         technology, _ = quota_variation.get_single_varying_technology_name_and_quotas()
         icon_plotting.add_image_and_text_as_label(
             ax=ax, which_axis=which_axis, technology=technology, width=width,
-            quotas=quota_variation.get_varying_technology_ids()
+            ticklabels=quota_variation.get_varying_technology_ids()
         )
     else:
         icon_plotting.add_images_to_axis(

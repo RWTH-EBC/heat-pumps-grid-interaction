@@ -481,9 +481,10 @@ def get_all_quota_studies():
             zero_to_hundred = [0, 20, 40, 60, 80, 100]
         quota_cases = {}
         for quota in zero_to_hundred:
+            quota_value = arg_wrapper(quota)
             quota_cases[f"{quota_variable}_{quota_study_name}_{quota}"] = Quotas(
                 **{
-                    quota_variable: arg_wrapper(quota),
+                    quota_variable: quota_value,
                     **quota_kwargs
                 }
             )
@@ -503,7 +504,11 @@ def get_all_quota_studies():
             varying_technologies = [[z] for z in zero_to_hundred]
         else:
             # Numeric changes, fixed technology type:
-            varying_technologies = {quota_variable.replace("_quota", ""): zero_to_hundred}
+            if isinstance(quota_value, dict):
+                varying_technology_clean_name = next(iter(quota_value))
+            else:
+                varying_technology_clean_name = quota_variable.replace("_quota", "")
+            varying_technologies = {varying_technology_clean_name: zero_to_hundred}
 
         return QuotaVariation(
             quota_cases=quota_cases,
@@ -632,9 +637,9 @@ def get_all_quota_studies():
             ["average", "heating_rod"],
             ["average", "heating_rod", "e_mobility"],
             ["average", "heating_rod", "e_mobility", "pv"],
-            ["average", "heating_rod", "e_mobility", "pv_battery"],
-            ["all_retrofit", "heating_rod", "e_mobility", "pv_battery"],
-            ["all_adv_retrofit", "heating_rod", "e_mobility", "pv_battery"],
+            ["average", "heating_rod", "e_mobility", "pv", "battery"],
+            ["all_retrofit", "heating_rod", "e_mobility", "pv", "battery"],
+            ["all_adv_retrofit", "heating_rod", "e_mobility", "pv", "battery"],
         ]
     )
     return all_quota_studies
@@ -659,9 +664,10 @@ def load_function_kwargs_for_grid(extra_case_name_hybrid: str, grid_case: str):
 
 def run_all_cases(load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1, recreate_plots: bool = True):
     all_quota_cases = get_all_quota_studies()
+
     grid_cases = [
-        "altbau",
-        # "neubau"
+        #"altbau",
+        "neubau"
     ]
     multiprocessing_function_kwargs = []
     for grid_case in grid_cases:

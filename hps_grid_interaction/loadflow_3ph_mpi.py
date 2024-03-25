@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from mpi4py import MPI
 
-# We are using pandapower 2.13.1
+# successfully tested with pandapower version 2.13.1!
 import pandapower.control as control
 import pandapower.networks as nw
 import pandapower.timeseries as timeseries
@@ -104,7 +104,7 @@ def run_single_worksheet(
 
     # load a pandapower network
     net = nw.create_kerber_vorstadtnetz_kabel_1()
-    net.trafo.sn_mva = kva / 1000.0
+    net.trafo.sn_mva = kva / 1000.0 / 3.0
 
     # assemble the loads from the different CSV files and make it fit to the pandapower's Kerber grid model
     busdict = net.bus.to_dict()
@@ -118,9 +118,9 @@ def run_single_worksheet(
     for i in range(len(worksheet["A"]) - 1):
         load_id = loadbusdict[connection_points[i]]
         df_active[load_id] = elec_p_demand_timeseries[load_id]["power"]
-        df_active[load_id] = df_active[load_id].multiply(1.0 / 1000.0)
+        df_active[load_id] = df_active[load_id].multiply(1.0 / 1000.0 / 3.0)
         df_reactive[load_id] = elec_q_demand_timeseries[load_id]["power"]
-        df_reactive[load_id] = df_reactive[load_id].multiply(1.0 / 1000.0)
+        df_reactive[load_id] = df_reactive[load_id].multiply(1.0 / 1000.0 / 3.0)
     df_active = df_active.reindex(sorted(df_active.columns), axis=1)
     df_active.index = range(0, len(df_active))
     df_reactive = df_reactive.reindex(sorted(df_reactive.columns), axis=1)
@@ -156,17 +156,37 @@ def run_single_worksheet(
         plotting.to_html(net, "kerber.html")
 
     print("Writing results.")
+    # Main results:
     p_trafo = np.array([0.0 for i in range(len(df_active))])
     q_trafo = np.array([0.0 for i in range(len(df_active))])
     vm_pu_min = np.array([np.infty for i in range(len(df_active))])
+    vm_pu_max = np.array([-np.infty for i in range(len(df_active))])
     max_line_loading = np.array([0.0 for i in range(len(df_active))])
+    duration_trafo_overload = 0
+    duration_vm_pu_90 = 0
+    duration_vm_pu_95 = 0
+    duration_vm_pu_97 = 0
+    duration_vm_pu_103 = 0
+    duration_vm_pu_105 = 0
+    duration_vm_pu_110 = 0
+
+    # Detailed results:
+    vm_pu_min_per_line = np.array([np.infty for i in range(len(net.line.values))])
+    vm_pu_max_per_line = np.array([-np.infty for i in range(len(net.line.values))])
+    duration_vm_pu_90_per_line = np.array([0 for i in range(len(net.line.values))])
+    duration_vm_pu_95_per_line = np.array([0 for i in range(len(net.line.values))])
+    duration_vm_pu_97_per_line = np.array([0 for i in range(len(net.line.values))])
+    duration_vm_pu_103_per_line = np.array([0 for i in range(len(net.line.values))])
+    duration_vm_pu_105_per_line = np.array([0 for i in range(len(net.line.values))])
+    duration_vm_pu_110_per_line = np.array([0 for i in range(len(net.line.values))])
+    max_line_loading_per_line = np.array([0 for i in range(len(net.line.values))])
 
     with open(os.path.abspath(os.path.join(str(os.path.dirname(save_path)), random_str, "res_bus",
                                            "p_mw.json")), 'r') as j:
         p_mw = json.loads(j.read())
     count = 0
     for key, value in p_mw["0"].items():
-        p_trafo[count] = (-1.0) * value * 1000.0
+        p_trafo[count] = (-1.0) * value * 1000.0 * 3.0
         count += 1
 
     with open(os.path.abspath(os.path.join(str(os.path.dirname(save_path)), random_str, "res_bus",
@@ -174,19 +194,44 @@ def run_single_worksheet(
         q_mvar = json.loads(j.read())
     count = 0
     for key, value in q_mvar["0"].items():
-        q_trafo[count] = (-1.0) * value * 1000.0
+        q_trafo[count] = (-1.0) * value * 1000.0 * 3.0
         count += 1
 
     s_trafo = np.array([np.sqrt(p_trafo[i]**2 + q_trafo[i]**2) for i in range(len(df_active))])
+    duration_trafo_overload = (s_trafo > kva).sum()
 
     with open(os.path.abspath(os.path.join(str(os.path.dirname(save_path)), random_str, "res_bus",
                                            "vm_pu.json")), 'r') as j:
         vm_pu = json.loads(j.read())
     for key_outer, value_outer in vm_pu.items():
+        # We skip the first two elements, as they are just auxiliary buses for the transformer connection point
+        if int(key_outer) < 2:
+            continue
         count = 0
         for key_inner, value_inner in vm_pu[key_outer].items():
             vm_pu_min[count] = min(vm_pu_min[count], value_inner)
+            vm_pu_max[count] = max(vm_pu_max[count], value_inner)
+            vm_pu_min_per_line[int(key_outer)-2] = min(vm_pu_min_per_line[int(key_outer)-2], value_inner)
+            vm_pu_max_per_line[int(key_outer)-2] = max(vm_pu_max_per_line[int(key_outer)-2], value_inner)
+            if value_inner < 0.90:
+                duration_vm_pu_90_per_line[int(key_outer)-2] += 1
+            if value_inner < 0.95:
+                duration_vm_pu_95_per_line[int(key_outer)-2] += 1
+            if value_inner < 0.97:
+                duration_vm_pu_97_per_line[int(key_outer)-2] += 1
+            if value_inner > 1.03:
+                duration_vm_pu_103_per_line[int(key_outer)-2] += 1
+            if value_inner > 1.05:
+                duration_vm_pu_105_per_line[int(key_outer)-2] += 1
+            if value_inner > 1.10:
+                duration_vm_pu_110_per_line[int(key_outer)-2] += 1
             count += 1
+    duration_vm_pu_90 = (vm_pu_min < 0.90).sum()
+    duration_vm_pu_95 = (vm_pu_min < 0.95).sum()
+    duration_vm_pu_97 = (vm_pu_min < 0.97).sum()
+    duration_vm_pu_103 = (vm_pu_min > 1.03).sum()
+    duration_vm_pu_105 = (vm_pu_min > 1.05).sum()
+    duration_vm_pu_110 = (vm_pu_min > 1.10).sum()
 
     with open(os.path.abspath(os.path.join(str(os.path.dirname(save_path)), random_str, "res_line",
                                            "loading_percent.json")), 'r') as j:
@@ -195,14 +240,57 @@ def run_single_worksheet(
         count = 0
         for key_inner, value_inner in loading_percent[key_outer].items():
             max_line_loading[count] = max(max_line_loading[count], value_inner)
+            max_line_loading_per_line[int(key_outer)] = max(max_line_loading_per_line[int(key_outer)], value_inner)
             count += 1
 
-    results_dict = dict(p_trafo=list(p_trafo), q_trafo=list(q_trafo), s_trafo=list(s_trafo),
-                        vm_pu_min=list(vm_pu_min), max_line_loading=list(max_line_loading))
+    vm_pu_min_per_line_dict = dict()
+    vm_pu_max_per_line_dict = dict()
+    duration_vm_pu_90_per_line_dict = dict()
+    duration_vm_pu_95_per_line_dict = dict()
+    duration_vm_pu_97_per_line_dict = dict()
+    duration_vm_pu_103_per_line_dict = dict()
+    duration_vm_pu_105_per_line_dict = dict()
+    duration_vm_pu_110_per_line_dict = dict()
+    max_line_loading_per_line_dict = dict()
+    for i in range(len(net.line.values)):
+        vm_pu_min_per_line_dict[str(net.bus.values[i+2][0])] = float(vm_pu_min_per_line[i])
+        vm_pu_max_per_line_dict[str(net.bus.values[i+2][0])] = float(vm_pu_max_per_line[i])
+        duration_vm_pu_90_per_line_dict[str(net.bus.values[i+2][0])] = int(duration_vm_pu_90_per_line[i])
+        duration_vm_pu_95_per_line_dict[str(net.bus.values[i+2][0])] = int(duration_vm_pu_95_per_line[i])
+        duration_vm_pu_97_per_line_dict[str(net.bus.values[i+2][0])] = int(duration_vm_pu_97_per_line[i])
+        duration_vm_pu_103_per_line_dict[str(net.bus.values[i+2][0])] = int(duration_vm_pu_103_per_line[i])
+        duration_vm_pu_105_per_line_dict[str(net.bus.values[i+2][0])] = int(duration_vm_pu_105_per_line[i])
+        duration_vm_pu_110_per_line_dict[str(net.bus.values[i+2][0])] = int(duration_vm_pu_110_per_line[i])
+        max_line_loading_per_line_dict[str(net.line.values[i][0])] = float(max_line_loading_per_line[i])
+
+    results_dict = dict(p_trafo=list(p_trafo),
+                        q_trafo=list(q_trafo),
+                        s_trafo=list(s_trafo),
+                        vm_pu_min=list(vm_pu_min),
+                        vm_pu_max=list(vm_pu_max),
+                        max_line_loading=list(max_line_loading),
+                        duration_trafo_overload=int(duration_trafo_overload),
+                        duration_vm_pu_90=int(duration_vm_pu_90),
+                        duration_vm_pu_95=int(duration_vm_pu_95),
+                        duration_vm_pu_97=int(duration_vm_pu_97),
+                        duration_vm_pu_103=int(duration_vm_pu_103),
+                        duration_vm_pu_105=int(duration_vm_pu_105),
+                        duration_vm_pu_110=int(duration_vm_pu_110),
+                        vm_pu_min_per_line=dict(vm_pu_min_per_line_dict),
+                        vm_pu_max_per_line=dict(vm_pu_max_per_line_dict),
+                        duration_vm_pu_90_per_line=dict(duration_vm_pu_90_per_line_dict),
+                        duration_vm_pu_95_per_line=dict(duration_vm_pu_95_per_line_dict),
+                        duration_vm_pu_97_per_line=dict(duration_vm_pu_97_per_line_dict),
+                        duration_vm_pu_103_per_line=dict(duration_vm_pu_103_per_line_dict),
+                        duration_vm_pu_105_per_line=dict(duration_vm_pu_105_per_line_dict),
+                        duration_vm_pu_110_per_line=dict(duration_vm_pu_110_per_line_dict),
+                        max_line_loading_per_line=dict(max_line_loading_per_line_dict)
+                        )
+
     with open(os.path.abspath(
             os.path.join(str(os.path.dirname(save_path)),
                          "results_" + str(case).split(".")[0] + "_3-ph_" + str(int(kva)) + ".json")), 'w') as k:
-        json.dump(results_dict, k)
+        json.dump(results_dict, k, indent=4)
 
     # Finally remove all temporary files:
     shutil.rmtree(os.path.abspath(os.path.join(str(os.path.dirname(save_path)), random_str)))

@@ -233,21 +233,41 @@ def generate_all_cases(path: Path, with_plot: bool, altbau=True):
         for folder in os.listdir(path)
         if folder.startswith(grid_case) and os.path.isdir(path.joinpath(folder))
     ]
-    for idx, folder in enumerate(folders):
+    import multiprocessing as mp
+    pool = mp.Pool(processes=mp.cpu_count())
+    kwargs_mp = []
+    for folder in folders:
         case = folder.replace(grid_case, "")
-        case_path = path.joinpath(folder)
-        quota_variation = all_quota_cases[case]
-        case_and_trafo_data = load_case_and_trafo_data(case_path, quota_variation=quota_variation, grid=grid_str)
-        if with_plot:
-            plot_all_metrics_and_trafos(case_and_trafo_data, case_path, quota_variation)
-            plot_grid_as_heatmap(case_and_trafo_data, case_path)
-        df = get_statistics(case_and_trafo_data, case_path, quota_variation)
-        df.loc[:, "quota_cases"] = case
+        kwargs_mp.append(dict(
+            case_path=path.joinpath(folder),
+            case=case,
+            quota_variation=all_quota_cases[case],
+            grid_str=grid_str, with_plot=with_plot
+        ))
+
+    idx = 0
+    for df in pool.imap_unordered(create_plots_and_get_df, kwargs_mp):
         dfs.append(df)
-        print(f"Ran {folder} ({idx + 1}/{len(folders)})")
+        print(f"Ran {idx + 1}/{len(folders)} folders")
+        idx += 1
     dfs = pd.concat(dfs)
     dfs.index = range(len(dfs))
     dfs.to_excel(path.joinpath(f"{grid_case}all_grid_results_ex.xlsx"))
+
+
+def create_plots_and_get_df(kwargs):
+    quota_variation = kwargs["quota_variation"]
+    grid_str = kwargs["grid_str"]
+    case_path = kwargs["case_path"]
+    case = kwargs["case"]
+    with_plot = kwargs.get("with_plot", True)
+    case_and_trafo_data = load_case_and_trafo_data(case_path, quota_variation=quota_variation, grid=grid_str)
+    if with_plot:
+        plot_all_metrics_and_trafos(case_and_trafo_data, case_path, quota_variation)
+        plot_grid_as_heatmap(case_and_trafo_data, case_path)
+    df = get_statistics(case_and_trafo_data, case_path, quota_variation)
+    df.loc[:, "quota_cases"] = case
+    return df
 
 
 def set_color_of_axis(axis, color: str):
@@ -267,8 +287,11 @@ def plot_required_trafo_size(
     df_plot = pd.DataFrame(columns=df.columns)
     for case in quota_variation.get_varying_technology_ids():
         df_case = df.loc[(df.loc[:, "case"] == case) & (df.loc[:, design_metric] < design_value)]
-        min_idx = df_case.loc[:, "Trafo-Size"].argmin()
-        df_plot.loc[case] = df_case.iloc[min_idx]
+        try:
+            min_idx = df_case.loc[:, "Trafo-Size"].argmin()
+            df_plot.loc[case] = df_case.iloc[min_idx]
+        except ValueError:
+            df_plot.loc[case] = np.NAN
     fig, ax = plt.subplots(1, 1, figsize=get_figure_size(n_columns=1, height_factor=1.3))
     ax_twin = ax.twiny()
     x_pos = np.arange(len(df_plot.index))
@@ -288,7 +311,7 @@ def plot_required_trafo_size(
     set_color_of_axis(axis=ax_twin.xaxis, color=EBCColors.ebc_palette_sort_2[1])
 
     plot_quota_case_with_images(quota_variation=quota_variation, ax=ax, which_axis="y", title_offset=0.2)
-    ax.set_yticklabels(df_plot.index)
+    #ax.set_yticklabels(df_plot.index)
     set_color_of_axis(axis=ax.xaxis, color=EBCColors.ebc_palette_sort_2[0])
 
     fig.tight_layout(pad=0.1, w_pad=0.1, h_pad=0.1)
@@ -309,7 +332,11 @@ def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path):
                     continue
                 metric_kwargs = metric_data.get(metric_name, {})
                 fig, ax = plt.subplots(1, 1, figsize=get_figure_size(n_columns=1, height_factor=0.7))
-                sns.heatmap(df.astype(float), ax=ax, cmap='rocket', linewidths=0,
+                if metric_kwargs["opt"] == "min":
+                    cmap = "rocket"
+                else:
+                    cmap = "rocket_r"
+                sns.heatmap(df.astype(float), ax=ax, cmap=cmap, linewidths=0,
                             zorder=1, linecolor='black', **metric_kwargs.get("min_max", {}))
                 ax.set_title(metric_kwargs.get("label", metric_name))
                 ax.imshow(plt.imread(DATA_PATH.joinpath("altbau_grid.png"), format="png"),
@@ -319,12 +346,13 @@ def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path):
                           )
                 plt.axis('off')
                 fig.tight_layout()
-                fig.savefig(save_path.joinpath(f"{case}_{metric}.png"))
+                fig.savefig(save_path.joinpath(f"{case}_{metric}_{trafo_size}.png"))
                 plt.close("all")
 
 
 if __name__ == '__main__':
     PlotConfig.load_default()
     from hps_grid_interaction import RESULTS_MONTE_CARLO_FOLDER
-    #PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
-    generate_all_cases(RESULTS_MONTE_CARLO_FOLDER, with_plot=True)
+    PATH = RESULTS_MONTE_CARLO_FOLDER
+    PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
+    generate_all_cases(PATH, with_plot=True)

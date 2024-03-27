@@ -21,7 +21,7 @@ metric_data = {
     "vm_pu_min": {"label": "$V_\mathrm{min}$ in p.u.", "opt": "min",
                   "axhlines": [0.9, 0.95, 0.97], "min_max": {"vmin": 0.9, "vmax": 1}},
 #    "vm_pu_max": {"label": "$V_\mathrm{max}$ in p.u.", "opt": "max", "min_max": {"vmin": 0.85, "vmax": 1}},
-    "max_line_loading": {"label": "$p_\mathrm{max}$ in %", "opt": "max"},
+    "max_line_loading": {"label": "$L_\mathrm{max}$ in %", "opt": "max", "min_max": {"vmin": 0, "vmax": 100}},
 }
 
 """
@@ -150,7 +150,7 @@ def plot_time_series(
                 _ax.axhline(hline, color="black")
     fig.suptitle(fig_title)
     ax[0].set_ylabel(metric_data[metric]["label"])
-    ax[1].set_xlabel("$T_\mathrm{Oda}$ in °C")
+    ax[1].set_xlabel("$T_\mathrm{oda}$ in °C")
     ax[0].set_xlabel("Hours in year")
     ax[1].legend(bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
     plot_quota_case_with_images(quota_variation=quota_variation, ax=ax[0])
@@ -256,6 +256,9 @@ def generate_all_cases(path: Path, with_plot: bool, altbau=True):
 
 
 def create_plots_and_get_df(kwargs):
+    # Load RC Params
+    PlotConfig.load_default()
+
     quota_variation = kwargs["quota_variation"]
     grid_str = kwargs["grid_str"]
     case_path = kwargs["case_path"]
@@ -322,36 +325,63 @@ def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path):
     import seaborn as sns
     save_path = save_path.joinpath("plots_detailed_grid")
     os.makedirs(save_path, exist_ok=True)
-    for case, case_data in case_and_trafo_data.items():
-        for trafo_size, trafo_data in case_data.items():
-            for metric, df in trafo_data.items():
+    n_trafo_sizes = len(next(iter(case_and_trafo_data.values())))
+    n_cases = len(case_and_trafo_data)
+    figs, axes = [], []
+
+    metrics = [
+        "max_line_loading_per_line",
+        "vm_pu_min_per_line"
+    ]
+    for _ in metrics:
+        fig, ax = plt.subplots(n_cases, n_trafo_sizes, figsize=get_figure_size(n_columns=1 * n_trafo_sizes, height_factor=0.7 * n_cases), sharex=True, sharey=True)
+        figs.append(fig)
+        axes.append(ax)
+
+    for idx_case, case in enumerate(case_and_trafo_data.keys()):
+        case_data = case_and_trafo_data[case]
+        for idx_trafo, tafo_size in enumerate(sorted(case_data.keys())):
+            trafo_data = case_data[tafo_size]
+            for metric, ax in zip(metrics, axes):
+                df = trafo_data[metric]
                 if not isinstance(df, pd.DataFrame):
                     continue
                 metric_name = metric.replace("_per_line", "")
                 if metric_name not in metric_data:
                     continue
                 metric_kwargs = metric_data.get(metric_name, {})
-                fig, ax = plt.subplots(1, 1, figsize=get_figure_size(n_columns=1, height_factor=0.7))
                 if metric_kwargs["opt"] == "min":
-                    cmap = "rocket"
+                    cmap = "flare_r"
                 else:
-                    cmap = "rocket_r"
-                sns.heatmap(df.astype(float), ax=ax, cmap=cmap, linewidths=0,
+                    cmap = "flare"
+                sns.heatmap(df.astype(float), ax=ax[idx_case, idx_trafo], cmap=cmap, linewidths=0,
                             zorder=1, linecolor='black', **metric_kwargs.get("min_max", {}))
-                ax.set_title(metric_kwargs.get("label", metric_name))
-                ax.imshow(plt.imread(DATA_PATH.joinpath("altbau_grid.png"), format="png"),
-                          aspect=ax.get_aspect(),
-                          extent=ax.get_xlim() + ax.get_ylim(),
+
+                ax[idx_case, idx_trafo].imshow(plt.imread(DATA_PATH.joinpath("altbau_grid.png"), format="png"),
+                          aspect=ax[idx_case, idx_trafo].get_aspect(),
+                          extent=ax[idx_case, idx_trafo].get_xlim() + ax[idx_case, idx_trafo].get_ylim(),
                           zorder=2
                           )
-                plt.axis('off')
-                fig.tight_layout()
-                fig.savefig(save_path.joinpath(f"{case}_{metric}_{trafo_size}.png"))
-                plt.close("all")
+                ax[idx_case, idx_trafo].set_xticks([])
+                ax[idx_case, idx_trafo].set_yticks([])
+
+    for idx_case, case in enumerate(case_and_trafo_data.keys()):
+        for metric, ax in zip(metrics, axes):
+            ax[idx_case, 0].set_ylabel(case)
+
+    for idx_trafo, tafo_size in enumerate(sorted(case_and_trafo_data[case].keys())):
+        for metric, ax in zip(metrics, axes):
+            ax[-1, idx_trafo].set_xlabel(f"{tafo_size} kVA")
+
+    for metric, fig in zip(metrics, figs):
+        metric_name = metric.replace("_per_line", "")
+        fig.suptitle(metric_data[metric_name].get("label", metric_name))
+        fig.tight_layout()
+        fig.savefig(save_path.joinpath(f"{metric}.png"))
+        plt.close("all")
 
 
 if __name__ == '__main__':
-    PlotConfig.load_default()
     from hps_grid_interaction import RESULTS_MONTE_CARLO_FOLDER
     PATH = RESULTS_MONTE_CARLO_FOLDER
     PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")

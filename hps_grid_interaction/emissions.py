@@ -164,7 +164,7 @@ def plot_emissions_scatter():
     )
 
     labels = {
-        "DryBulbTemp": "$T_\mathrm{Oda}$ in °C",
+        "DryBulbTemp": "$T_\mathrm{oda}$ in °C",
         "DirNormRad": "$H_\mathrm{Dir}$ in W/m2K",
         "WindSpeed": "Wind speed in in m/s",
         "renewables": "Wind and solar radiation in -",

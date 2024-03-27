@@ -22,7 +22,7 @@ def get_label_and_factor(metric):
     if metric == "max":
         return "$P_\mathrm{el,max}$ in kW", 1
     elif metric == "sum":
-        return "$W_\mathrm{el,Ges}$ in MWh", 1e-3
+        return "$E_\mathrm{el,tot}$ in MWh", 1e-3
     elif metric == "value":
         return "$P_\mathrm{el}$ in kW", 1
     raise ValueError
@@ -102,7 +102,7 @@ def plot_time_series(quota_case_grid_data: dict, save_path, quota_variation: "Qu
         fig.suptitle(f"Variation of {tech_name.capitalize()}-quota")
 
     ax[0].set_ylabel(label)
-    ax[1].set_xlabel("$T_\mathrm{Oda}$ in °C")
+    ax[1].set_xlabel("$T_\mathrm{oda}$ in °C")
     ax[0].set_xlabel("Hours in year")
     ax[1].legend(bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
     plot_quota_case_with_images(quota_variation=quota_variation, ax=ax[0])
@@ -216,7 +216,7 @@ def plot_monte_carlo_bars(
             color=EBCColors.ebc_palette_sort_2[idx],
             **bar_args,
         )
-        ax.set_ylabel(point + " " + y_label)
+        ax.set_ylabel(y_label)
         ax.set_xticks(x_pos)
         plot_quota_case_with_images(ax=ax, quota_variation=quota_variation, which_axis="x")
         ax.yaxis.grid(True)

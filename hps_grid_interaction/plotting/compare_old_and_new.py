@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import os
+from hps_grid_interaction.utils import load_outdoor_air_temperature
 
 
 def plot_old_and_new(path_new: Path, path_old: Path, save_path: Path):
@@ -47,12 +48,16 @@ def get_t_m_old_new(path_new: Path, path_old: Path, save_path: Path):
 def get_results_for_single_study(path: Path):
     results = {}
     from ebcpy import TimeSeriesData
+
+    t_oda = load_outdoor_air_temperature()
+    real_winter = t_oda.loc[:, "hydraulic.generation.weaBus.TDryBul"].values < 10
+
     for file in os.listdir(path.joinpath("SimulationResults")):
         if not file.endswith(".hdf"):
             continue
         path_file = path.joinpath("SimulationResults", file)
-        df = TimeSeriesData(path_file).to_df()
-        T_m = calculate_mean_supply_temperature(df=df)
+        df = TimeSeriesData(path_file).to_df().loc[86400 * 2:]
+        T_m = calculate_mean_supply_temperature(df=df, real_winter=real_winter)
         P_max = calculate_max_generation(df=df)
         results[int(path_file.stem.split("_")[0])] = dict(T_m=T_m, P_max=P_max)
     return results
@@ -80,6 +85,32 @@ def csv_inputs(path_new: Path, path_old: Path, save_path: Path):
     plt.savefig(save_path.joinpath("PMaxCSV.png"))
 
 
+def plot_worst_day(path_new: Path, path_old: Path, save_path: Path):
+    maxes_new = []
+    maxes_old = []
+    start_day = 28 * 86400
+    end_day = 29 * 86400
+    for file in os.listdir(path_new.joinpath("csv_files")):
+        if file.endswith(".csv") and "_standard_" in file:
+            maxes_new.append(pd.read_csv(path_new.joinpath("csv_files", file), index_col=0).loc[start_day:end_day, "household"])
+
+    for file in os.listdir(path_old.joinpath("csv_files")):
+        if file.endswith(".csv") and "_standard_" in file:
+            df_old = pd.read_csv(path_old.joinpath("csv_files", file), index_col=0)
+            if "0" in df_old.columns:
+                maxes_old.append(df_old.loc[start_day:end_day, "0"])
+            else:
+                maxes_old.append(df_old.loc[start_day:end_day, "outputs.hydraulic.gen.PEleHeaPum.value"])
+    plt.figure()
+    sum_old = np.sum(maxes_old, axis=0)
+    sum_new = np.sum(maxes_new, axis=0)
+    plt.plot(sum_old, label="old", color="blue")
+    plt.plot(sum_new, label="new", color="red")
+    plt.xlabel("Time")
+    plt.ylabel("P in kW")
+    plt.savefig(save_path.joinpath("PMaxCSV_worst_day.png"))
+
+
 def calculate_max_generation(df: pd.DataFrame):
     HP = df.loc[:, "outputs.hydraulic.gen.PEleHeaPum.value"].values
     if "outputs.hydraulic.gen.PEleEleHea.value" in df:
@@ -91,16 +122,17 @@ def calculate_max_generation(df: pd.DataFrame):
     return np.max(EH + HP)
 
 
-def calculate_mean_supply_temperature(df: pd.DataFrame):
-    T = df.loc[:, "hydraulic.distribution.sigBusDistr.TStoBufTopMea"].values
-    Q = df.loc[:, "outputs.building.QTraGain[1].integral"].values
+def calculate_mean_supply_temperature(df: pd.DataFrame, real_winter):
+    T = df.loc[real_winter, "hydraulic.distribution.sigBusDistr.TStoBufTopMea"].values
+    Q = df.loc[real_winter, "outputs.building.QTraGain[1].integral"].values
     return np.sum(T * Q) / Q.sum() - 273.15
 
 
 if __name__ == '__main__':
-    save_path = Path(r"D:\00_temp\plots\hybrid")
-    path_new = Path(r"D:\01_Projekte\09_HybridWP\01_Results\02_simulations\HybridWeather_altbau")
-    path_old = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\01_BESMod_Simulationen\HybridGEGBiv_altbau")
+    save_path = Path(r"D:\00_temp\plots\monovalent_hr")
+    path_new = Path(r"D:\01_Projekte\09_HybridWP\01_Results\02_simulations\MonovalentWeather_altbau_HR")
+    path_old = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\01_BESMod_Simulationen\Monovalent_altbau_HR")
     #plot_old_and_new(path_new=path_new, path_old=path_old, save_path=save_path)
     #get_t_m_old_new(path_new=path_new, path_old=path_old, save_path=save_path)
-    csv_inputs(path_new=path_new, path_old=path_old, save_path=save_path)
+    #csv_inputs(path_new=path_new, path_old=path_old, save_path=save_path)
+    plot_worst_day(path_new=path_new, path_old=path_old, save_path=save_path)

@@ -183,13 +183,13 @@ if __name__ == '__main__':
     HYBRID_ASSUMPTIONS = HybridSystemAssumptions(method="costs")
     KWARGS = dict(
         hybrid_assumptions=HYBRID_ASSUMPTIONS,
-        n_cpu=10,
+        n_cpu=30,
         extract_only=True,
         with_smart_thermostat=False
     )
-    ##run_simulations(model_name="Hybrid", case_name="HybridWeather", grid_case="altbau", **KWARGS)
+    run_simulations(model_name="Hybrid", case_name="HybridWeather", grid_case="altbau", **KWARGS)
     #run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="altbau", with_heating_rod=True, **KWARGS)
     #run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="altbau", with_heating_rod=False, **KWARGS)
     #run_simulations(model_name="Hybrid", case_name="HybridWeather", grid_case="neubau", **KWARGS)
-    run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="neubau", with_heating_rod=True, **KWARGS)
+    #run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="neubau", with_heating_rod=True, **KWARGS)
     ##run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="neubau", with_heating_rod=False, **KWARGS)

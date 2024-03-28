@@ -1,40 +1,14 @@
-import os.path
+import os
 
-LOADFLOW_SCENARIOS = [
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_e_mob_with_pv_bat", "av_e_mob_with_pv_bat_0_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_e_mob_with_pv_bat", "av_e_mob_with_pv_bat_20_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_e_mob_with_pv_bat", "av_e_mob_with_pv_bat_40_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_e_mob_with_pv_bat", "av_e_mob_with_pv_bat_60_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_e_mob_with_pv_bat", "av_e_mob_with_pv_bat_80_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_e_mob_with_pv_bat", "av_e_mob_with_pv_bat_100_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_heat_pump", "av_heat_pump_0_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_heat_pump", "av_heat_pump_20_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_heat_pump", "av_heat_pump_40_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_heat_pump", "av_heat_pump_60_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_heat_pump", "av_heat_pump_80_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_heat_pump", "av_heat_pump_100_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_hyb", "av_hyb_0_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_hyb", "av_hyb_20_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_hyb", "av_hyb_40_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_hyb", "av_hyb_60_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_hyb", "av_hyb_80_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_hyb", "av_hyb_100_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_hyb_with_pv_bat", "av_hyb_with_pv_bat_0_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_hyb_with_pv_bat", "av_hyb_with_pv_bat_20_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_hyb_with_pv_bat", "av_hyb_with_pv_bat_40_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_hyb_with_pv_bat", "av_hyb_with_pv_bat_60_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_hyb_with_pv_bat", "av_hyb_with_pv_bat_80_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_hyb_with_pv_bat", "av_hyb_with_pv_bat_100_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_pv", "av_pv_0_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_pv", "av_pv_20_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_pv", "av_pv_40_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_pv", "av_pv_60_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_pv", "av_pv_80_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_pv", "av_pv_100_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_pv_bat", "av_pv_bat_0_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_pv_bat", "av_pv_bat_20_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_pv_bat", "av_pv_bat_40_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_pv_bat", "av_pv_bat_60_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_pv_bat", "av_pv_bat_80_altbau_HR.xlsx")),
-    os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo", "Altbau_av_pv_bat", "av_pv_bat_100_altbau_HR.xlsx"))
-]
+
+# Define scenario top/main folder:
+SCENARIOS_MAIN_FOLDER = os.path.abspath(os.path.join(str(os.path.dirname(__file__)), "03_monte_carlo"))
+
+
+# Iterate through all sub-folders and identify input Excel sheets for loadflow simulation:
+LOADFLOW_SCENARIOS = list()
+subfolders = [os.path.abspath(f.path) for f in os.scandir(SCENARIOS_MAIN_FOLDER) if f.is_dir()]
+for directory in subfolders:
+    for file in os.listdir(os.path.abspath(os.path.join(SCENARIOS_MAIN_FOLDER, directory))):
+        if file.endswith(".xlsx"):
+            LOADFLOW_SCENARIOS.append(os.path.abspath(os.path.join(SCENARIOS_MAIN_FOLDER, directory, file)))

@@ -184,7 +184,7 @@ if __name__ == '__main__':
     KWARGS = dict(
         hybrid_assumptions=HYBRID_ASSUMPTIONS,
         n_cpu=30,
-        extract_only=False,
+        extract_only=True,
         with_smart_thermostat=False
     )
     run_simulations(model_name="Hybrid", case_name="HybridWeather", grid_case="altbau", **KWARGS)

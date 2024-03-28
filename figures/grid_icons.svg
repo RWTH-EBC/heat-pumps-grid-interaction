@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.1.2 (b8e25be833, 2022-02-05)"
+   sodipodi:docname="grid_icons.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="0.74029882"
+     inkscape:cx="396.46153"
+     inkscape:cy="413.3466"
+     inkscape:window-width="1920"
+     inkscape:window-height="1017"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg8-7" />
+  <defs
+     id="defs2">
+    <style
+       id="style824">.cls-1{fill:none;stroke:#000;stroke-width:2px;}</style>
+    <style
+       id="style887">.cls-1,.cls-2{stroke:#000;}.cls-1{stroke-width:4.34px;fill:url(#Unbenannter_Verlauf_18);}.cls-2{fill:none;stroke-width:2px;}</style>
+    <linearGradient
+       id="Unbenannter_Verlauf_18"
+       x1="-310.51"
+       y1="254.9"
+       x2="-310.52"
+       y2="362.88"
+       gradientTransform="matrix(4.340968,0,0,-4.1474217,1612.6282,1514.7352)"
+       gradientUnits="userSpaceOnUse">
+      <stop
+         offset="0"
+         stop-color="#9c9e9f"
+         id="stop889" />
+      <stop
+         offset="1"
+         stop-color="#eceded"
+         id="stop891" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#Unbenannter_Verlauf_18"
+       id="linearGradient14405"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(4.340968,0,0,-4.1474217,1611.2774,2042.0359)"
+       x1="-310.51"
+       y1="254.9"
+       x2="-310.52"
+       y2="362.88" />
+  </defs>
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="svg8-7"
+       transform="matrix(0.26458333,0,0,0.26458333,24.594142,26.084641)">
+      <rect
+         id="rect963"
+         class="cls-1"
+         x="2.9999685"
+         y="2.9999685"
+         width="521.31708"
+         height="498.27127"
+         rx="102.73164"
+         style="fill:url(#Unbenannter_Verlauf_18)"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1369-3"
+         class="cls-2"
+         d="M 197.86,328.44 239.22,44.82 v 0"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1371-0"
+         class="cls-2"
+         d="m 282,44.9 45.9,283.54"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1373-8"
+         class="cls-2"
+         d="M 208.77,256.17 299,167.34 231.49,96.18 282,44.9 h -40.87 l 51.61,50.83 -68.61,71.61 90.13,88.43 v 0"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1375-4"
+         class="cls-2"
+         d="m 285.35,55.1 68,40.82 L 169.71,96.6 236.46,55 v 0 l 1.27,0.11"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1377-0"
+         class="cls-2"
+         d="M 231.49,96.18 169.71,166.8 353.37,165.89 292.74,95.73"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1379-4"
+         class="cls-2"
+         d="m 169.71,99.32 v 23.8"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1381-8"
+         class="cls-2"
+         d="m 353.37,99.32 v 23.8"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1383-2"
+         class="cls-2"
+         d="m 353.37,165.89 v 25.26"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1385-0"
+         class="cls-2"
+         d="m 169.71,166.8 v 24.35"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1387-6"
+         class="cls-2"
+         d="m 208.82,255.77 119,66.92 v 0"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1389-1"
+         class="cls-2"
+         d="m 314.26,255.77 -116.4,66.92"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1391-3"
+         class="cls-2"
+         d="M 196.92,322.69 H 326.16"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1393-0"
+         class="cls-2"
+         d="m 179.91,123.12 h -20.4"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1395-4"
+         class="cls-2"
+         d="M 363.58,123.12 H 343.17"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1393-3-1"
+         class="cls-2"
+         d="M 363.58,191.15 H 343.17"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1393-3-0-7"
+         class="cls-2"
+         d="m 179.91,191.15 h -20.4"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-weight:normal;font-size:73.6539px;line-height:0;font-family:sans-serif;letter-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.84424;stroke-miterlimit:4;stroke-dasharray:none"
+         x="63.223412"
+         y="428.87323"
+         id="text2253"
+         inkscape:export-filename="D:\grid_old.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500"><tspan
+           id="tspan2251"
+           x="63.223412"
+           y="428.87323"
+           sodipodi:role="line"
+           style="stroke-width:1.84425">1950-1970</tspan></text>
+      <rect
+         id="rect963-6"
+         class="cls-1"
+         x="1.6491685"
+         y="530.3006"
+         width="521.31708"
+         height="498.27127"
+         rx="102.73164"
+         style="fill:url(#linearGradient14405);stroke:#000000;stroke-width:5.99994px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1369-3-4"
+         class="cls-2"
+         d="m 196.5092,855.74061 41.36,-283.62 v 0"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1371-0-7"
+         class="cls-2"
+         d="m 280.6492,572.20061 45.9,283.54"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1373-8-3"
+         class="cls-2"
+         d="m 207.4192,783.47061 90.23,-88.83 -67.51,-71.16 50.51,-51.28 h -40.87 l 51.61,50.83 -68.61,71.61 90.13,88.43 v 0"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1375-4-5"
+         class="cls-2"
+         d="m 283.9992,582.40061 68,40.82 -183.64,0.68 66.75,-41.6 v 0 l 1.27,0.11"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1377-0-9"
+         class="cls-2"
+         d="m 230.1392,623.48061 -61.78,70.62 183.66,-0.91 -60.63,-70.16"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1379-4-6"
+         class="cls-2"
+         d="m 168.3592,626.62061 v 23.8"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1381-8-1"
+         class="cls-2"
+         d="m 352.0192,626.62061 v 23.8"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1383-2-5"
+         class="cls-2"
+         d="m 352.0192,693.19061 v 25.26"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1385-0-8"
+         class="cls-2"
+         d="m 168.3592,694.10061 v 24.35"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1387-6-2"
+         class="cls-2"
+         d="m 207.4692,783.07061 119,66.92 v 0"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1389-1-1"
+         class="cls-2"
+         d="m 312.9092,783.07061 -116.4,66.92"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1391-3-4"
+         class="cls-2"
+         d="m 195.5692,849.99061 h 129.24"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1393-0-7"
+         class="cls-2"
+         d="m 178.5592,650.42061 h -20.4"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1395-4-8"
+         class="cls-2"
+         d="m 362.2292,650.42061 h -20.41"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1393-3-1-4"
+         class="cls-2"
+         d="m 362.2292,718.45061 h -20.41"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <path
+         id="path1393-3-0-7-4"
+         class="cls-2"
+         d="m 178.5592,718.45061 h -20.4"
+         style="fill:none;stroke:#000000;stroke-width:2px"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500" />
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-weight:normal;font-size:73.6539px;line-height:0;font-family:sans-serif;letter-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.84424;stroke-miterlimit:4;stroke-dasharray:none"
+         x="61.87262"
+         y="956.17383"
+         id="text2253-0"
+         inkscape:export-filename="D:\grid_new.png"
+         inkscape:export-xdpi="500"
+         inkscape:export-ydpi="500"><tspan
+           id="tspan2251-3"
+           x="61.87262"
+           y="956.17383"
+           sodipodi:role="line"
+           style="stroke-width:1.84425">1980-2010</tspan></text>
+    </g>
+  </g>
+</svg>

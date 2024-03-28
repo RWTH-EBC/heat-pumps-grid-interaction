@@ -55,7 +55,7 @@ def get_simulation_config(model, with_heating_rod):
         plot_config = json.load(file)
 
     y_variables = {
-        "$T_\mathrm{Oda}$ in °C": "weaDat.weaBus.TDryBul",
+        "$T_\mathrm{oda}$ in °C": "weaDat.weaBus.TDryBul",
         "$T_\mathrm{Room}$ in °C": ["hydraulic.buiMeaBus.TZoneMea[1]", "hydraulic.useProBus.TZoneSet[1]"],
         "$y_\mathrm{Val}$ in %": "hydraulic.transfer.outBusTra.opening[1]",
         "$T_\mathrm{DHW}$ in °C": ["hydraulic.distribution.sigBusDistr.TStoDHWBotMea",

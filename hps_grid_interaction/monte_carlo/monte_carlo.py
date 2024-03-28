@@ -1,12 +1,15 @@
+import dataclasses
+import itertools
 import json
 import logging
 import os
 import pickle
+import shutil
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Union
 from random import choices
 import time
-
+import multiprocessing
 import pandas as pd
 import numpy as np
 
@@ -16,8 +19,8 @@ from hps_grid_interaction.emissions import COLUMNS_EMISSIONS
 from hps_grid_interaction.monte_carlo import plots
 from hps_grid_interaction import RESULTS_BES_FOLDER, KERBER_NETZ_XLSX, RESULTS_MONTE_CARLO_FOLDER, E_MOBILITY_DATA
 from hps_grid_interaction.bes_simulation.simulation import W_to_Wh
-logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
 
 COLUMNS_GEG = ["percent_renewables", "QRenewable", "QBoi"]
 
@@ -36,7 +39,8 @@ class Quotas:
             n_monte_carlo: int = 1000
     ):
         self.construction_type_quotas = get_construction_type_quotas(assumption=construction_type_quota)
-        monoenergetic_quota = (100 - hybrid_quota) * heat_pump_quota
+        self.construction_type_quota = construction_type_quota
+        monoenergetic_quota = (100 - hybrid_quota) * heat_pump_quota / 100
         self.heat_supply_quotas = {
             "monovalent": (100 - heating_rod_quota) * monoenergetic_quota / 100,
             "hybrid": hybrid_quota * heat_pump_quota / 100,
@@ -51,11 +55,86 @@ class Quotas:
             "household+pv+e_mobility": pv_quota * e_mobility_quota / 100,
             "household+pv+battery+e_mobility": pv_battery_quota * e_mobility_quota / 100
         }
-        self.n_monte_carlo = n_monte_carlo
+        assert sum(self.electricity_system_quotas.values()) == 100, "Quotas do not equal 100"
+        assert sum(self.heat_supply_quotas.values()) == 100, "Quotas do not equal 100"
+        assert all(0 <= v <= 100 for v in self.electricity_system_quotas.values()), \
+            f"Quotas are not between 0 and 100: {self.electricity_system_quotas}"
+        assert all(0 <= v <= 100 for v in self.heat_supply_quotas.values()), \
+            f"Quotas are not between 0 and 100: {self.heat_supply_quotas}"
+
+        for years_dict in self.construction_type_quotas.values():
+            for year_dict in years_dict.values():
+                assert sum(year_dict.values()) == 100, f"Construction type quota '{construction_type_quota}' " \
+                                                       f"does not equal 100: {year_dict}"
+
+        if self._monte_carlo_necessary():
+            self.n_monte_carlo = n_monte_carlo
+        else:
+            self.n_monte_carlo = 1
+
+    def _monte_carlo_necessary(self):
+        def _zero_or_hundred(v):
+            return v in [0, 100]
+
+        values_ct = []
+        for years_dict in self.construction_type_quotas.values():
+            for year_dict in years_dict.values():
+                values_ct.extend(list(year_dict.values()))
+        all_values = list(self.electricity_system_quotas.values()) + list(self.heat_supply_quotas.values()) + values_ct
+        return not all(
+            _zero_or_hundred(value) for value in all_values
+        )
+
+    def get_fixed_and_varying_technologies(self):
+        # Building:
+        fixed_technologies = []
+        varying_technologies = []
+        if isinstance(self.construction_type_quota, str):
+            fixed_technologies.append(self.construction_type_quota)
+        else:
+            varying_technologies.append(list(self.construction_type_quota.keys())[0])
+
+        def _append_fixed_and_varying(quotes: dict, fixed: list, varying: list):
+            for name, case_value in quotes.items():
+                if case_value == 100:
+                    fixed.extend(name.split("+"))
+                elif case_value > 0:
+                    varying.append(name)
+
+        _append_fixed_and_varying(self.heat_supply_quotas, fixed_technologies, varying_technologies)
+        _append_fixed_and_varying(self.electricity_system_quotas, fixed_technologies, varying_technologies)
+        return fixed_technologies, varying_technologies
+
+
+@dataclasses.dataclass
+class QuotaVariation:
+    quota_cases: Dict[str, Quotas]
+    fixed_technologies: List[str]
+    varying_technologies: Union[List[List[str]], Dict[str, List[int]]]
+
+    def get_varying_technology_ids(self):
+        if isinstance(self.varying_technologies, dict):
+            return [f"{v}%" for v in self.get_single_varying_technology_name_and_quotas()[1]]
+        return ["_".join(l) for l in self.varying_technologies]
+
+    def get_single_varying_technology_name_and_quotas(self):
+        if not isinstance(self.varying_technologies, dict):
+            raise KeyError("This function is only supported for numeric quotas")
+        tech = next(iter(self.varying_technologies))
+        return tech, self.varying_technologies[tech]
+
+    def get_quota_case_name_and_value_dict(self):
+        return dict(zip(self.quota_cases.keys(), self.get_varying_technology_ids()))
+
+    def pretty_name(self, technology):
+        pretty_name_map = {
+            "p_adv_ret": "Advanced-retrofit",
+            "p_ret": "Retrofit",
+        }
+        return pretty_name_map.get(technology, technology.capitalize())
 
 
 def _draw_uncertain_choice(quotas: Quotas, building_type: str, year_of_construction: int):
-
     def _draw_from_dict(d: dict):
         return choices(list(d.keys()), list(d.values()), k=1)[0]
 
@@ -73,10 +152,15 @@ def _draw_uncertain_choice(quotas: Quotas, building_type: str, year_of_construct
 def _get_time_series_data_for_choices(heat_supplies: dict, house_index: int, all_choices: dict):
     df_sim, time_series_data = heat_supplies[all_choices["heat_supply_choice"]]
     possible_rows = df_sim.loc[house_index]
-    mask = possible_rows.loc[:, "construction_type"] == all_choices["construction_type_choice"]
-    if not np.any(mask):
-        raise KeyError("No mask fitted, something went wrong")
-    sim_result_name = possible_rows.loc[mask, "simulation_result"].values[0]
+    if isinstance(possible_rows, pd.Series):
+        if not possible_rows["Baujahr"] == 2010:
+            raise KeyError("Only one type even though not 2010, something went wrong")
+        sim_result_name = possible_rows["simulation_result"]
+    else:
+        mask = possible_rows.loc[:, "construction_type"] == all_choices["construction_type_choice"]
+        if not np.any(mask):
+            raise KeyError("No mask fitted, something went wrong")
+        sim_result_name = possible_rows.loc[mask, "simulation_result"].values[0]
 
     return time_series_data[sim_result_name].loc[:, all_choices["electricity_system_choice"]]
 
@@ -113,6 +197,7 @@ def load_function_kwargs_prior_to_monte_carlo(
 
         ordered_sim_results = {key: ordered_sim_results[key] for key in sorted(ordered_sim_results)}
         return data, list(ordered_sim_results.values())
+
     cases = {
         "hybrid": hybrid,
         "monovalent": monovalent,
@@ -162,7 +247,7 @@ def run_monte_carlo_sim(quota_cases: Dict[str, Quotas], function_kwargs: dict):
     i = 0
 
     def _get_electricity_sum_in_kWh(data):
-        #return data.sum() * W_to_Wh  # Also grid feed in
+        # return data.sum() * W_to_Wh  # Also grid feed in
         return data[data > 0].sum() * W_to_Wh  # Also grid feed in
 
     for quota_name, quotas in quota_cases.items():
@@ -173,22 +258,22 @@ def run_monte_carlo_sim(quota_cases: Dict[str, Quotas], function_kwargs: dict):
                 if point not in max_data:
                     max_data[point] = {quota_name: [data.max()]}
                     sum_data[point] = {quota_name: [_get_electricity_sum_in_kWh(data)]}
-                    #tsd_data[point] = {quota_name: [data]}
+                    # tsd_data[point] = {quota_name: [data]}
                 elif quota_name not in max_data[point]:
                     max_data[point][quota_name] = [data.max()]
                     sum_data[point][quota_name] = [_get_electricity_sum_in_kWh(data)]
-                    #tsd_data[point][quota_name] = [data]
+                    # tsd_data[point][quota_name] = [data]
                 else:
                     max_data[point][quota_name].append(data.max())
                     sum_data[point][quota_name].append(_get_electricity_sum_in_kWh(data))
-                    #tsd_data[point][quota_name].append(data)
+                    # tsd_data[point][quota_name].append(data)
         i += 1
         logger.info("Ran quota case %s of %s", i, len(quota_cases))
 
     monte_carlo_data = {
         "max": max_data,
         "sum": sum_data,
-        #"tsd_data": tsd_data,
+        # "tsd_data": tsd_data,
         "choices_for_grid": choices_for_grid
     }
     logger.info("Monte-Carlo simulations took %s s", time.time() - t0)
@@ -266,9 +351,9 @@ def get_grid_simulation_case_name(quota_case: str, grid_case: str):
 
 
 def plot_and_export_single_monte_carlo(
-        quota_cases: Dict[str, Quotas],
+        quota_variation: QuotaVariation,
         data, metric: str, save_path: Path,
-        case_name: str, grid_case: str,
+        grid_case: str,
         plots_only: bool,
         heat_supplies: dict, df_grid: pd.DataFrame
 ):
@@ -277,7 +362,7 @@ def plot_and_export_single_monte_carlo(
     emissions_data = {}
     quota_case_grid_simulation_inputs = {}
     quota_case_grid_data = {}
-    for quota_case in quota_cases:
+    for quota_case in quota_variation.quota_cases:
         arg = arg_function(data[metric]["ONT"][quota_case])
         # Save in excel for Lastflusssimulation:
         choices_for_grid = data["choices_for_grid"][quota_case][arg]
@@ -308,19 +393,20 @@ def plot_and_export_single_monte_carlo(
         }
 
         # TODO: Fix simulation results for cases
-        #quota_case_mask = df_sim.loc[:, "system_type"] == tech.lower()
-        #df_quota_case = df_sim.loc[quota_case_mask]
-        #columns = COLUMNS_EMISSIONS + COLUMNS_GEG
-        #sum_cols = {col: 0 for col in columns}
-        #for sim_result in grid_time_series_data:
+        # quota_case_mask = df_sim.loc[:, "system_type"] == tech.lower()
+        # df_quota_case = df_sim.loc[quota_case_mask]
+        # columns = COLUMNS_EMISSIONS + COLUMNS_GEG
+        # sum_cols = {col: 0 for col in columns}
+        # for sim_result in grid_time_series_data:
         #    row = df_quota_case.loc[df_quota_case.loc[:, "simulation_result"] == sim_result]
         #    for col in columns:
         #        sum_cols[col] += row[col].values[0]
-        #emissions_data[quota_case] = sum_cols
-    #return {"grid": export_data, "emissions": emissions_data}
+        # emissions_data[quota_case] = sum_cols
+    # return {"grid": export_data, "emissions": emissions_data}
     plots.plot_time_series(
         quota_case_grid_data=quota_case_grid_data,
-        save_path=save_path
+        save_path=save_path,
+        quota_variation=quota_variation
     )
 
     return {"grid": export_data, "grid_simulation_inputs": quota_case_grid_simulation_inputs}
@@ -333,109 +419,343 @@ def save_excel(df, path, sheet_name):
     else:
         df.to_excel(path, sheet_name=sheet_name)
 
-def run_save_and_plot_monte_carlo(
-        quota_cases: Dict[str, Quotas],
-        grid_case: str, with_hr: bool,
-        save_path: Path,
-        load: bool = False,
-        extra_case_name: str = "",
-):
-    os.makedirs(save_path, exist_ok=True)
 
-    kwargs = load_function_kwargs_prior_to_monte_carlo(
-        hybrid=RESULTS_BES_FOLDER.joinpath(f"Hybrid{extra_case_name}_{grid_case}"),
-        monovalent=RESULTS_BES_FOLDER.joinpath(f"Monovalent{extra_case_name}_{grid_case}"),
-        heating_rod=RESULTS_BES_FOLDER.joinpath(f"Monovalent{extra_case_name}_{grid_case}_HR"),
-        grid_case=grid_case
-    )
+def run_save_and_plot_monte_carlo(
+        kwargs: dict
+):
+    if not logging.getLogger().hasHandlers():
+        logging.basicConfig(level="INFO")
+
+    quota_variation: QuotaVariation = kwargs["quota_variation"]
+    grid_case: str = kwargs["grid_case"]
+    save_path: Path = kwargs["save_path"]
+    load: bool = kwargs["load"]
+    recreate_plots: bool = kwargs["recreate_plots"]
+    extra_case_name_hybrid: str = kwargs["extra_case_name_hybrid"]
+
+    # Load separately as large kwargs can't be passed by multiprocessing
+    function_kwargs = load_function_kwargs_for_grid(extra_case_name_hybrid=extra_case_name_hybrid, grid_case=grid_case)
+
+    os.makedirs(save_path, exist_ok=True)
     pickle_path = save_path.joinpath(f"monte_carlo_{grid_case}.pickle")
-    if load:
+    all_results_path = save_path.joinpath("results_to_plot.json")
+
+    if os.path.exists(all_results_path) and os.path.exists(pickle_path) and not recreate_plots:
+        return
+
+    if load and os.path.exists(pickle_path):
         with open(pickle_path, "rb") as file:
             data = pickle.load(file)
         logger.info("Loaded pickle data from %s", pickle_path)
     else:
-        data = run_monte_carlo_sim(quota_cases=quota_cases, function_kwargs=kwargs)
+        data = run_monte_carlo_sim(quota_cases=quota_variation.quota_cases, function_kwargs=function_kwargs)
         with open(pickle_path, "wb") as file:
             pickle.dump(data, file)
 
-    plots.plot_monte_carlo_bars(data=data, metric="max", save_path=save_path, quota_cases=quota_cases)
-    plots.plot_monte_carlo_bars(data=data, metric="sum", save_path=save_path, quota_cases=quota_cases)
-    plots.plot_monte_carlo_violin(data=data, metric="max", save_path=save_path, quota_cases=quota_cases)
-    plots.plot_monte_carlo_violin(data=data, metric="sum", save_path=save_path, quota_cases=quota_cases)
+    plots.plot_monte_carlo_bars(data=data, metric="max", save_path=save_path, quota_variation=quota_variation)
+    plots.plot_monte_carlo_bars(data=data, metric="sum", save_path=save_path, quota_variation=quota_variation)
+    plots.plot_monte_carlo_violin(data=data, metric="max", save_path=save_path, quota_variation=quota_variation)
+    plots.plot_monte_carlo_violin(data=data, metric="sum", save_path=save_path, quota_variation=quota_variation)
     export_data = plot_and_export_single_monte_carlo(
-        quota_cases=quota_cases,
+        quota_variation=quota_variation,
         data=data, metric="max", plots_only=False,
         save_path=save_path, grid_case=grid_case,
-        **kwargs
+        **function_kwargs
     )
 
-    return export_data
-
-
-def run_all_cases(load: bool, quota_study: str, extra_case_name_hybrid: str = ""):
-    quota_cases = {}
-    if quota_study == "av_pv":
-        for quota in [0, 20, 40, 60, 80, 100]:
-            quota_cases[f"{quota_study}_{quota}"] = Quotas(
-                construction_type_quota="average", pv_quota=quota, pv_battery_quota=0,
-                e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=0
-            )
-    elif quota_study == "av_pv_bat":
-        for quota in [0, 20, 40, 60, 80, 100]:
-            quota_cases[f"{quota_study}_{quota}"] = Quotas(
-                construction_type_quota="average", pv_quota=0, pv_battery_quota=quota,
-                e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=0
-            )
-    elif quota_study == "av_hyb":
-        for quota in [0, 20, 40, 60, 80, 100]:
-            quota_cases[f"{quota_study}_{quota}"] = Quotas(
-                construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
-                e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=quota
-            )
-    elif quota_study == "av_heat_pump":
-        for quota in [0, 20, 40, 60, 80, 100]:
-            quota_cases[f"{quota_study}_{quota}"] = Quotas(
-                construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
-                e_mobility_quota=0, heat_pump_quota=quota, hybrid_quota=0
-            )
-    elif quota_study == "av_hyb_with_pv_bat":
-        for quota in [0, 20, 40, 60, 80, 100]:
-            quota_cases[f"{quota_study}_{quota}"] = Quotas(
-                construction_type_quota="average", pv_quota=0, pv_battery_quota=100,
-                e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=quota
-            )
-    elif quota_study == "av_e_mob_with_pv_bat":
-        for quota in [0, 20, 40, 60, 80, 100]:
-            quota_cases[f"{quota_study}_{quota}"] = Quotas(
-                construction_type_quota="average", pv_quota=0, pv_battery_quota=100,
-                e_mobility_quota=quota, heat_pump_quota=100, hybrid_quota=0
-            )
-    #"all_retrofit": Quotas(construction_type_quota="all_retrofit"),
-    #"all_adv_retrofit": Quotas(construction_type_quota="all_adv_retrofit"),
-    #"no_retrofit": Quotas(construction_type_quota="no_retrofit")
-    save_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"Altbau_{quota_study}")
-
-    all_results = {}
-    for grid_case in ["altbau"]:#, "neubau"]:
-        res = run_save_and_plot_monte_carlo(
-            quota_cases=quota_cases,
-            grid_case=grid_case,
-            save_path=save_path, load=load,
-            extra_case_name=extra_case_name_hybrid
-        )
-        all_results[grid_case] = res
-    all_results_path = save_path.joinpath("results_to_plot.json")
     with open(all_results_path, "w") as file:
-        json.dump(all_results, file)
-    return all_results_path
+        json.dump(export_data, file)
+    return True
+
+
+def get_all_quota_studies():
+    all_quota_studies = {}
+
+    fixed_pv_quotas = [0, 100]
+    fixed_pv_battery_quotas = [0, 100]
+    fixed_e_mobility_quotas = [0, 100]
+    fixed_heat_pump_quotas = [100]
+    fixed_heating_rod_quotas = [0, 100]
+    fixed_hybrid_quotas = [0, 100]
+
+    def _create_quotas_from_0_to_100(
+            quota_study_name: str,
+            quota_variable: str,
+            arg_wrapper: callable = None,
+            zero_to_hundred: list = None,
+            **quota_kwargs
+    ):
+        if arg_wrapper is None:
+            arg_wrapper = lambda x: x
+        if zero_to_hundred is None:
+            zero_to_hundred = [0, 20, 40, 60, 80, 100]
+        quota_cases = {}
+        for quota in zero_to_hundred:
+            quota_value = arg_wrapper(quota)
+            quota_cases[f"{quota_variable}_{quota_study_name}_{quota}"] = Quotas(
+                **{
+                    quota_variable: quota_value,
+                    **quota_kwargs
+                }
+            )
+        fixed_technologies = []
+        for tech, value in quota_kwargs.items():
+            if value == 100:
+                if tech == "pv_battery_quota":
+                    fixed_technologies.extend(["pv", "battery"])
+                else:
+                    fixed_technologies.append(tech.replace("_quota", ""))
+            if tech == "heat_pump_quota" and value == 0:
+                fixed_technologies.append("gas")
+            if tech == "construction_type_quota":
+                fixed_technologies.append(value)
+
+        if isinstance(zero_to_hundred[0], str):
+            varying_technologies = [[z] for z in zero_to_hundred]
+        else:
+            # Numeric changes, fixed technology type:
+            if isinstance(quota_value, dict):
+                varying_technology_clean_name = next(iter(quota_value))
+            else:
+                varying_technology_clean_name = quota_variable.replace("_quota", "")
+            varying_technologies = {varying_technology_clean_name: zero_to_hundred}
+
+        return QuotaVariation(
+            quota_cases=quota_cases,
+            fixed_technologies=fixed_technologies,
+            varying_technologies=varying_technologies
+        )
+
+    # Gap-1: Hybrid
+    for pv, pv_bat, e_mob, hp, hr in itertools.product(
+            fixed_pv_quotas,
+            fixed_pv_battery_quotas,
+            fixed_e_mobility_quotas,
+            fixed_heat_pump_quotas,
+            fixed_heating_rod_quotas,
+    ):
+        if pv == 100 and pv_bat == 100:
+            continue
+        tech_values = {
+            "PV": pv,
+            "PVBat": pv_bat,
+            "EMob": e_mob,
+            "HP": hp,
+            "HR": hr,
+        }
+        identifier = "_".join([tech for tech, value in tech_values.items() if value == 100])
+        all_quota_studies[f"hybrid_{identifier}"] = _create_quotas_from_0_to_100(
+            quota_study_name=identifier,
+            quota_variable="hybrid_quota",
+            construction_type_quota="average",
+            pv_quota=pv,
+            pv_battery_quota=pv_bat,
+            e_mobility_quota=e_mob,
+            heat_pump_quota=hp,
+            heating_rod_quota=hr
+        )
+
+    # Gap-2: Building retrofit
+    for pv_bat, e_mob, hp, hr, hyb in itertools.product(
+            fixed_pv_battery_quotas,
+            fixed_e_mobility_quotas,
+            fixed_heat_pump_quotas,
+            fixed_heating_rod_quotas,
+            fixed_hybrid_quotas
+    ):
+        if hyb == 100 and hr == 100:
+            continue  # Makes no difference
+
+        tech_values = {
+            "PVBat": pv_bat,
+            "EMob": e_mob,
+            "HP": hp,
+            "HR": hr,
+            "Hyb": hyb
+        }
+        identifier = "_".join([tech for tech, value in tech_values.items() if value == 100])
+        kwargs = dict(
+            quota_study_name=identifier,
+            quota_variable="construction_type_quota",
+            pv_quota=0,
+            pv_battery_quota=pv_bat,
+            e_mobility_quota=e_mob,
+            heat_pump_quota=hp,
+            heating_rod_quota=hr,
+            hybrid_quota=hyb
+        )
+        all_quota_studies[f"extrema_{identifier}"] = _create_quotas_from_0_to_100(
+            zero_to_hundred=["no_retrofit", "all_retrofit", "all_adv_retrofit"], **kwargs
+        )
+        all_quota_studies[f"retrofit_{identifier}"] = _create_quotas_from_0_to_100(
+            arg_wrapper=lambda x: dict(p_ret=x / 100), **kwargs
+        )
+        all_quota_studies[f"adv_retrofit_{identifier}"] = _create_quotas_from_0_to_100(
+            arg_wrapper=lambda x: dict(p_adv_ret=x / 100), **kwargs
+        )
+    for folder in os.listdir(RESULTS_MONTE_CARLO_FOLDER):
+        path = RESULTS_MONTE_CARLO_FOLDER.joinpath(folder)
+        if (
+                folder not in [f"Altbau_{k}" for k in all_quota_studies.keys()] + ["Altbau_GraphicalAbstract"] and
+                os.path.isdir(path)
+        ):
+            print(f"Folder {path} could be deleted, not relevant with current factorial design.")
+            #shutil.rmtree(path)
+
+    all_quota_studies["GraphicalAbstract"] = QuotaVariation(quota_cases={
+        "GraphicalAbstract_GasAverage": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=0, heat_pump_quota=0, hybrid_quota=0, heating_rod_quota=0
+        ),
+        "GraphicalAbstract_HybAverage": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=100, heating_rod_quota=0
+        ),
+        "GraphicalAbstract_MonAverage": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=0
+        ),
+        "GraphicalAbstract_HeaRodAverage": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=0, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+        ),
+        "GraphicalAbstract_HeaRodAverageEMob": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+        ),
+        "GraphicalAbstract_HeaRodAverageEMobPV": Quotas(
+            construction_type_quota="average", pv_quota=100, pv_battery_quota=0,
+            e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+        ),
+        "GraphicalAbstract_HeaRodAverageEMobPVBat": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=100,
+            e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+        ),
+        "GraphicalAbstract_HeaRodAllRetroEMobPVBat": Quotas(
+            construction_type_quota="all_retrofit", pv_quota=0, pv_battery_quota=100,
+            e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+        ),
+        "GraphicalAbstract_HeaRodAllAdvRetroEMobPVBat": Quotas(
+            construction_type_quota="all_adv_retrofit", pv_quota=0, pv_battery_quota=100,
+            e_mobility_quota=100, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+        )},
+        fixed_technologies=[],
+        varying_technologies=[
+            ["average", "gas"],
+            ["average", "hybrid"],
+            ["average", "heat_pump"],
+            ["average", "heating_rod"],
+            ["average", "heating_rod", "e_mobility"],
+            ["average", "heating_rod", "e_mobility", "pv"],
+            ["average", "heating_rod", "e_mobility", "pv", "battery"],
+            ["all_retrofit", "heating_rod", "e_mobility", "pv", "battery"],
+            ["all_adv_retrofit", "heating_rod", "e_mobility", "pv", "battery"],
+        ]
+    )
+    all_quota_studies = {}
+    all_quota_studies["CompareOldAndNew_average"] = QuotaVariation(quota_cases={
+        "Hybrid": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=50, heat_pump_quota=0, hybrid_quota=100, heating_rod_quota=0
+        ),
+        "Monovalent": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=50, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=0
+        )},
+        fixed_technologies=[],
+        varying_technologies=[
+            ["average", "hybrid"],
+            ["average", "heat_pump"],
+        ]
+    )
+    all_quota_studies["CompareOldAndNew_HR_average"] = QuotaVariation(quota_cases={
+        "Hybrid": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=50, heat_pump_quota=0, hybrid_quota=100, heating_rod_quota=0
+        ),
+        "Monovalent": Quotas(
+            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=50, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+        )},
+        fixed_technologies=[],
+        varying_technologies=[
+            ["average", "hybrid"],
+            ["average", "heating_rod"],
+        ]
+    )
+    all_quota_studies["CompareOldAndNew_HR_no_retrofit"] = QuotaVariation(quota_cases={
+        "Hybrid": Quotas(
+            construction_type_quota="no_retrofit", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=50, heat_pump_quota=0, hybrid_quota=100, heating_rod_quota=0
+        ),
+        "Monovalent": Quotas(
+            construction_type_quota="no_retrofit", pv_quota=0, pv_battery_quota=0,
+            e_mobility_quota=50, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+        )},
+        fixed_technologies=[],
+        varying_technologies=[
+            ["no_retrofit", "hybrid"],
+            ["no_retrofit", "heat_pump"],
+        ]
+    )
+    return all_quota_studies
+
+
+def load_function_kwargs_for_grid(extra_case_name_hybrid: str, grid_case: str):
+    pickle_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"{extra_case_name_hybrid}_{grid_case}.pickle")
+    if os.path.exists(pickle_path):
+        with open(pickle_path, "rb") as file:
+            return pickle.load(file)
+
+    function_kwargs = load_function_kwargs_prior_to_monte_carlo(
+        hybrid=RESULTS_BES_FOLDER.joinpath(f"Hybrid{extra_case_name_hybrid}_{grid_case}"),
+        monovalent=RESULTS_BES_FOLDER.joinpath(f"Monovalent{extra_case_name_hybrid}_{grid_case}"),
+        heating_rod=RESULTS_BES_FOLDER.joinpath(f"Monovalent{extra_case_name_hybrid}_{grid_case}_HR"),
+        grid_case=grid_case
+    )
+    with open(pickle_path, "wb") as file:
+        pickle.dump(function_kwargs, file)
+    return function_kwargs
+
+
+def run_all_cases(load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1, recreate_plots: bool = True):
+    all_quota_cases = get_all_quota_studies()
+
+    grid_cases = [
+        "altbau",
+        #"neubau"
+    ]
+    multiprocessing_function_kwargs = []
+    for grid_case in grid_cases:
+        # Trigger generation of pickle for inputs
+        load_function_kwargs_for_grid(extra_case_name_hybrid=extra_case_name_hybrid, grid_case=grid_case)
+        for quota_study_name, quota_variation in all_quota_cases.items():
+            save_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"{grid_case.capitalize()}_{quota_study_name}")
+            multiprocessing_function_kwargs.append(dict(
+                quota_variation=quota_variation,
+                grid_case=grid_case,
+                save_path=save_path,
+                load=load,
+                recreate_plots=recreate_plots,
+                extra_case_name_hybrid=extra_case_name_hybrid,
+            ))
+    if n_cpu > 1:
+        pool = multiprocessing.Pool(processes=n_cpu)
+        i = 0
+        for res in pool.imap(run_save_and_plot_monte_carlo, multiprocessing_function_kwargs):
+            logger.info("Calculated %s of %s cases", i + 1, len(multiprocessing_function_kwargs))
+            i += 1
+    else:
+        for i, kwargs in enumerate(multiprocessing_function_kwargs):
+            try:
+                run_save_and_plot_monte_carlo(kwargs)
+            except Exception as err:
+                raise err
+                logger.error("Could not calculate case %s: %s", i + 1, err)
+            logger.info("Calculated %s of %s cases", i + 1, len(multiprocessing_function_kwargs))
 
 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(load=True, extra_case_name_hybrid="NoSetBack", quota_study="av_e_mob_with_pv_bat")
-    run_all_cases(load=True, extra_case_name_hybrid="NoSetBack", quota_study="av_heat_pump")
-    run_all_cases(load=True, extra_case_name_hybrid="NoSetBack", quota_study="av_pv_bat")
-    run_all_cases(load=True, extra_case_name_hybrid="NoSetBack", quota_study="av_hyb")
-    run_all_cases(load=True, extra_case_name_hybrid="NoSetBack", quota_study="av_pv")
-    run_all_cases(load=True, extra_case_name_hybrid="NoSetBack", quota_study="av_hyb_with_pv_bat")
+    run_all_cases(load=True, extra_case_name_hybrid="Weather", n_cpu=8)

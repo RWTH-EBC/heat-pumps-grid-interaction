@@ -127,14 +127,16 @@ class BuildingConfig(BaseModel):
         )
 
         TNonRetrofit_nominal, _, _ = self.get_nominal_supply_temperature(self.year_of_construction)
+        record_addition = ""
 
         if TNonRetrofit_nominal == 273.15 + 35:
             transfer_system_type = \
                 "BESMod.Systems.Hydraulical.Transfer.UFHTransferSystem transfer(\n" \
                 "    nHeaTra=1.3,\n" \
                 "    redeclare BESMod.Systems.Hydraulical.Transfer.RecordsCollection.SteelRadiatorStandardPressureLossData parTra,\n" \
-                "    redeclare BESMod.Systems.Hydraulical.Transfer.RecordsCollection.DefaultUFHData UFHParameters,\n" \
+                "    redeclare BESMod.Systems.Hydraulical.Transfer.RecordsCollection.DefaultUFHData UFHParameters(T_floor=291.15),\n" \
                 "    redeclare BESMod.Systems.RecordsCollection.Movers.DefaultMover parPum)"
+            record_addition = "(AFloor=0)"  # Disable heat losses to the floor
         else:
             transfer_system_type =\
                 "BESMod.Systems.Hydraulical.Transfer.IdealValveRadiator transfer(\n" \
@@ -146,7 +148,7 @@ class BuildingConfig(BaseModel):
             modifier = f"\n  hydraulic(redeclare {transfer_system_type}),\n"
         else:
             modifier = ""
-        return f"{modifier}  building(redeclare {self.record_name} oneZoneParam),\n" \
+        return f"{modifier}  building(redeclare {self.record_name} oneZoneParam{record_addition}),\n" \
                f"  THyd_nominal={THyd_nominal},\n" \
                f"  dTHyd_nominal={dTHyd_nominal}"
 

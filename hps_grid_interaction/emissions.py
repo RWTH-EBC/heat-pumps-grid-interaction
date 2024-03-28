@@ -59,12 +59,12 @@ def calc_all_emissions():
         **{str(year): HybridSystemAssumptions(method="costs", emissions_electricity=str(year))
            for year in [2025, 2030, 2037]}
     }
-    calc_emissions("HybridPVBat_altbau", hybrid_assumptions, file_ending=".hdf")
-    calc_emissions("HybridPVBat_neubau", hybrid_assumptions, file_ending=".hdf")
-    calc_emissions("MonovalentPVBat_altbau_HR", hybrid_assumptions, file_ending=".hdf")
-    calc_emissions("MonovalentPVBat_altbau", hybrid_assumptions, file_ending=".hdf")
-    calc_emissions("MonovalentPVBat_neubau_HR", hybrid_assumptions, file_ending=".hdf")
-    calc_emissions("MonovalentPVBat_neubau", hybrid_assumptions, file_ending=".hdf")
+    #calc_emissions("HybridPVBat_altbau", hybrid_assumptions, file_ending=".hdf")
+    #calc_emissions("HybridPVBat_neubau", hybrid_assumptions, file_ending=".hdf")
+    #calc_emissions("MonovalentPVBat_altbau_HR", hybrid_assumptions, file_ending=".hdf")
+    #calc_emissions("MonovalentPVBat_altbau", hybrid_assumptions, file_ending=".hdf")
+    calc_emissions("MonovalentWeather_neubau_HR", hybrid_assumptions, file_ending=".hdf")
+    #calc_emissions("MonovalentPVBat_neubau", hybrid_assumptions, file_ending=".hdf")
 
 
 def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumptions], file_ending=".hdf"):
@@ -164,7 +164,7 @@ def plot_emissions_scatter():
     )
 
     labels = {
-        "DryBulbTemp": "$T_\mathrm{Oda}$ in °C",
+        "DryBulbTemp": "$T_\mathrm{oda}$ in °C",
         "DirNormRad": "$H_\mathrm{Dir}$ in W/m2K",
         "WindSpeed": "Wind speed in in m/s",
         "renewables": "Wind and solar radiation in -",

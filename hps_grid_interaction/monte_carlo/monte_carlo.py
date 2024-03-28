@@ -652,51 +652,61 @@ def get_all_quota_studies():
             ["all_adv_retrofit", "heating_rod", "e_mobility", "pv", "battery"],
         ]
     )
+    # all_quota_studies["CompareOldAndNew_average"] = QuotaVariation(quota_cases={
+    #     "Hybrid": Quotas(
+    #         construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+    #         e_mobility_quota=50, heat_pump_quota=0, hybrid_quota=100, heating_rod_quota=0
+    #     ),
+    #     "Monovalent": Quotas(
+    #         construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+    #         e_mobility_quota=50, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=0
+    #     )},
+    #     fixed_technologies=[],
+    #     varying_technologies=[
+    #         ["average", "hybrid"],
+    #         ["average", "heat_pump"],
+    #     ]
+    # )
+    # all_quota_studies["CompareOldAndNew_HR_average"] = QuotaVariation(quota_cases={
+    #     "Hybrid": Quotas(
+    #         construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+    #         e_mobility_quota=50, heat_pump_quota=0, hybrid_quota=100, heating_rod_quota=0
+    #     ),
+    #     "Monovalent": Quotas(
+    #         construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
+    #         e_mobility_quota=50, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+    #     )},
+    #     fixed_technologies=[],
+    #     varying_technologies=[
+    #         ["average", "hybrid"],
+    #         ["average", "heating_rod"],
+    #     ]
+    # )
+    # all_quota_studies["CompareOldAndNew_HR_no_retrofit"] = QuotaVariation(quota_cases={
+    #     "Hybrid": Quotas(
+    #         construction_type_quota="no_retrofit", pv_quota=0, pv_battery_quota=0,
+    #         e_mobility_quota=50, heat_pump_quota=0, hybrid_quota=100, heating_rod_quota=0
+    #     ),
+    #     "Monovalent": Quotas(
+    #         construction_type_quota="no_retrofit", pv_quota=0, pv_battery_quota=0,
+    #         e_mobility_quota=50, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
+    #     )},
+    #     fixed_technologies=[],
+    #     varying_technologies=[
+    #         ["no_retrofit", "hybrid"],
+    #         ["no_retrofit", "heat_pump"],
+    #     ]
+    # )
     all_quota_studies = {}
-    all_quota_studies["CompareOldAndNew_average"] = QuotaVariation(quota_cases={
-        "Hybrid": Quotas(
-            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
-            e_mobility_quota=50, heat_pump_quota=0, hybrid_quota=100, heating_rod_quota=0
-        ),
-        "Monovalent": Quotas(
-            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
-            e_mobility_quota=50, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=0
-        )},
-        fixed_technologies=[],
-        varying_technologies=[
-            ["average", "hybrid"],
-            ["average", "heat_pump"],
-        ]
-    )
-    all_quota_studies["CompareOldAndNew_HR_average"] = QuotaVariation(quota_cases={
-        "Hybrid": Quotas(
-            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
-            e_mobility_quota=50, heat_pump_quota=0, hybrid_quota=100, heating_rod_quota=0
-        ),
-        "Monovalent": Quotas(
-            construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
-            e_mobility_quota=50, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
-        )},
-        fixed_technologies=[],
-        varying_technologies=[
-            ["average", "hybrid"],
-            ["average", "heating_rod"],
-        ]
-    )
-    all_quota_studies["CompareOldAndNew_HR_no_retrofit"] = QuotaVariation(quota_cases={
-        "Hybrid": Quotas(
-            construction_type_quota="no_retrofit", pv_quota=0, pv_battery_quota=0,
-            e_mobility_quota=50, heat_pump_quota=0, hybrid_quota=100, heating_rod_quota=0
-        ),
-        "Monovalent": Quotas(
-            construction_type_quota="no_retrofit", pv_quota=0, pv_battery_quota=0,
-            e_mobility_quota=50, heat_pump_quota=100, hybrid_quota=0, heating_rod_quota=100
-        )},
-        fixed_technologies=[],
-        varying_technologies=[
-            ["no_retrofit", "hybrid"],
-            ["no_retrofit", "heat_pump"],
-        ]
+    all_quota_studies["AnaylseEMobility"] = _create_quotas_from_0_to_100(
+        quota_study_name="AnaylseEMobility",
+        quota_variable="e_mobility_quota",
+        construction_type_quota="average",
+        pv_quota=0,
+        pv_battery_quota=0,
+        hybrid_quota=0,
+        heat_pump_quota=0,
+        heating_rod_quota=0
     )
     return all_quota_studies
 

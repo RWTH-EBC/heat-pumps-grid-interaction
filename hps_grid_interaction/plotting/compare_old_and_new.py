@@ -1,3 +1,5 @@
+import datetime
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -111,6 +113,30 @@ def plot_worst_day(path_new: Path, path_old: Path, save_path: Path):
     plt.savefig(save_path.joinpath("PMaxCSV_worst_day.png"))
 
 
+def plot_e_mobility_over_t_ambient(save_path: Path):
+    from hps_grid_interaction import E_MOBILITY_DATA
+    all_profiles = []
+    for file in os.listdir(E_MOBILITY_DATA):
+        all_profiles.append(pd.read_csv(E_MOBILITY_DATA.joinpath(file), index_col=0).values)
+    t_oda = load_outdoor_air_temperature()
+    from ebcpy.preprocessing import convert_index_to_datetime_index
+    t_oda_time_index = convert_index_to_datetime_index(t_oda.copy(),
+                                                       unit_of_index="h",
+                                                       origin=datetime.datetime(2023, 1, 1))
+
+    plt.figure()
+    plt.scatter(t_oda.values[1:, 0], np.sum(all_profiles, axis=0))
+    plt.xlabel("TOda in °C")
+    plt.ylabel("P EMobility in kW")
+    plt.savefig(save_path.joinpath("PEMobility.png"))
+
+    plt.figure()
+    plt.scatter(t_oda.values[:, 0], t_oda_time_index.index.hour)
+    plt.xlabel("TOda in °C")
+    plt.ylabel("Time of day")
+    plt.savefig(save_path.joinpath("TimeODA.png"))
+
+
 def calculate_max_generation(df: pd.DataFrame):
     HP = df.loc[:, "outputs.hydraulic.gen.PEleHeaPum.value"].values
     if "outputs.hydraulic.gen.PEleEleHea.value" in df:
@@ -135,4 +161,5 @@ if __name__ == '__main__':
     #plot_old_and_new(path_new=path_new, path_old=path_old, save_path=save_path)
     #get_t_m_old_new(path_new=path_new, path_old=path_old, save_path=save_path)
     #csv_inputs(path_new=path_new, path_old=path_old, save_path=save_path)
-    plot_worst_day(path_new=path_new, path_old=path_old, save_path=save_path)
+    # plot_worst_day(path_new=path_new, path_old=path_old, save_path=save_path)
+    plot_e_mobility_over_t_ambient(save_path=save_path.parent)

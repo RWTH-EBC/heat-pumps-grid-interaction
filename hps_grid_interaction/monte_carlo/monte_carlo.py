@@ -735,6 +735,16 @@ def get_all_quota_studies():
             ["no_retrofit", "heat_pump"],
         ]
     )
+    all_quota_studies["AnaylseEMobility"] = _create_quotas_from_0_to_100(
+        quota_study_name="AnaylseEMobility",
+        quota_variable="e_mobility_quota",
+        construction_type_quota="average",
+        pv_quota=0,
+        pv_battery_quota=0,
+        hybrid_quota=0,
+        heat_pump_quota=0,
+        heating_rod_quota=0
+    )
     return all_quota_studies
 
 

@@ -72,8 +72,41 @@ def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
     gas_name = "outputs.hydraulic.dis.PBoiAftBuf.value"
     p_el_hr_name = "outputs.hydraulic.gen.PEleEleHea.value"
     p_el_hp_name = "outputs.hydraulic.gen.PEleHeaPum.value"
+    p_el_hr_int_name = "outputs.hydraulic.gen.PEleEleHea.integral"
+    p_el_hp_int_name = "outputs.hydraulic.gen.PEleHeaPum.integral"
     COP_name = "hydraulic.generation.sigBusGen.COP"
     Q_boi_name = "outputs.hydraulic.dis.QBoi_flow.integral"
+    ufh_name = "outputs.hydraulic.tra.QUFH.integral"
+    A_name = "building.zoneParam[1].AZone"
+    heat_load_name = "systemParameters.QBui_flow_nominal[1]"
+    building_demand_name = "outputs.building.QTraGain[1].integral"
+    dhw_demand_name = "outputs.DHW.Q_flow.integral"
+    TOda_nom_name = "systemParameters.TOda_nominal"
+    hea_rod_nom_name = "hydraulic.generation.parEleHea.Q_flow_nominal"
+    THyd_name = "THyd_nominal"
+    hea_rod_eta_name = "hydraulic.generation.parEleHea.eta"
+    if file_ending == ".mat":
+        variable_names = [
+            gas_name,
+            p_el_hr_name,
+            p_el_hp_name,
+            COP_name,
+            Q_boi_name,
+            ufh_name,
+            A_name,
+            heat_load_name,
+            building_demand_name,
+            dhw_demand_name,
+            TOda_nom_name,
+            hea_rod_nom_name,
+            THyd_name,
+            hea_rod_eta_name,
+            p_el_hr_int_name,
+            p_el_hp_int_name
+        ]
+    else:
+        variable_names = None
+
     from hps_grid_interaction import RESULTS_BES_FOLDER
     from hps_grid_interaction.bes_simulation.simulation import INIT_PERIOD, W_to_Wh
 
@@ -90,7 +123,7 @@ def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
     for file in os.listdir(path_sim):
         if not file.endswith(file_ending):
             continue
-        tsd = TimeSeriesData(path_sim.joinpath(file)).to_df()
+        tsd = TimeSeriesData(path_sim.joinpath(file), variable_names=variable_names).to_df()
         tsd = tsd.loc[INIT_PERIOD:]
         tsd.index -= INIT_PERIOD
         tsd = tsd.loc[:_until]
@@ -115,6 +148,37 @@ def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
             percent_renewables = 100
         df_sim.loc[idx, "QRenewable"] = Q_renewable
         df_sim.loc[idx, "percent_renewables"] = percent_renewables
+
+        # Analysis of heat demand and nominal heat load for plausibility analysis
+        if file_ending != ".mat":
+            raise FileNotFoundError(".mat files needed for detailed building plausibility study.")
+        tsd_loc = tsd.iloc[-1]  # Last row for integral and parameters
+        heat_load = tsd_loc[heat_load_name]
+        building_demand = tsd_loc[building_demand_name]
+        dhw_demand = tsd_loc[dhw_demand_name]
+        if ufh_name in tsd.columns:
+            # ufh loss is negative, thus, subtract
+            building_demand -= tsd_loc[ufh_name]
+        df_sim.loc[idx, "building_demand"] = building_demand
+        heat_demand = building_demand + dhw_demand
+        df_sim.loc[idx, "heat_demand"] = heat_demand
+        df_sim.loc[idx, "dhw_demand"] = dhw_demand
+        df_sim.loc[idx, "ABui"] = A_name
+        df_sim.loc[idx, "heat_load"] = heat_load
+        if with_hr:
+            W_el_ges = tsd_loc[p_el_hr_int_name] + tsd_loc[p_el_hp_int_name]
+        else:
+            W_el_ges = tsd_loc[p_el_hp_int_name]
+        df_sim.loc[idx, "SCOP_Sys"] = heat_demand / W_el_ges
+        df_sim.loc[idx, "WEleGen"] = W_el_ges
+        THyd_nominal = tsd_loc[THyd_name]
+        TOda_nominal = tsd_loc[TOda_nom_name]
+        if with_hr:
+            PEleHeaMax = tsd_loc[hea_rod_nom_name] / tsd_loc[hea_rod_eta_name]
+        else:
+            PEleHeaMax = 0
+        cop_nominal = _interpolate_cop(TOda=TOda_nominal, TSupply=THyd_nominal)
+        df_sim.loc[idx, "PEleMax"] = heat_load / cop_nominal + PEleHeaMax
 
         def populate_data_to_dict(_df, _idx, assumption, case, gas, elec):
             _df.loc[_idx, f"{assumption}{case}_gas"] = gas
@@ -218,6 +282,29 @@ def get_emission_options():
     for key in COLUMNS_EMISSIONS:
         options.append(key.replace("_gas", "").replace("_electricity", ""))
     return list(set(options))
+
+
+
+def _load_vitocal250_COPs():
+    df = pd.read_excel(DATA_PATH.joinpath("vitocal250.xlsx"), index_col=0)
+    df = df.transpose()
+    df.columns.name = "TSupply"
+    df.index.name = "TOda"
+    return df
+
+
+def _interpolate_cop(TOda, TSupply):
+    df_cop = _load_vitocal250_COPs()
+    if TOda not in df_cop.index:
+        df_cop.loc[TOda] = np.NAN
+        df_cop = df_cop.sort_index()
+        df_cop = df_cop.interpolate()
+    if TSupply not in df_cop.columns:
+        df_cop.loc[TOda, TSupply] = np.NAN
+        df_cop = df_cop.sort_index(axis=1)
+        df_cop = df_cop.interpolate(axis=1)
+    return df_cop.loc[TOda, TSupply], df_cop
+
 
 
 def aggregate_and_save_all_cases(

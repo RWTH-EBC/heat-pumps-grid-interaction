@@ -346,7 +346,7 @@ def get_grid_simulation_input_for_choices(
 ):
     grid_time_series_data = []
     grid_plausibility = []
-    df_teaser = pd.read_excel(DATA_PATH.joinpath("TEASERComparison.xlsx") , index_col=0)
+    df_teaser = pd.read_excel(DATA_PATH.joinpath("TEASERComparison.xlsx"), index_col=0)
 
     for house_index, row in df_grid.iterrows():
         time_series_data, plausibility_data = _get_time_series_data_for_choices(

@@ -75,7 +75,7 @@ def run_simulations(
 
     sim_api = simulation.start_dymola(
         config=sim_config,
-        cd=base_path.joinpath("00_DymolaWorkDir"),
+        working_directory=base_path.joinpath("00_DymolaWorkDir"),
         n_cpu=n_cpu,
         additional_packages=utils.get_additional_packages(inputs_config.buildings) + [new_path],
         save_path_mos=study_path.joinpath("open_models.mos")
@@ -184,12 +184,12 @@ if __name__ == '__main__':
     KWARGS = dict(
         hybrid_assumptions=HYBRID_ASSUMPTIONS,
         n_cpu=30,
-        extract_only=True,
+        extract_only=False,
         with_smart_thermostat=False
     )
-    run_simulations(model_name="Hybrid", case_name="HybridWeather", grid_case="altbau", **KWARGS)
-    #run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="altbau", with_heating_rod=True, **KWARGS)
-    #run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="altbau", with_heating_rod=False, **KWARGS)
+    # run_simulations(model_name="Hybrid", case_name="HybridWeather", grid_case="altbau", **KWARGS)
+    # run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="altbau", with_heating_rod=True, **KWARGS)
+    # run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="altbau", with_heating_rod=False, **KWARGS)
     #run_simulations(model_name="Hybrid", case_name="HybridWeather", grid_case="neubau", **KWARGS)
-    #run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="neubau", with_heating_rod=True, **KWARGS)
-    ##run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="neubau", with_heating_rod=False, **KWARGS)
+    run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="neubau", with_heating_rod=True, **KWARGS)
+    run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="neubau", with_heating_rod=False, **KWARGS)

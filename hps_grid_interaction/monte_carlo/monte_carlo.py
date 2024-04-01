@@ -652,7 +652,7 @@ def get_all_quota_studies():
             ["all_adv_retrofit", "heating_rod", "e_mobility", "pv", "battery"],
         ]
     )
-    all_quota_studies = {}
+    #all_quota_studies = {}
     all_quota_studies["CompareOldAndNew_average"] = QuotaVariation(quota_cases={
         "Hybrid": Quotas(
             construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
@@ -722,8 +722,8 @@ def run_all_cases(load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1, 
     all_quota_cases = get_all_quota_studies()
 
     grid_cases = [
-        "altbau",
-        #"neubau"
+        #"altbau",
+        "neubau"
     ]
     multiprocessing_function_kwargs = []
     for grid_case in grid_cases:
@@ -758,4 +758,4 @@ def run_all_cases(load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1, 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(load=True, extra_case_name_hybrid="Weather", n_cpu=8)
+    run_all_cases(load=True, extra_case_name_hybrid="Weather", n_cpu=15)

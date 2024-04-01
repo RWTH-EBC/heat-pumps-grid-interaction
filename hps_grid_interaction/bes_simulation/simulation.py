@@ -97,7 +97,7 @@ def get_simulation_config(model, with_heating_rod):
 
 def start_dymola(
         config: SimulationConfig,
-        cd: Path,
+        working_directory: Path,
         n_cpu,
         additional_packages: list = None,
         save_path_mos: Path = None
@@ -114,14 +114,15 @@ def start_dymola(
         )
 
     dym_api = DymolaAPI(
-        cd=cd,
+        working_directory=working_directory,
         model_name=config.model,
         mos_script_pre=BESMOD_PATH,
         packages=list(set(packages)),
         n_cpu=n_cpu,
         show_window=True,
         debug=False,
-        modify_structural_parameters=False
+        modify_structural_parameters=False,
+        time_delay_between_starts=5
     )
     dym_api.model_name = config.model
     dym_api.set_sim_setup(config.sim_setup)

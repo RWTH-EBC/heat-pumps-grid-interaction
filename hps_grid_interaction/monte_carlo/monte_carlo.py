@@ -742,8 +742,48 @@ def get_all_quota_studies():
         pv_quota=0,
         pv_battery_quota=0,
         hybrid_quota=0,
-        heat_pump_quota=0,
+        heat_pump_quota=100,
         heating_rod_quota=0
+    )
+    all_quota_studies["AnaylsePV"] = _create_quotas_from_0_to_100(
+        quota_study_name="AnaylsePV",
+        quota_variable="pv_quota",
+        construction_type_quota="average",
+        e_mobility_quota=0,
+        pv_battery_quota=0,
+        hybrid_quota=0,
+        heat_pump_quota=100,
+        heating_rod_quota=0
+    )
+    all_quota_studies["AnaylsePVBat"] = _create_quotas_from_0_to_100(
+        quota_study_name="AnaylsePVBat",
+        quota_variable="pv_battery_quota",
+        construction_type_quota="average",
+        e_mobility_quota=0,
+        pv_quota=0,
+        hybrid_quota=0,
+        heat_pump_quota=100,
+        heating_rod_quota=0
+    )
+    all_quota_studies["AnaylseHR"] = _create_quotas_from_0_to_100(
+        quota_study_name="AnaylseHR",
+        quota_variable="heating_rod_quota",
+        construction_type_quota="average",
+        e_mobility_quota=0,
+        pv_battery_quota=0,
+        hybrid_quota=0,
+        heat_pump_quota=100,
+        pv_quota=0
+    )
+    all_quota_studies["AnaylseHP"] = _create_quotas_from_0_to_100(
+        quota_study_name="AnaylseHP",
+        quota_variable="heat_pump_quota",
+        construction_type_quota="average",
+        e_mobility_quota=0,
+        pv_battery_quota=0,
+        hybrid_quota=0,
+        heating_rod_quota=0,
+        pv_quota=0
     )
     return all_quota_studies
 

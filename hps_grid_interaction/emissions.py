@@ -289,7 +289,6 @@ def _interpolate_cop(TOda, TSupply):
     return df_cop.loc[TOda, TSupply]
 
 
-
 def aggregate_and_save_all_cases(
         lastfluss_xlsx: Path,
         emissions_json: Path,

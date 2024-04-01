@@ -146,7 +146,7 @@ def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
         heat_demand = building_demand + dhw_demand
         df_sim.loc[idx, "heat_demand"] = heat_demand
         df_sim.loc[idx, "dhw_demand"] = dhw_demand
-        df_sim.loc[idx, "ABui"] = A_name
+        df_sim.loc[idx, "ABui"] = tsd_loc[A_name]
         df_sim.loc[idx, "heat_load"] = heat_load
         if with_hr:
             W_el_ges = tsd_loc[p_el_hr_int_name] + tsd_loc[p_el_hp_int_name]

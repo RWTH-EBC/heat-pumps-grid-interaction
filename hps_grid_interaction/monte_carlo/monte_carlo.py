@@ -15,9 +15,12 @@ import numpy as np
 
 from hps_grid_interaction.plotting.config import PlotConfig
 from hps_grid_interaction.utils import get_construction_type_quotas
-from hps_grid_interaction.emissions import COLUMNS_EMISSIONS
 from hps_grid_interaction.monte_carlo import plots
-from hps_grid_interaction import RESULTS_BES_FOLDER, KERBER_NETZ_XLSX, RESULTS_MONTE_CARLO_FOLDER, E_MOBILITY_DATA
+from hps_grid_interaction import (
+    RESULTS_BES_FOLDER, KERBER_NETZ_XLSX,
+    RESULTS_MONTE_CARLO_FOLDER, E_MOBILITY_DATA,
+    DATA_PATH
+)
 from hps_grid_interaction.bes_simulation.simulation import W_to_Wh
 
 logger = logging.getLogger(__name__)
@@ -149,7 +152,12 @@ def _draw_uncertain_choice(quotas: Quotas, building_type: str, year_of_construct
     }
 
 
-def _get_time_series_data_for_choices(heat_supplies: dict, house_index: int, all_choices: dict):
+def _get_time_series_data_for_choices(
+        heat_supplies: dict,
+        house_index: int,
+        all_choices: dict,
+        df_teaser: pd.DataFrame
+):
     df_sim, time_series_data = heat_supplies[all_choices["heat_supply_choice"]]
     possible_rows = df_sim.loc[house_index]
     if isinstance(possible_rows, pd.Series):
@@ -161,8 +169,29 @@ def _get_time_series_data_for_choices(heat_supplies: dict, house_index: int, all
         if not np.any(mask):
             raise KeyError("No mask fitted, something went wrong")
         sim_result_name = possible_rows.loc[mask, "simulation_result"].values[0]
+    time_series_data_for_choice = time_series_data[sim_result_name].loc[:, all_choices["electricity_system_choice"]]
+    raise TypeError("Set break-point here to debug if pd.Series makes sense")
+    # TODO: Without the else, use mask=True instead with dict?
+    names_to_store_for_plausibilty = [
+        "building_demand",
+        "heat_demand",
+        "dhw_demand",
+        "ABui",
+        "heat_load",
+        "SCOP_Sys",
+        "WEleGen",
+    ]
+    plausibility_check = {name: possible_rows.loc[mask, name].values[0] for name in names_to_store_for_plausibilty}
+    if df_teaser is not None:
+        building_name = possible_rows.loc[mask, "Baujahr"] + "_" + possible_rows.loc[mask, "construction_type"]
+        plausibility_check["heat_load_teaser"] = df_teaser.loc[building_name, "heat_load"]
+        plausibility_check["heat_demand_teaser"] = df_teaser.loc[building_name, "heat_demand"]
+        plausibility_check["ABui_teaser"] = (
+                df_teaser.loc[building_name, "heat_demand"] /
+                df_teaser.loc[building_name, "heat_demand_per_area"]
+        )
 
-    return time_series_data[sim_result_name].loc[:, all_choices["electricity_system_choice"]]
+    return time_series_data_for_choice, plausibility_check
 
 
 def load_function_kwargs_prior_to_monte_carlo(
@@ -231,7 +260,9 @@ def load_function_kwargs_prior_to_monte_carlo(
             if col != "heat_supply":
                 df_gas.loc[:, col] -= df_gas.loc[:, "heat_supply"]
         gas_time_series_data[key] = df_gas
-    heat_supplies["gas"] = (df_sim.copy(), gas_time_series_data)
+    df_sim_gas = df_sim.copy()
+    df_sim_gas.loc[:, "PEleMax"] = 0
+    heat_supplies["gas"] = (df_sim_gas, gas_time_series_data)
 
     func_kwargs = dict(heat_supplies=heat_supplies, df_grid=df_grid)
     logger.info("Loading function inputs took %s s", time.time() - t0)
@@ -296,7 +327,7 @@ def run_single_grid_simulation(
             building_type=building_type,
             year_of_construction=row["Baujahr"]
         )
-        time_series_result = _get_time_series_data_for_choices(
+        time_series_result, _ = _get_time_series_data_for_choices(
             heat_supplies=heat_supplies,
             house_index=house_index,
             all_choices=all_choices
@@ -314,14 +345,19 @@ def get_grid_simulation_input_for_choices(
         choices_for_grid: dict
 ):
     grid_time_series_data = []
+    grid_plausibility = []
+    df_teaser = pd.read_excel(DATA_PATH.joinpath("TEASERComparison.xlsx") , index_col=0)
+
     for house_index, row in df_grid.iterrows():
-        time_series_data = _get_time_series_data_for_choices(
+        time_series_data, plausibility_data = _get_time_series_data_for_choices(
             heat_supplies=heat_supplies,
             house_index=house_index,
-            all_choices=choices_for_grid[house_index]
+            all_choices=choices_for_grid[house_index],
+            df_teaser=df_teaser
         )
+        grid_plausibility.append(plausibility_data)
         grid_time_series_data.append(time_series_data)
-    return grid_time_series_data
+    return grid_time_series_data, grid_plausibility
 
 
 def save_grid_time_series_data_to_csv_folder(
@@ -366,11 +402,12 @@ def plot_and_export_single_monte_carlo(
         arg = arg_function(data[metric]["ONT"][quota_case])
         # Save in excel for Lastflusssimulation:
         choices_for_grid = data["choices_for_grid"][quota_case][arg]
-        grid_time_series_data = get_grid_simulation_input_for_choices(
+        grid_time_series_data, grid_plausibility = get_grid_simulation_input_for_choices(
             heat_supplies=heat_supplies,
             df_grid=df_grid,
             choices_for_grid=choices_for_grid,
         )
+        pd.DataFrame(grid_plausibility).to_excel(save_path.joinpath(f"grid_plausibility_{quota_case}.xlsx"))
         quota_case_grid_data[quota_case] = grid_time_series_data
         if not plots_only:
             csv_file_paths = save_grid_time_series_data_to_csv_folder(

@@ -286,7 +286,7 @@ def _interpolate_cop(TOda, TSupply):
         df_cop.loc[TOda, TSupply] = np.NAN
         df_cop = df_cop.sort_index(axis=1)
         df_cop = df_cop.interpolate(axis=1)
-    return df_cop.loc[TOda, TSupply], df_cop
+    return df_cop.loc[TOda, TSupply]
 
 
 

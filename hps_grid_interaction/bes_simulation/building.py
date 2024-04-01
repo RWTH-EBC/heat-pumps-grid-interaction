@@ -55,7 +55,7 @@ def create_buildings(
             year_of_construction=building_config.year_of_construction,
             net_leased_area=building_config.net_leased_area,
         )
-        prj.retrofit_all_buildings()
+
     # export building model (see Teaser/project)
     prj.used_library_calc = 'AixLib'
     prj.number_of_elements_calc = 4  # Default value

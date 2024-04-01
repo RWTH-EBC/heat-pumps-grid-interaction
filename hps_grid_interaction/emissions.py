@@ -86,24 +86,7 @@ def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
     THyd_name = "THyd_nominal"
     hea_rod_eta_name = "hydraulic.generation.parEleHea.eta"
     if file_ending == ".mat":
-        variable_names = [
-            gas_name,
-            p_el_hr_name,
-            p_el_hp_name,
-            COP_name,
-            Q_boi_name,
-            ufh_name,
-            A_name,
-            heat_load_name,
-            building_demand_name,
-            dhw_demand_name,
-            TOda_nom_name,
-            hea_rod_nom_name,
-            THyd_name,
-            hea_rod_eta_name,
-            p_el_hr_int_name,
-            p_el_hp_int_name
-        ]
+        variable_names = None
     else:
         variable_names = None
 

@@ -191,8 +191,8 @@ if __name__ == '__main__':
         with_smart_thermostat=False
     )
     for GRID in [
-        "neubau",
-        #"altbau"
+        #"neubau",
+        "altbau"
     ]:
         # run_simulations(model_name="Hybrid", case_name="HybridWeather", grid_case=GRID, **KWARGS)
         # run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case=GRID, with_heating_rod=True, **KWARGS)

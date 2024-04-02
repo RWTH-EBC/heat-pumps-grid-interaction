@@ -822,7 +822,7 @@ def run_all_cases(load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1, 
     multiprocessing_function_kwargs = []
     for grid_case in grid_cases:
         # Trigger generation of pickle for inputs
-        load_function_kwargs_for_grid(extra_case_name_hybrid=extra_case_name_hybrid, grid_case=grid_case, recreate_pickle=True)
+        load_function_kwargs_for_grid(extra_case_name_hybrid=extra_case_name_hybrid, grid_case=grid_case, recreate_pickle=False)
         for quota_study_name, quota_variation in all_quota_cases.items():
             save_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"{grid_case.capitalize()}_{quota_study_name}")
             multiprocessing_function_kwargs.append(dict(
@@ -852,4 +852,4 @@ def run_all_cases(load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1, 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(load=False, extra_case_name_hybrid="Weather", n_cpu=20)
+    run_all_cases(load=True, extra_case_name_hybrid="Weather", n_cpu=20)

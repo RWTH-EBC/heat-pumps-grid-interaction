@@ -150,6 +150,7 @@ def get_technology_image_path(technology: str) -> pathlib.Path:
         "household": "Electricity_box.png",
         "pv": "PV_box.png",
         "battery": "BAT_box.png",
+        "pv_battery": "PV_BAT_box.png",
         "e_mobility": "CAR_box.png",
     }
     from hps_grid_interaction import DATA_PATH

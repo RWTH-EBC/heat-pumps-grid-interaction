@@ -67,8 +67,9 @@ class Quotas:
 
         for years_dict in self.construction_type_quotas.values():
             for year_dict in years_dict.values():
-                assert sum(year_dict.values()) == 100, f"Construction type quota '{construction_type_quota}' " \
-                                                       f"does not equal 100: {year_dict}"
+                assert np.isclose(sum(year_dict.values()), 100, atol=1e-2), \
+                    f"Construction type quota '{construction_type_quota}' " \
+                    f"does not equal 100: {year_dict}"
 
         if self._monte_carlo_necessary():
             self.n_monte_carlo = n_monte_carlo
@@ -815,8 +816,8 @@ def run_all_cases(load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1, 
     all_quota_cases = get_all_quota_studies()
 
     grid_cases = [
-        #"altbau",
-        "neubau"
+        "altbau",
+        #"neubau"
     ]
     multiprocessing_function_kwargs = []
     for grid_case in grid_cases:
@@ -851,4 +852,4 @@ def run_all_cases(load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1, 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(load=False, extra_case_name_hybrid="Weather", n_cpu=1)
+    run_all_cases(load=False, extra_case_name_hybrid="Weather", n_cpu=12)

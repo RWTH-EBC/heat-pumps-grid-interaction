@@ -443,8 +443,11 @@ def plot_and_export_single_monte_carlo(
             "sum": {point: data["sum"][point][quota_case][arg] for point in data["sum"].keys()}
         }
         max_trafo = export_data[quota_case]['max']['ONT']
+        simultaneity_factor = max_trafo / trafo_max_possible
+        if simultaneity_factor > 1:
+            logger.error(f"{simultaneity_factor=} for {quota_case=}")
         simultaneity_factors[quota_case] = {
-            "max": max_trafo, "max_possible": trafo_max_possible, "factor": max_trafo / trafo_max_possible
+            "max": max_trafo, "max_possible": trafo_max_possible, "factor": simultaneity_factor
         }
 
         # TODO: Fix simulation results for cases

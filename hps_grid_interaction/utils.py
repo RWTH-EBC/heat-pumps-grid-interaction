@@ -56,17 +56,17 @@ def get_construction_type_quotas(assumption: str):
         return {
             "MFH": {
                 2010: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1980: {"tabula_standard": 75 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 17 + 75 * p_ret, "tabula_adv_retrofit": 8 + 75 * p_adv_ret},
-                1970: {"tabula_standard": 29 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 35 + 29 * p_ret, "tabula_adv_retrofit": 36 + 29 * p_adv_ret},
-                1960: {"tabula_standard": 29 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 35 + 29 * p_ret, "tabula_adv_retrofit": 36 + 29 * p_adv_ret},
-                1950: {"tabula_standard": 29 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 35 + 29 * p_ret, "tabula_adv_retrofit": 36 + 29 * p_adv_ret},
+                1980: {"tabula_standard": (17 + 75) * (1 - p_ret - p_adv_ret), "tabula_retrofit": (17 + 75) * p_ret, "tabula_adv_retrofit": 8 + (17 + 75) * p_adv_ret},
+                1970: {"tabula_standard": (35 + 29) * (1 - p_ret - p_adv_ret), "tabula_retrofit": (35 + 29) * p_ret, "tabula_adv_retrofit": 36 + (35 + 29) * p_adv_ret},
+                1960: {"tabula_standard": (35 + 29) * (1 - p_ret - p_adv_ret), "tabula_retrofit": (35 + 29) * p_ret, "tabula_adv_retrofit": 36 + (35 + 29) * p_adv_ret},
+                1950: {"tabula_standard": (35 + 29) * (1 - p_ret - p_adv_ret), "tabula_retrofit": (35 + 29) * p_ret, "tabula_adv_retrofit": 36 + (35 + 29) * p_adv_ret},
             },
             "EFH": {
                 2010: {"tabula_standard": 100, "tabula_retrofit": 0, "tabula_adv_retrofit": 0},
-                1980: {"tabula_standard": 65 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 29 + 65 * p_ret, "tabula_adv_retrofit": 6 + 65 * p_adv_ret},
-                1970: {"tabula_standard": 35 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 45 + 35 * p_ret, "tabula_adv_retrofit": 20 + 35 * p_adv_ret},
-                1960: {"tabula_standard": 35 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 45 + 35 * p_ret, "tabula_adv_retrofit": 20 + 35 * p_adv_ret},
-                1950: {"tabula_standard": 35 * (1 - p_ret - p_adv_ret), "tabula_retrofit": 45 + 35 * p_ret, "tabula_adv_retrofit": 20 + 35 * p_adv_ret}
+                1980: {"tabula_standard": (29 + 65) * (1 - p_ret - p_adv_ret), "tabula_retrofit": (29 + 65) * p_ret, "tabula_adv_retrofit": 6 + (29 + 65) * p_adv_ret},
+                1970: {"tabula_standard": (45 + 35) * (1 - p_ret - p_adv_ret), "tabula_retrofit": (45 + 35) * p_ret, "tabula_adv_retrofit": 20 + (45 + 35) * p_adv_ret},
+                1960: {"tabula_standard": (45 + 35) * (1 - p_ret - p_adv_ret), "tabula_retrofit": (45 + 35) * p_ret, "tabula_adv_retrofit": 20 + (45 + 35) * p_adv_ret},
+                1950: {"tabula_standard": (45 + 35) * (1 - p_ret - p_adv_ret), "tabula_retrofit": (45 + 35) * p_ret, "tabula_adv_retrofit": 20 + (45 + 35) * p_adv_ret}
             }
         }
     if assumption == "average":

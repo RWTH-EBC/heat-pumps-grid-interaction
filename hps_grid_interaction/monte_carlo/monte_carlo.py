@@ -777,7 +777,7 @@ def get_all_quota_studies():
         heat_pump_quota=100,
         heating_rod_quota=0
     )
-    all_quota_studies = {}
+    #all_quota_studies = {}
     all_quota_studies["AnaylsePVBat"] = _create_quotas_from_0_to_100(
         quota_study_name="AnaylsePVBat",
         quota_variable="pv_battery_quota",

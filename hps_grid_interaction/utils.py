@@ -347,3 +347,22 @@ def get_bivalence_temperatures(buildings, with_heating_rod: bool, TOda_nominal, 
             T_bivs.append(274.25)
             T_biv_for_building[building.name] = T_bivs[-1]
     return T_bivs
+
+
+def get_max_values_in_inputs():
+    max_households = []
+    for file in os.listdir(HOUSEHOLD_DATA):
+        if file.endswith(".csv"):
+            df = pd.read_csv(HOUSEHOLD_DATA.joinpath(file), index_col=0)
+            max_households.append(df.max())
+    max_e_mob = []
+    for file in os.listdir(E_MOBILITY_DATA):
+        if file.endswith(".csv"):
+            df = pd.read_csv(E_MOBILITY_DATA.joinpath(file), index_col=0)
+            max_e_mob.append(df.max())
+    print("Max household", np.sum(max_households), np.mean(max_households), np.std(max_households))
+    print("Max e-mob", np.sum(max_e_mob), np.mean(max_e_mob), np.std(max_e_mob))
+
+
+if __name__ == '__main__':
+    get_max_values_in_inputs()

@@ -430,14 +430,21 @@ def plot_and_export_single_monte_carlo(
             workbook_name = save_path.joinpath(f"{grid_simulation_case_name}.xlsx")
             save_excel(df=df_lastfluss, path=workbook_name, sheet_name="lastfluss")
             quota_case_grid_simulation_inputs[quota_case] = str(workbook_name)
-        ONT_max_possible = df_plausibility.loc[:, "PEleMax"].sum() / 1000
+        max_over_households = 534.9015984368119
+        max_peak_per_e_mobility = 11
+        n_house_with_e_mobility = len([choice for choice in choices_for_grid if "e_mob" in choice["electricity_system_choice"]])
+        trafo_max_possible = (
+                df_plausibility.loc[:, "PEleMax"].sum() / 1000 +
+                max_over_households +
+                n_house_with_e_mobility * max_peak_per_e_mobility
+        )
         export_data[quota_case] = {
             "max": {point: data["max"][point][quota_case][arg] for point in data["max"].keys()},
             "sum": {point: data["sum"][point][quota_case][arg] for point in data["sum"].keys()}
         }
-        max_ONT = export_data[quota_case]['max']['ONT']
+        max_trafo = export_data[quota_case]['max']['ONT']
         simultaneity_factors[quota_case] = {
-            "max": max_ONT, "max_possible": ONT_max_possible, "factor": max_ONT/ONT_max_possible
+            "max": max_trafo, "max_possible": trafo_max_possible, "factor": max_trafo / trafo_max_possible
         }
 
         # TODO: Fix simulation results for cases
@@ -702,7 +709,6 @@ def get_all_quota_studies():
             ["all_adv_retrofit", "heating_rod", "e_mobility", "pv", "battery"],
         ]
     )
-    #all_quota_studies = {}
     all_quota_studies["CompareOldAndNew_average"] = QuotaVariation(quota_cases={
         "Hybrid": Quotas(
             construction_type_quota="average", pv_quota=0, pv_battery_quota=0,
@@ -768,6 +774,7 @@ def get_all_quota_studies():
         heat_pump_quota=100,
         heating_rod_quota=0
     )
+    all_quota_studies = {}
     all_quota_studies["AnaylsePVBat"] = _create_quotas_from_0_to_100(
         quota_study_name="AnaylsePVBat",
         quota_variable="pv_battery_quota",

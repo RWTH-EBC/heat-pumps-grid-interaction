@@ -818,27 +818,22 @@ def load_function_kwargs_for_grid(extra_case_name_hybrid: str, grid_case: str, r
     return function_kwargs
 
 
-def run_all_cases(load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1, recreate_plots: bool = True):
+def run_all_cases(grid_case: str, load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1, recreate_plots: bool = True):
     all_quota_cases = get_all_quota_studies()
 
-    grid_cases = [
-        #"altbau",
-        "neubau"
-    ]
     multiprocessing_function_kwargs = []
-    for grid_case in grid_cases:
-        # Trigger generation of pickle for inputs
-        load_function_kwargs_for_grid(extra_case_name_hybrid=extra_case_name_hybrid, grid_case=grid_case, recreate_pickle=False)
-        for quota_study_name, quota_variation in all_quota_cases.items():
-            save_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"{grid_case.capitalize()}_{quota_study_name}")
-            multiprocessing_function_kwargs.append(dict(
-                quota_variation=quota_variation,
-                grid_case=grid_case,
-                save_path=save_path,
-                load=load,
-                recreate_plots=recreate_plots,
-                extra_case_name_hybrid=extra_case_name_hybrid,
-            ))
+    # Trigger generation of pickle for inputs
+    load_function_kwargs_for_grid(extra_case_name_hybrid=extra_case_name_hybrid, grid_case=grid_case, recreate_pickle=False)
+    for quota_study_name, quota_variation in all_quota_cases.items():
+        save_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"{grid_case.capitalize()}_{quota_study_name}")
+        multiprocessing_function_kwargs.append(dict(
+            quota_variation=quota_variation,
+            grid_case=grid_case,
+            save_path=save_path,
+            load=load,
+            recreate_plots=recreate_plots,
+            extra_case_name_hybrid=extra_case_name_hybrid,
+        ))
     if n_cpu > 1:
         pool = multiprocessing.Pool(processes=n_cpu)
         i = 0
@@ -858,4 +853,4 @@ def run_all_cases(load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1, 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(load=True, extra_case_name_hybrid="Weather", n_cpu=20)
+    run_all_cases(grid_case="altbau", load=True, extra_case_name_hybrid="Weather", n_cpu=9)

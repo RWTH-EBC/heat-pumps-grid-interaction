@@ -400,6 +400,7 @@ def plot_and_export_single_monte_carlo(
     emissions_data = {}
     quota_case_grid_simulation_inputs = {}
     quota_case_grid_data = {}
+    simultaneity_factors = {}
     for quota_case in quota_variation.quota_cases:
         arg = arg_function(data[metric]["ONT"][quota_case])
         # Save in excel for Lastflusssimulation:
@@ -434,7 +435,10 @@ def plot_and_export_single_monte_carlo(
             "max": {point: data["max"][point][quota_case][arg] for point in data["max"].keys()},
             "sum": {point: data["sum"][point][quota_case][arg] for point in data["sum"].keys()}
         }
-        print(f"Gleichzeitigkeitsfaktor-{quota_case} = {export_data[quota_case]['max']['ONT'] / ONT_max_possible}")
+        max_ONT = export_data[quota_case]['max']['ONT']
+        simultaneity_factors[quota_case] = {
+            "max": max_ONT, "max_possible": ONT_max_possible, "factor": max_ONT/ONT_max_possible
+        }
 
         # TODO: Fix simulation results for cases
         # quota_case_mask = df_sim.loc[:, "system_type"] == tech.lower()
@@ -447,6 +451,8 @@ def plot_and_export_single_monte_carlo(
         #        sum_cols[col] += row[col].values[0]
         # emissions_data[quota_case] = sum_cols
     # return {"grid": export_data, "emissions": emissions_data}
+    with open(save_path.joinpath("simultaneity_factors.json"), "w+") as file:
+        json.dump(simultaneity_factors, file, indent=2)
     plots.plot_time_series(
         quota_case_grid_data=quota_case_grid_data,
         save_path=save_path,

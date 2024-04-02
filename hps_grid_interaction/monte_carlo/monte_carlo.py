@@ -156,40 +156,41 @@ def _get_time_series_data_for_choices(
         heat_supplies: dict,
         house_index: int,
         all_choices: dict,
-        df_teaser: pd.DataFrame
+        df_teaser: pd.DataFrame = None
 ):
     df_sim, time_series_data = heat_supplies[all_choices["heat_supply_choice"]]
     possible_rows = df_sim.loc[house_index]
     if isinstance(possible_rows, pd.Series):
         if not possible_rows["Baujahr"] == 2010:
             raise KeyError("Only one type even though not 2010, something went wrong")
-        sim_result_name = possible_rows["simulation_result"]
     else:
         mask = possible_rows.loc[:, "construction_type"] == all_choices["construction_type_choice"]
         if not np.any(mask):
             raise KeyError("No mask fitted, something went wrong")
-        sim_result_name = possible_rows.loc[mask, "simulation_result"].values[0]
+        possible_rows = possible_rows.loc[mask]
+        if len(possible_rows) != 1:
+            raise TypeError("Somehting went wrong")
+        possible_rows = possible_rows.iloc[0]
+
+    sim_result_name = possible_rows["simulation_result"]
     time_series_data_for_choice = time_series_data[sim_result_name].loc[:, all_choices["electricity_system_choice"]]
-    raise TypeError("Set break-point here to debug if pd.Series makes sense")
-    # TODO: Without the else, use mask=True instead with dict?
-    names_to_store_for_plausibilty = [
-        "building_demand",
-        "heat_demand",
-        "dhw_demand",
-        "ABui",
-        "heat_load",
-        "SCOP_Sys",
-        "WEleGen",
-    ]
-    plausibility_check = {name: possible_rows.loc[mask, name].values[0] for name in names_to_store_for_plausibilty}
+
+    names_to_store_for_plausibility = {  # Todo set to one once newly generated with calc_emissions.py
+        "building_demand": 3600000,
+        "heat_demand": 3600000,
+        "dhw_demand": 3600000,
+        "ABui": 1,
+        "heat_load": 1,
+        "SCOP_Sys": 1,
+        "WEleGen": 3600000,
+        "PEleMax": 1
+    }
+    plausibility_check = {name: possible_rows[name] * factor for name, factor in names_to_store_for_plausibility.items()}
     if df_teaser is not None:
-        building_name = possible_rows.loc[mask, "Baujahr"] + "_" + possible_rows.loc[mask, "construction_type"]
+        building_name = f'{possible_rows["Baujahr"]}_{possible_rows["construction_type"].replace("tabula_", "")}'
         plausibility_check["heat_load_teaser"] = df_teaser.loc[building_name, "heat_load"]
         plausibility_check["heat_demand_teaser"] = df_teaser.loc[building_name, "heat_demand"]
-        plausibility_check["ABui_teaser"] = (
-                df_teaser.loc[building_name, "heat_demand"] /
-                df_teaser.loc[building_name, "heat_demand_per_area"]
-        )
+        plausibility_check["ABui_teaser"] = df_teaser.loc[building_name, "net_leased_area"]
 
     return time_series_data_for_choice, plausibility_check
 
@@ -407,7 +408,10 @@ def plot_and_export_single_monte_carlo(
             df_grid=df_grid,
             choices_for_grid=choices_for_grid,
         )
-        pd.DataFrame(grid_plausibility).to_excel(save_path.joinpath(f"grid_plausibility_{quota_case}.xlsx"))
+        df_plausibility = pd.DataFrame(
+            grid_plausibility, index=df_grid["Gebäudetyp"].values
+        )
+        df_plausibility.to_excel(save_path.joinpath(f"grid_plausibility_{quota_case}.xlsx"))
         quota_case_grid_data[quota_case] = grid_time_series_data
         if not plots_only:
             csv_file_paths = save_grid_time_series_data_to_csv_folder(
@@ -424,10 +428,12 @@ def plot_and_export_single_monte_carlo(
             workbook_name = save_path.joinpath(f"{grid_simulation_case_name}.xlsx")
             save_excel(df=df_lastfluss, path=workbook_name, sheet_name="lastfluss")
             quota_case_grid_simulation_inputs[quota_case] = str(workbook_name)
+        ONT_max_possible = df_plausibility.loc[:, "PEleMax"].sum() / 1000
         export_data[quota_case] = {
             "max": {point: data["max"][point][quota_case][arg] for point in data["max"].keys()},
             "sum": {point: data["sum"][point][quota_case][arg] for point in data["sum"].keys()}
         }
+        print(f"Gleichzeitigkeitsfaktor-{quota_case} = {export_data[quota_case]['max']['ONT'] / ONT_max_possible}")
 
         # TODO: Fix simulation results for cases
         # quota_case_mask = df_sim.loc[:, "system_type"] == tech.lower()
@@ -788,9 +794,9 @@ def get_all_quota_studies():
     return all_quota_studies
 
 
-def load_function_kwargs_for_grid(extra_case_name_hybrid: str, grid_case: str):
+def load_function_kwargs_for_grid(extra_case_name_hybrid: str, grid_case: str, recreate_pickle=False):
     pickle_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"{extra_case_name_hybrid}_{grid_case}.pickle")
-    if os.path.exists(pickle_path):
+    if os.path.exists(pickle_path) and not recreate_pickle:
         with open(pickle_path, "rb") as file:
             return pickle.load(file)
 
@@ -815,7 +821,7 @@ def run_all_cases(load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1, 
     multiprocessing_function_kwargs = []
     for grid_case in grid_cases:
         # Trigger generation of pickle for inputs
-        load_function_kwargs_for_grid(extra_case_name_hybrid=extra_case_name_hybrid, grid_case=grid_case)
+        load_function_kwargs_for_grid(extra_case_name_hybrid=extra_case_name_hybrid, grid_case=grid_case, recreate_pickle=True)
         for quota_study_name, quota_variation in all_quota_cases.items():
             save_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"{grid_case.capitalize()}_{quota_study_name}")
             multiprocessing_function_kwargs.append(dict(
@@ -845,4 +851,4 @@ def run_all_cases(load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1, 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(load=True, extra_case_name_hybrid="Weather", n_cpu=15)
+    run_all_cases(load=False, extra_case_name_hybrid="Weather", n_cpu=1)

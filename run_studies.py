@@ -199,4 +199,4 @@ if __name__ == '__main__':
         # run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case=GRID, with_heating_rod=False, **KWARGS)
         extract_monte_carlo_xlsx(case_name=f"MonovalentWeather_{GRID}_HR")
         extract_monte_carlo_xlsx(case_name=f"MonovalentWeather_{GRID}")
-        extract_monte_carlo_xlsx(case_name=f"HybridWeather{GRID}")
+        extract_monte_carlo_xlsx(case_name=f"HybridWeather_{GRID}")

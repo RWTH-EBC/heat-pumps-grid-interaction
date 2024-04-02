@@ -142,10 +142,10 @@ def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
         if ufh_name in tsd.columns:
             # ufh loss is negative, thus, subtract
             building_demand -= tsd_loc[ufh_name]
-        df_sim.loc[idx, "building_demand"] = building_demand
+        df_sim.loc[idx, "building_demand"] = building_demand / 3600000
         heat_demand = building_demand + dhw_demand
-        df_sim.loc[idx, "heat_demand"] = heat_demand
-        df_sim.loc[idx, "dhw_demand"] = dhw_demand
+        df_sim.loc[idx, "heat_demand"] = heat_demand / 3600000
+        df_sim.loc[idx, "dhw_demand"] = dhw_demand / 3600000
         df_sim.loc[idx, "ABui"] = tsd_loc[A_name]
         df_sim.loc[idx, "heat_load"] = heat_load
         if with_hr:
@@ -153,7 +153,7 @@ def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
         else:
             W_el_ges = tsd_loc[p_el_hp_int_name]
         df_sim.loc[idx, "SCOP_Sys"] = heat_demand / W_el_ges
-        df_sim.loc[idx, "WEleGen"] = W_el_ges
+        df_sim.loc[idx, "WEleGen"] = W_el_ges / 3600000
         THyd_nominal = tsd_loc[THyd_name]
         TOda_nominal = tsd_loc[TOda_nom_name]
         if with_hr:

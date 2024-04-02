@@ -75,7 +75,7 @@ def run_simulations(
 
     sim_api = simulation.start_dymola(
         config=sim_config,
-        cd=base_path.joinpath("00_DymolaWorkDir"),
+        working_directory=base_path.joinpath("00_DymolaWorkDir"),
         n_cpu=n_cpu,
         additional_packages=utils.get_additional_packages(inputs_config.buildings) + [new_path],
         save_path_mos=study_path.joinpath("open_models.mos")
@@ -168,14 +168,17 @@ def run_simulations(
             pd.DataFrame(failed_data).to_excel(study_path.joinpath("failed_simulations.xlsx"))
     except (KeyError, AttributeError) as err:
         logging.error(err)   
+    extract_monte_carlo_xlsx(case_name)
 
+
+def extract_monte_carlo_xlsx(case_name):
     # Calc emissions
     hybrid_assumptions = {
         "constant": HybridSystemAssumptions(method="costs"),
         **{str(year): HybridSystemAssumptions(method="costs", emissions_electricity=str(year))
            for year in [2025, 2030, 2037]}
     }
-    calc_emissions(case_name, hybrid_assumptions, file_ending=".hdf")
+    calc_emissions(case_name, hybrid_assumptions, file_ending=".mat")
 
 
 if __name__ == '__main__':
@@ -183,13 +186,17 @@ if __name__ == '__main__':
     HYBRID_ASSUMPTIONS = HybridSystemAssumptions(method="costs")
     KWARGS = dict(
         hybrid_assumptions=HYBRID_ASSUMPTIONS,
-        n_cpu=10,
+        n_cpu=30,
         extract_only=True,
         with_smart_thermostat=False
     )
-    ##run_simulations(model_name="Hybrid", case_name="HybridWeather", grid_case="altbau", **KWARGS)
-    #run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="altbau", with_heating_rod=True, **KWARGS)
-    #run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="altbau", with_heating_rod=False, **KWARGS)
-    #run_simulations(model_name="Hybrid", case_name="HybridWeather", grid_case="neubau", **KWARGS)
-    run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="neubau", with_heating_rod=True, **KWARGS)
-    ##run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case="neubau", with_heating_rod=False, **KWARGS)
+    for GRID in [
+        #"neubau",
+        "altbau"
+    ]:
+        # run_simulations(model_name="Hybrid", case_name="HybridWeather", grid_case=GRID, **KWARGS)
+        # run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case=GRID, with_heating_rod=True, **KWARGS)
+        # run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case=GRID, with_heating_rod=False, **KWARGS)
+        extract_monte_carlo_xlsx(case_name=f"MonovalentWeather_{GRID}_HR")
+        extract_monte_carlo_xlsx(case_name=f"MonovalentWeather_{GRID}")
+        extract_monte_carlo_xlsx(case_name=f"HybridWeather_{GRID}")

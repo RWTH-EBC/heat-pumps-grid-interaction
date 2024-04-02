@@ -38,9 +38,10 @@ class DHWCalcConfig(BaseModel):
              if value is not None]
         )
         m_flow_nominal = pd.read_csv(self.path, skiprows=2, sep="\t").loc[:, "2_m_flow_"].max()
+        path = str(self.path).replace("\\", "//")
         return f"DHW(tableName=\"DHWCalc\",\n" \
                f"    {fine_tuning_modifier}" \
-               f"    fileName=Modelica.Utilities.Files.loadResource(\"{self.path}\"),\n" \
+               f"    fileName=Modelica.Utilities.Files.loadResource(\"{path}\"),\n" \
                f"    VDHWDay={self.daily_volume / 1000},\n" \
                f"    mDHW_flow_nominal={m_flow_nominal})"
 

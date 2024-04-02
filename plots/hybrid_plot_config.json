@@ -1,6 +1,7 @@
 {
   "rcParams": {
     "font.size": 11,
+    "figure.titlesize": 11,
     "backend": "agg",
     "figure.dpi": 250
   },
@@ -9,7 +10,7 @@
       "factor": 1.0,
       "offset": 273.15,
       "unit": "°C",
-      "label": "$T_\\mathrm{Oda}$"
+      "label": "$T_\\mathrm{oda}$"
     },
     "hydraulic.buiMeaBus.TZoneMea[1]": {
       "factor": 1.0,

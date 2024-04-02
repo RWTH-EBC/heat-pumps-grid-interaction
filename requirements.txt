@@ -6,3 +6,4 @@ openpyxl==3.0.10
 matplotlib
 pandapower==2.13.1
 aixweather==0.1.4
+git+https://github.com/RWTH-EBC/TEASER.git@development

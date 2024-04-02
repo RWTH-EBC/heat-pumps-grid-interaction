@@ -22,7 +22,7 @@ def get_label_and_factor(metric):
     if metric == "max":
         return "$P_\mathrm{el,max}$ in kW", 1
     elif metric == "sum":
-        return "$W_\mathrm{el,Ges}$ in MWh", 1e-3
+        return "$E_\mathrm{el,tot}$ in MWh", 1e-3
     elif metric == "value":
         return "$P_\mathrm{el}$ in kW", 1
     raise ValueError
@@ -39,21 +39,29 @@ def plot_quota_case_with_images(
         quota_variation: "QuotaVariation",
         ax: plt.axes,
         which_axis: str = None,
-        width: float = 0.1
+        width: float = 0.1,
+        title_offset: float = 0.0,
+        distance_to_others: float = 0.01
 ):
-    icon_plotting.add_images_to_title(technologies=quota_variation.fixed_technologies, ax=ax, width=width)
+    icon_plotting.add_images_to_title(
+        technologies=quota_variation.fixed_technologies, ax=ax,
+        width=width, offset=title_offset,
+        distance_to_others=distance_to_others
+    )
     if which_axis is None:
         return ax
     if isinstance(quota_variation.varying_technologies, dict):
         technology, _ = quota_variation.get_single_varying_technology_name_and_quotas()
         icon_plotting.add_image_and_text_as_label(
             ax=ax, which_axis=which_axis, technology=technology, width=width,
-            quotas=quota_variation.get_varying_technology_ids()
+            ticklabels=quota_variation.get_varying_technology_ids(),
+            distance_to_others=distance_to_others
         )
     else:
         icon_plotting.add_images_to_axis(
             technologies=quota_variation.varying_technologies, ax=ax,
-            which_axis=which_axis, width=width
+            which_axis=which_axis, width=width,
+            distance_to_others=distance_to_others
         )
     return ax
 
@@ -94,7 +102,7 @@ def plot_time_series(quota_case_grid_data: dict, save_path, quota_variation: "Qu
         fig.suptitle(f"Variation of {tech_name.capitalize()}-quota")
 
     ax[0].set_ylabel(label)
-    ax[1].set_xlabel("$T_\mathrm{Oda}$ in °C")
+    ax[1].set_xlabel("$T_\mathrm{oda}$ in °C")
     ax[0].set_xlabel("Hours in year")
     ax[1].legend(bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
     plot_quota_case_with_images(quota_variation=quota_variation, ax=ax[0])
@@ -208,7 +216,7 @@ def plot_monte_carlo_bars(
             color=EBCColors.ebc_palette_sort_2[idx],
             **bar_args,
         )
-        ax.set_ylabel(point + " " + y_label)
+        ax.set_ylabel(y_label)
         ax.set_xticks(x_pos)
         plot_quota_case_with_images(ax=ax, quota_variation=quota_variation, which_axis="x")
         ax.yaxis.grid(True)

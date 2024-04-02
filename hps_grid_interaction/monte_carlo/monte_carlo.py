@@ -186,7 +186,7 @@ def _get_time_series_data_for_choices(
         "WEleGen": 3600000,
         "PEleMax": 1
     }
-    plausibility_check = {name: possible_rows[name] * factor for name, factor in names_to_store_for_plausibility.items()}
+    plausibility_check = {name: possible_rows[name] / factor for name, factor in names_to_store_for_plausibility.items()}
     if df_teaser is not None:
         building_name = f'{possible_rows["Baujahr"]}_{possible_rows["construction_type"].replace("tabula_", "")}'
         plausibility_check["heat_load_teaser"] = df_teaser.loc[building_name, "heat_load"]
@@ -816,8 +816,8 @@ def run_all_cases(load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1, 
     all_quota_cases = get_all_quota_studies()
 
     grid_cases = [
-        "altbau",
-        #"neubau"
+        #"altbau",
+        "neubau"
     ]
     multiprocessing_function_kwargs = []
     for grid_case in grid_cases:
@@ -852,4 +852,4 @@ def run_all_cases(load: bool, extra_case_name_hybrid: str = "", n_cpu: int = 1, 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(load=False, extra_case_name_hybrid="Weather", n_cpu=12)
+    run_all_cases(load=False, extra_case_name_hybrid="Weather", n_cpu=20)

@@ -179,7 +179,7 @@ def run_single_worksheet(
     duration_vm_pu_103_per_line = np.array([0 for i in range(len(net.line.values))])
     duration_vm_pu_105_per_line = np.array([0 for i in range(len(net.line.values))])
     duration_vm_pu_110_per_line = np.array([0 for i in range(len(net.line.values))])
-    max_line_loading_per_line = np.array([0 for i in range(len(net.line.values))])
+    max_line_loading_per_line = np.array([0.0 for i in range(len(net.line.values))])
 
     with open(os.path.abspath(os.path.join(str(os.path.dirname(save_path)), random_str, "res_bus",
                                            "p_mw.json")), 'r') as j:

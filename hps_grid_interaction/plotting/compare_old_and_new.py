@@ -136,11 +136,16 @@ def plot_e_mobility_over_t_ambient(save_path: Path):
     plt.ylabel("Time of day")
     plt.savefig(save_path.joinpath("TimeODA.png"))
 
-    plt.figure()
-    plt.plot(np.sum(all_profiles, axis=0))
-    plt.xlabel("Time in year")
-    plt.ylabel("P EMobility in kW")
-    plt.savefig(save_path.joinpath("PEMobility_time.png"))
+    fig, ax = plt.subplots(2, 2)
+    ax[0, 0].plot(np.sum(all_profiles, axis=0))
+    ax[1, 0].plot(t_oda.values[:, 0])
+    ax[0, 1].plot(np.sum(all_profiles, axis=0)[-24*4*4:])
+    ax[1, 1].plot(t_oda.values[:, 0][-24*4*4:])
+    ax[1, 0].set_xlabel("Time in year")
+    ax[0, 0].set_ylabel("P EMobility in kW")
+    ax[1, 0].set_ylabel("TOda in °C")
+    ax[1, 1].set_xlabel("Time last days of year")
+    fig.savefig(save_path.joinpath("PEMobility_time.png"))
 
 
 def calculate_max_generation(df: pd.DataFrame):

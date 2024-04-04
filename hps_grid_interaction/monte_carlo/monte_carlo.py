@@ -863,4 +863,4 @@ def run_all_cases(grid_case: str, load: bool, extra_case_name_hybrid: str = "", 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(grid_case="altbau", load=True, extra_case_name_hybrid="Weather", n_cpu=9)
+    run_all_cases(grid_case="neubau", load=True, extra_case_name_hybrid="Weather", n_cpu=30)

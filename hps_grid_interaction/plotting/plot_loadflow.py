@@ -17,7 +17,7 @@ from hps_grid_interaction import DATA_PATH
 metric_data = {
     "p_trafo": {"label": "$P$ in kW", "opt": "max"},
     "q_trafo": {"label": "$Q$ in kW", "opt": "max"},
-    "s_trafo": {"label": "$S$ in kVA", "opt": "max"},
+    "s_trafo": {"label": "$S$ in kVA", "opt": "max", "label_abs": "$|S|$ in kVA"},
     "vm_pu_min": {"label": "$V_\mathrm{min}$ in p.u.", "opt": "min",
                   "axhlines": [0.9, 0.95, 0.97], "min_max": {"vmin": 0.9, "vmax": 1}},
 #    "vm_pu_max": {"label": "$V_\mathrm{max}$ in p.u.", "opt": "max", "min_max": {"vmin": 0.85, "vmax": 1}},
@@ -124,7 +124,7 @@ def plot_time_series(
             fig_title = f"{varying_tech_name}-quota variation | " + fig_title
         save_name = f"trafo={fixed_trafo_size}"
 
-    fig, ax = plt.subplots(1, 2, sharey=True, figsize=get_figure_size(n_columns=2))
+    fig, ax = plt.subplots(1, 2, sharey=False, figsize=get_figure_size(n_columns=2))
     t_oda = load_outdoor_air_temperature()
     bins = np.linspace(t_oda.values[1:-1, 0].min(), t_oda.values[1:-1, 0].max(), num=30)
     categories = pd.cut(t_oda.values[1:-1, 0], bins, labels=False)
@@ -134,9 +134,9 @@ def plot_time_series(
             bin_mask = (categories == bin_idx)
             if np.any(bin_mask):
                 if metric_data[metric]["opt"] == "min":
-                    curve.append(time_series_data[bin_mask].min())
+                    curve.append(np.abs(time_series_data[bin_mask]).min())
                 else:
-                    curve.append(time_series_data[bin_mask].max())
+                    curve.append(np.abs(time_series_data[bin_mask]).max())
             else:
                 curve.append(np.NAN)
 
@@ -149,7 +149,9 @@ def plot_time_series(
             for _ax in ax:
                 _ax.axhline(hline, color="black")
     fig.suptitle(fig_title)
-    ax[0].set_ylabel(metric_data[metric]["label"])
+    y_label_non_abs = metric_data[metric]["label"]
+    ax[0].set_ylabel(y_label_non_abs)
+    ax[1].set_ylabel(metric_data[metric].get("label_abs", y_label_non_abs))
     ax[1].set_xlabel("$T_\mathrm{oda}$ in °C")
     ax[0].set_xlabel("Hours in year")
     ax[1].legend(bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
@@ -172,9 +174,9 @@ def get_statistics(case_and_trafo_data: dict, path: Path, quota_variation: Quota
             for metric, settings in metric_data.items():
                 opt = settings["opt"]
                 if opt == "min":
-                    df.loc[idx, f"{metric}_{opt}"] = trafo_results[metric].min()
+                    df.loc[idx, f"{metric}_{opt}"] = np.abs(trafo_results[metric]).min()
                 if opt == "max":
-                    df.loc[idx, f"{metric}_{opt}"] = trafo_results[metric].max()
+                    df.loc[idx, f"{metric}_{opt}"] = np.abs(trafo_results[metric]).max()
                 if "axhlines" in settings:
                     for axhline_value in settings["axhlines"]:
                         df.loc[idx, f"{metric} smaller {axhline_value}"] = get_percent_smaller_than(
@@ -217,7 +219,7 @@ def plot_all_metrics_and_trafos(case_and_trafo_data: dict, path: Path, quota_var
                              metric=metric, fixed_case=case)
 
 
-def generate_all_cases(path: Path, with_plot: bool, altbau=True):
+def generate_all_cases(path: Path, with_plot: bool, altbau=True, use_mp: bool = True):
     if altbau:
         grid_case = "Altbau_"
         grid_str = "altbau"
@@ -233,8 +235,6 @@ def generate_all_cases(path: Path, with_plot: bool, altbau=True):
         for folder in os.listdir(path)
         if folder.startswith(grid_case) and os.path.isdir(path.joinpath(folder))
     ]
-    import multiprocessing as mp
-    pool = mp.Pool(processes=mp.cpu_count())
     kwargs_mp = []
     for folder in folders:
         case = folder.replace(grid_case, "")
@@ -246,10 +246,19 @@ def generate_all_cases(path: Path, with_plot: bool, altbau=True):
         ))
 
     idx = 0
-    for df in pool.imap_unordered(create_plots_and_get_df, kwargs_mp):
-        dfs.append(df)
-        print(f"Ran {idx + 1}/{len(folders)} folders")
-        idx += 1
+    if use_mp:
+        import multiprocessing as mp
+        pool = mp.Pool(processes=30)
+
+        for df in pool.imap_unordered(create_plots_and_get_df, kwargs_mp):
+            dfs.append(df)
+            print(f"Ran {idx + 1}/{len(folders)} folders")
+            idx += 1
+    else:
+        for kwargs in kwargs_mp:
+            dfs.append(create_plots_and_get_df(kwargs))
+            print(f"Ran {idx + 1}/{len(folders)} folders")
+            idx += 1
     dfs = pd.concat(dfs)
     dfs.index = range(len(dfs))
     dfs.to_excel(path.joinpath(f"{grid_case}all_grid_results_ex.xlsx"))
@@ -264,13 +273,19 @@ def create_plots_and_get_df(kwargs):
     case_path = kwargs["case_path"]
     case = kwargs["case"]
     with_plot = kwargs.get("with_plot", True)
-    case_and_trafo_data = load_case_and_trafo_data(case_path, quota_variation=quota_variation, grid=grid_str)
-    if with_plot:
-        plot_all_metrics_and_trafos(case_and_trafo_data, case_path, quota_variation)
-        plot_grid_as_heatmap(case_and_trafo_data, case_path)
-    df = get_statistics(case_and_trafo_data, case_path, quota_variation)
-    df.loc[:, "quota_cases"] = case
-    return df
+    print(f"Extracting and plotting {case_path}")
+    try:
+        case_and_trafo_data = load_case_and_trafo_data(case_path, quota_variation=quota_variation, grid=grid_str)
+        if with_plot:
+            plot_all_metrics_and_trafos(case_and_trafo_data, case_path, quota_variation)
+            plot_grid_as_heatmap(case_and_trafo_data, case_path)
+        df = get_statistics(case_and_trafo_data, case_path, quota_variation)
+        df.loc[:, "quota_cases"] = case
+        print(f"Extracted and plotted {case_path}")
+        return df
+    except Exception as err:
+        print(f"Error during extraction of {case_path}: {err}")
+        return pd.DataFrame()
 
 
 def set_color_of_axis(axis, color: str):
@@ -295,6 +310,7 @@ def plot_required_trafo_size(
             df_plot.loc[case] = df_case.iloc[min_idx]
         except ValueError:
             df_plot.loc[case] = np.NAN
+    df_plot = df_plot.iloc[::-1]
     fig, ax = plt.subplots(1, 1, figsize=get_figure_size(n_columns=1, height_factor=1.3))
     ax_twin = ax.twiny()
     x_pos = np.arange(len(df_plot.index))
@@ -312,12 +328,14 @@ def plot_required_trafo_size(
     ax_twin.plot(df_plot.loc[:, second_metric], x_pos, linewidth=5, color=EBCColors.ebc_palette_sort_2[1])
     ax_twin.set_xlabel(calculated_metrics[second_metric]["label"])
     set_color_of_axis(axis=ax_twin.xaxis, color=EBCColors.ebc_palette_sort_2[1])
-
-    plot_quota_case_with_images(quota_variation=quota_variation, ax=ax, which_axis="y", title_offset=0.2)
+    from copy import deepcopy
+    quota_variation_copy = deepcopy(quota_variation)
+    quota_variation_copy.varying_technologies = quota_variation_copy.varying_technologies[::-1]
+    plot_quota_case_with_images(quota_variation=quota_variation_copy, ax=ax, which_axis="y", title_offset=0.2)
     #ax.set_yticklabels(df_plot.index)
     set_color_of_axis(axis=ax.xaxis, color=EBCColors.ebc_palette_sort_2[0])
 
-    fig.tight_layout(pad=0.1, w_pad=0.1, h_pad=0.1)
+    fig.tight_layout(pad=0.15, w_pad=0.1, h_pad=0.1)
     fig.savefig(path.joinpath(f"MinTrafoDesign_{second_metric}.png"))
 
 
@@ -381,8 +399,29 @@ def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path):
         plt.close("all")
 
 
+def aggregate_simultaneity_factors(path: Path):
+    folders = [
+        folder
+        for folder in os.listdir(path)
+        if os.path.isdir(path.joinpath(folder)) and not folder.startswith("_")
+    ]
+    all_factors = []
+    for folder in folders:
+        json_path = path.joinpath(folder, "simultaneity_factors.json")
+        with open(json_path, "r") as file:
+            factors = json.load(file)
+            for key, value in factors.items():
+                all_factors.append({
+                    "case": folder, "quota": key.split("_")[-1], "factor": value["factor"]
+                })
+    df = pd.DataFrame(all_factors)
+    df.to_excel(path.joinpath("simultaneity_factors.xlsx"))
+
+
 if __name__ == '__main__':
     from hps_grid_interaction import RESULTS_MONTE_CARLO_FOLDER
     PATH = RESULTS_MONTE_CARLO_FOLDER
     PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
-    generate_all_cases(PATH, with_plot=True)
+    #aggregate_simultaneity_factors(path=PATH)
+    generate_all_cases(PATH, with_plot=False, altbau=True, use_mp=True)
+    generate_all_cases(PATH, with_plot=True, altbau=False, use_mp=True)

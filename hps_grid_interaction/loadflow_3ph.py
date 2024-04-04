@@ -170,7 +170,7 @@ def run_single_worksheet(
     duration_vm_pu_103_per_line = np.array([0 for i in range(len(net.line.values))])
     duration_vm_pu_105_per_line = np.array([0 for i in range(len(net.line.values))])
     duration_vm_pu_110_per_line = np.array([0 for i in range(len(net.line.values))])
-    max_line_loading_per_line = np.array([0 for i in range(len(net.line.values))])
+    max_line_loading_per_line = np.array([0.0 for i in range(len(net.line.values))])
 
     with open(os.path.abspath(os.path.join(str(os.path.dirname(save_path)), random_str, "res_bus",
                                            "p_mw.json")), 'r') as j:
@@ -188,8 +188,10 @@ def run_single_worksheet(
         q_trafo[count] = (-1.0) * value * 1000.0 * 3.0
         count += 1
 
-    s_trafo = np.array([np.sqrt(p_trafo[i]**2 + q_trafo[i]**2) for i in range(len(df_active))])
-    duration_trafo_overload = (s_trafo > kva).sum()
+    s_abs_trafo = np.array([np.sqrt(p_trafo[i]**2 + q_trafo[i]**2) for i in range(len(df_active))])
+    s_trafo = np.array([np.sign(p_trafo[i]) *
+                        np.sqrt(p_trafo[i] ** 2 + q_trafo[i] ** 2) for i in range(len(df_active))])
+    duration_trafo_overload = (s_abs_trafo > kva).sum()
 
     with open(os.path.abspath(os.path.join(str(os.path.dirname(save_path)), random_str, "res_bus",
                                            "vm_pu.json")), 'r') as j:
@@ -257,6 +259,7 @@ def run_single_worksheet(
     results_dict = dict(p_trafo=list(p_trafo),
                         q_trafo=list(q_trafo),
                         s_trafo=list(s_trafo),
+                        s_abs_trafo=list(s_abs_trafo),
                         vm_pu_min=list(vm_pu_min),
                         vm_pu_max=list(vm_pu_max),
                         max_line_loading=list(max_line_loading),

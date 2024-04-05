@@ -138,34 +138,71 @@ class QuotaVariation:
         return pretty_name_map.get(technology, technology.capitalize())
 
 
-def _draw_uncertain_choice(quotas: Quotas, building_type: str, year_of_construction: int):
-    def _draw_from_dict(d: dict):
-        return choices(list(d.keys()), list(d.values()), k=1)[0]
+def _draw_from_dict(d: dict, n_draws: int):
+    options = list(d.keys())
+    probabilities = np.array(list(d.values()))
+    probabilities = probabilities / sum(probabilities)
+    counter = 0
+    while counter < 1e6:
+        drawn_choices = choices(options, weights=probabilities, k=n_draws)
+        count_choices = np.array([drawn_choices.count(option) for option in options])
+        resulting_probabilities_match = (
+            (np.floor(probabilities * n_draws) <= count_choices) &
+            (count_choices <= np.ceil(probabilities * n_draws))
+        )
+        if np.all(resulting_probabilities_match):
+            return drawn_choices
+        counter += 1
+        if counter > 1e4:
+            logger.debug(
+                "%s - Draw does not match given probability: %s, %s",
+                counter, count_choices, probabilities * n_draws
+            )
+    raise ValueError("Search took too long, terminating")  # Or return?
 
-    construction_type_choice = _draw_from_dict(quotas.construction_type_quotas[building_type][year_of_construction])
-    heat_supply_choice = _draw_from_dict(quotas.heat_supply_quotas)
-    electricity_system_choice = _draw_from_dict(quotas.electricity_system_quotas)
 
-    return {
-        "heat_supply_choice": heat_supply_choice,
-        "electricity_system_choice": electricity_system_choice,
-        "construction_type_choice": construction_type_choice
-    }
+def _draw_uncertain_choices(
+        df_grid: pd.DataFrame,
+        quotas: Quotas,
+):
+    construction_type_choices = {}
+    building_types = df_grid.loc[:, "Gebäudetyp"].apply(lambda x: x.split(" ")[0])  # In case of MFH (..)
+    for building_type in building_types.unique():
+        df_grid_building_type = df_grid.loc[building_type == building_types]
+        for year_of_construction in df_grid_building_type.loc[:, "Baujahr"].unique():
+            df_grid_building_type_year = df_grid_building_type.loc[year_of_construction == df_grid_building_type.loc[:, "Baujahr"]]
+            construction_type_choices = _draw_from_dict(
+                quotas.construction_type_quotas[building_type][year_of_construction],
+                n_draws=len(df_grid_building_type_year)
+            )
+            for i, house_idx in enumerate(df_grid_building_type_year.index):
+                construction_type_choices[house_idx] = construction_type_choices[i]
+
+    heat_supply_choice = _draw_from_dict(quotas.heat_supply_quotas, n_draws=len(df_grid))
+    electricity_system_choice = _draw_from_dict(quotas.electricity_system_quotas, n_draws=len(df_grid))
+    all_choices = {}
+    for idx, house_idx in enumerate(df_grid.index):
+        all_choices[house_idx] = {
+            "heat_supply_choice": heat_supply_choice,
+            "electricity_system_choice": electricity_system_choice[idx],
+            "construction_type_choice": construction_type_choices[house_idx]
+        }
+    return all_choices
 
 
 def _get_time_series_data_for_choices(
         heat_supplies: dict,
         house_index: int,
-        all_choices: dict,
+        house_choices: dict,
         df_teaser: pd.DataFrame = None
 ):
-    df_sim, time_series_data = heat_supplies[all_choices["heat_supply_choice"]]
+    df_sim, time_series_data = heat_supplies[house_choices["heat_supply_choice"]]
     possible_rows = df_sim.loc[house_index]
     if isinstance(possible_rows, pd.Series):
         if not possible_rows["Baujahr"] == 2010:
             raise KeyError("Only one type even though not 2010, something went wrong")
     else:
-        mask = possible_rows.loc[:, "construction_type"] == all_choices["construction_type_choice"]
+        mask = possible_rows.loc[:, "construction_type"] == house_choices["construction_type_choice"]
         if not np.any(mask):
             raise KeyError("No mask fitted, something went wrong")
         possible_rows = possible_rows.loc[mask]
@@ -174,7 +211,7 @@ def _get_time_series_data_for_choices(
         possible_rows = possible_rows.iloc[0]
 
     sim_result_name = possible_rows["simulation_result"]
-    time_series_data_for_choice = time_series_data[sim_result_name].loc[:, all_choices["electricity_system_choice"]]
+    time_series_data_for_choice = time_series_data[sim_result_name].loc[:, house_choices["electricity_system_choice"]]
 
     names_to_store_for_plausibility = {  # Todo set to one once newly generated with calc_emissions.py
         "building_demand": 3600000,
@@ -321,24 +358,19 @@ def run_single_grid_simulation(
 ):
     grid = {key: 0 for key in [f"AP_{i + 1}" for i in range(10)]}
 
-    _resulting_choice_distribution = []
+    all_choices = _draw_uncertain_choices(
+        df_grid=df_grid,
+        quotas=quotas,
+    )
     for house_index, row in df_grid.iterrows():
-        building_type = row["Gebäudetyp"].split(" ")[0]  # In case of MFH (..)
-        all_choices = _draw_uncertain_choice(
-            quotas=quotas,
-            building_type=building_type,
-            year_of_construction=row["Baujahr"]
-        )
         time_series_result, _ = _get_time_series_data_for_choices(
             heat_supplies=heat_supplies,
             house_index=house_index,
-            all_choices=all_choices
+            house_choices=all_choices[house_index]
         )
-        _resulting_choice_distribution.append(all_choices)
         grid[f"AP_{row['Anschlusspunkt'].split('-')[0]}"] += time_series_result
-
     grid["ONT"] = np.sum(list(grid.values()), axis=0)  # Build overall sum at ONT
-    return grid, _resulting_choice_distribution
+    return grid, all_choices
 
 
 def get_grid_simulation_input_for_choices(
@@ -354,7 +386,7 @@ def get_grid_simulation_input_for_choices(
         time_series_data, plausibility_data = _get_time_series_data_for_choices(
             heat_supplies=heat_supplies,
             house_index=house_index,
-            all_choices=choices_for_grid[house_index],
+            house_choices=choices_for_grid[house_index],
             df_teaser=df_teaser
         )
         grid_plausibility.append(plausibility_data)

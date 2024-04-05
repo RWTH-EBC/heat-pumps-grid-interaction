@@ -136,6 +136,17 @@ def plot_e_mobility_over_t_ambient(save_path: Path):
     plt.ylabel("Time of day")
     plt.savefig(save_path.joinpath("TimeODA.png"))
 
+    fig, ax = plt.subplots(2, 2)
+    ax[0, 0].plot(np.sum(all_profiles, axis=0))
+    ax[1, 0].plot(t_oda.values[:, 0])
+    ax[0, 1].plot(np.sum(all_profiles, axis=0)[-24*4*4:])
+    ax[1, 1].plot(t_oda.values[:, 0][-24*4*4:])
+    ax[1, 0].set_xlabel("Time in year")
+    ax[0, 0].set_ylabel("P EMobility in kW")
+    ax[1, 0].set_ylabel("TOda in °C")
+    ax[1, 1].set_xlabel("Time last days of year")
+    fig.savefig(save_path.joinpath("PEMobility_time.png"))
+
 
 def calculate_max_generation(df: pd.DataFrame):
     HP = df.loc[:, "outputs.hydraulic.gen.PEleHeaPum.value"].values
@@ -156,6 +167,7 @@ def calculate_mean_supply_temperature(df: pd.DataFrame, real_winter):
 
 if __name__ == '__main__':
     save_path = Path(r"D:\00_temp\plots\monovalent_hr")
+    os.makedirs(save_path, exist_ok=True)
     path_new = Path(r"D:\01_Projekte\09_HybridWP\01_Results\02_simulations\MonovalentWeather_altbau_HR")
     path_old = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\01_BESMod_Simulationen\Monovalent_altbau_HR")
     #plot_old_and_new(path_new=path_new, path_old=path_old, save_path=save_path)

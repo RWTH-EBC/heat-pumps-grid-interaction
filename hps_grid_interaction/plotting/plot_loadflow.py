@@ -5,6 +5,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import seaborn as sns
 
 from hps_grid_interaction.plotting.config import PlotConfig
 from hps_grid_interaction.utils import load_outdoor_air_temperature
@@ -77,7 +78,6 @@ def extract_detailed_grid_info(trafo_results: dict):
         else:
             id_street = "line"
             id_house = "branchout_line"
-        n_branches = 10
         branch_order = [9, 4, 5, 1, 2, 3, 6, 7, 8, 10]
         n_houses_max = 32
         df = pd.DataFrame(columns=range(1, n_houses_max + 1))
@@ -93,6 +93,24 @@ def extract_detailed_grid_info(trafo_results: dict):
                 df.loc[f"{branch_number}_street", house_number] = value_street
         grid_metrics[metric] = df
     return grid_metrics
+
+
+def convert_grid_df_to_heatmap_df(df_grid: pd.DataFrame, column):
+    df_grid = df_grid.copy()
+    df_grid = df_grid.set_index("Anschlusspunkt")
+    branch_order = [9, 4, 5, 1, 2, 3, 6, 7, 8, 10]
+    n_houses_max = 32
+    df = pd.DataFrame(columns=range(1, n_houses_max + 1))
+    for branch_number in branch_order:
+        for house_number in range(1, n_houses_max + 1):
+            try:
+                value_house = df_grid.loc[f"{branch_number}-{house_number}", column]
+            except KeyError:
+                value_house = np.NAN
+            value_street = np.NAN
+            df.loc[f"{branch_number}_house", house_number] = value_house
+            df.loc[f"{branch_number}_street", house_number] = value_street
+    return df
 
 
 def plot_time_series(
@@ -340,7 +358,6 @@ def plot_required_trafo_size(
 
 
 def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path):
-    import seaborn as sns
     save_path = save_path.joinpath("plots_detailed_grid")
     os.makedirs(save_path, exist_ok=True)
     n_trafo_sizes = len(next(iter(case_and_trafo_data.values())))
@@ -372,16 +389,10 @@ def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path):
                     cmap = "flare_r"
                 else:
                     cmap = "flare"
-                sns.heatmap(df.astype(float), ax=ax[idx_case, idx_trafo], cmap=cmap, linewidths=0,
-                            zorder=1, linecolor='black', **metric_kwargs.get("min_max", {}))
-
-                ax[idx_case, idx_trafo].imshow(plt.imread(DATA_PATH.joinpath("altbau_grid.png"), format="png"),
-                          aspect=ax[idx_case, idx_trafo].get_aspect(),
-                          extent=ax[idx_case, idx_trafo].get_xlim() + ax[idx_case, idx_trafo].get_ylim(),
-                          zorder=2
-                          )
-                ax[idx_case, idx_trafo].set_xticks([])
-                ax[idx_case, idx_trafo].set_yticks([])
+                ax[idx_case, idx_trafo] = plot_heat_map_on_grid_image(
+                    ax=ax[idx_case, idx_trafo], df=df,
+                    cmap=cmap, heatmap_kwargs=metric_kwargs.get("min_max", {})
+                )
 
     for idx_case, case in enumerate(case_and_trafo_data.keys()):
         for metric, ax in zip(metrics, axes):
@@ -397,6 +408,22 @@ def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path):
         fig.tight_layout()
         fig.savefig(save_path.joinpath(f"{metric}.png"))
         plt.close("all")
+
+
+def plot_heat_map_on_grid_image(ax: plt.axes, cmap, df: pd.DataFrame, heatmap_kwargs: dict = None):
+    if heatmap_kwargs is None:
+        heatmap_kwargs = {}
+    sns.heatmap(df.astype(float), ax=ax, cmap=cmap, linewidths=0,
+                zorder=1, linecolor='black', **heatmap_kwargs)
+    ax.imshow(
+        plt.imread(DATA_PATH.joinpath("altbau_grid.png"), format="png"),
+        aspect=ax.get_aspect(),
+        extent=ax.get_xlim() + ax.get_ylim(),
+        zorder=2
+    )
+    ax.set_xticks([])
+    ax.set_yticks([])
+    return ax
 
 
 def aggregate_simultaneity_factors(path: Path):

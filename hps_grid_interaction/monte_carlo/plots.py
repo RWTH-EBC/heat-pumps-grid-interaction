@@ -13,7 +13,7 @@ from hps_grid_interaction import DATA_PATH
 from hps_grid_interaction.utils import load_outdoor_air_temperature
 from hps_grid_interaction.emissions import COLUMNS_EMISSIONS, get_emission_options
 from hps_grid_interaction.plotting.config import EBCColors
-from hps_grid_interaction.plotting import get_figure_size, icon_plotting
+from hps_grid_interaction.plotting import get_figure_size, icon_plotting, plot_loadflow
 
 logger = logging.getLogger(__name__)
 
@@ -239,3 +239,48 @@ def plot_cop_motivation():
     plt.savefig("plots/COP Motivation.png")
     plt.show()
 
+
+def plot_technology_choices_in_grid(df_grid: pd.DataFrame, choices_for_grid: dict, save_path: Path):
+    df_grid_with_choices = df_grid.copy()
+    choice_types = ["heat_supply_choice", "electricity_system_choice", "construction_type_choice"]
+    for house_idx in df_grid_with_choices.index:
+        for choice_type in choice_types:
+            df_grid_with_choices.loc[house_idx, choice_type] = choices_for_grid[house_idx][choice_type]
+    rename_map = {
+        "monovalent": "HP",
+        "heating_rod": "HP+EH",
+        "household": "-",
+        "household+pv": "PV",
+        "household+pv+battery": "PV+Bat",
+        "household+e_mobility": "EMob",
+        "household+pv+e_mobility": "PV+EMob",
+        "household+pv+battery+e_mobility": "PV+Bat+EMob",
+        "tabula_standard": "no",
+        "tabula_retrofit": "ret",
+        "tabula_adv_retrofit": "ret+"
+    }
+
+    fig, ax = plt.subplots(3, 1,
+                           figsize=get_figure_size(n_columns=1, height_factor=0.7 * 3))
+    for idx, choice_type in enumerate(choice_types):
+        unique_labels = df_grid_with_choices.loc[:, choice_type].unique()
+        # Convert strings to ints
+        for label_idx, unique_label in enumerate(unique_labels):
+            df_grid_with_choices.loc[df_grid_with_choices.loc[:, choice_type] == unique_label] = label_idx
+        df_heatmap = plot_loadflow.convert_grid_df_to_heatmap_df(
+            df_grid=df_grid_with_choices, column=choice_type
+        )
+        n = len(unique_labels)
+        cmap = sns.color_palette("deep", n)
+
+        ax[idx] = plot_loadflow.plot_heat_map_on_grid_image(
+            ax=ax[idx],
+            cmap=cmap,
+            df=df_heatmap
+        )
+        ax[idx].set_ylabel(choice_type)
+        colorbar = ax[idx].collections[0].colorbar
+        r = colorbar.vmax - colorbar.vmin
+        colorbar.set_ticks([colorbar.vmin + (i + 0.5) * r / n for i in range(n)])
+        colorbar.set_ticklabels([rename_map.get(label) for label in unique_labels])
+    fig.savefig(save_path)

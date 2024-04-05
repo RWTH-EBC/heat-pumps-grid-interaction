@@ -161,6 +161,21 @@ def _draw_from_dict(d: dict, n_draws: int):
     raise ValueError("Search took too long, terminating")  # Or return?
 
 
+
+def _shuffle_grid_from_dict(d: dict, n_draws: int):
+    options = list(d.keys())
+    probabilities = np.array(list(d.values()))
+    probabilities = probabilities / sum(probabilities)
+    import random
+    random.shuffle
+    drawn_choices = choices(options, weights=probabilities, k=n_draws)
+    count_choices = np.array([drawn_choices.count(option) for option in options])
+    resulting_probabilities_match = (
+        (np.floor(probabilities * n_draws) <= count_choices) &
+        (count_choices <= np.ceil(probabilities * n_draws))
+    )
+    return drawn_choices
+
 def _draw_uncertain_choices(
         df_grid: pd.DataFrame,
         quotas: Quotas,
@@ -171,19 +186,19 @@ def _draw_uncertain_choices(
         df_grid_building_type = df_grid.loc[building_type == building_types]
         for year_of_construction in df_grid_building_type.loc[:, "Baujahr"].unique():
             df_grid_building_type_year = df_grid_building_type.loc[year_of_construction == df_grid_building_type.loc[:, "Baujahr"]]
-            construction_type_choices = _draw_from_dict(
+            _choices_for_building_and_year = _draw_from_dict(
                 quotas.construction_type_quotas[building_type][year_of_construction],
                 n_draws=len(df_grid_building_type_year)
             )
             for i, house_idx in enumerate(df_grid_building_type_year.index):
-                construction_type_choices[house_idx] = construction_type_choices[i]
+                construction_type_choices[house_idx] = _choices_for_building_and_year[i]
 
     heat_supply_choice = _draw_from_dict(quotas.heat_supply_quotas, n_draws=len(df_grid))
     electricity_system_choice = _draw_from_dict(quotas.electricity_system_quotas, n_draws=len(df_grid))
     all_choices = {}
     for idx, house_idx in enumerate(df_grid.index):
         all_choices[house_idx] = {
-            "heat_supply_choice": heat_supply_choice,
+            "heat_supply_choice": heat_supply_choice[idx],
             "electricity_system_choice": electricity_system_choice[idx],
             "construction_type_choice": construction_type_choices[house_idx]
         }
@@ -895,4 +910,4 @@ def run_all_cases(grid_case: str, load: bool, extra_case_name_hybrid: str = "", 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(grid_case="neubau", load=True, extra_case_name_hybrid="Weather", n_cpu=30)
+    run_all_cases(grid_case="neubau", load=False, extra_case_name_hybrid="Weather", n_cpu=1)

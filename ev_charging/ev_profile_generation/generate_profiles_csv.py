@@ -210,7 +210,6 @@ def step3_charging_simulation(fleet_excel_file):
     print()
 
     # DYNAMIC SIMULATION
-
     for ts in sim_horizon:
         print("     Simulating time step:", ts)
 
@@ -263,6 +262,8 @@ def step4_generate_csv_profiles(cluster_excel_file, output_path):
     number_ev = len(ws["1"]) - 1
     timeslots = len(dts)
 
+    total_ev_charging_power = np.empty(timeslots, dtype=float)
+
     for i in range(number_ev):
         csv_file_name = "ev_" + str(i) + ".csv"
         print("Writing CSV file " + str(csv_file_name) + ".")
@@ -272,10 +273,13 @@ def step4_generate_csv_profiles(cluster_excel_file, output_path):
             ev_profile[j] = float(ws.cell(j + 2, i + 2).value)
 
         # We don't want to charge an EV every single day. Target consumption should be approx. 2.500kWh ==> 15.000km.
-        randint = np.random.choice(range(364), 275, replace=False)
+        randint = np.random.choice(range(365), 275, replace=False)
         for x in randint:
             for j in range(96):
                 ev_profile[x * 96 + j] = 0.0
+
+        for j in range(timeslots):
+            total_ev_charging_power[j] += ev_profile[j]
 
         # Save the profile:
         with open(os.path.join(output_path, csv_file_name), 'w', newline='') as file:
@@ -301,6 +305,9 @@ def step4_generate_csv_profiles(cluster_excel_file, output_path):
             d = s[:10]
             ti = s[-8:]
             writer.writerow([d + " " + ti, str(ev_profile[j])])
+
+    print("\nTotal EV charging power:")
+    print(list(total_ev_charging_power))
 
 
 if __name__ == '__main__':

@@ -44,15 +44,17 @@ def get_percent_smaller_than(np_array, threshold):
 def load_case_and_trafo_data(path: Path, quota_variation: QuotaVariation, grid: str):
     with open(path.joinpath("results_to_plot.json"), "r") as file:
         results = json.load(file)
-    case_and_tafo_data = {}
+    case_and_transformer_data = {}
     name_value_dict = quota_variation.get_quota_case_name_and_value_dict()
-    for case, case_data in results["grid"].items():
-        trafo_data = {}
-        startswith = f"results_{case}_{grid}_3-ph_"
-        for file_name in os.listdir(path):
-            if file_name.startswith(startswith) and file_name.endswith(".json"):
-                trafo_size = int(file_name.replace(startswith, "").replace(".json", ""))
-                with open(path.joinpath(file_name), "r") as file:
+    for monte_carlo_metric, results_metric in results.items():
+        for case, case_data in results_metric["grid"].items():
+            trafo_data = {}
+            startswith = f"results_{case}_{grid}_3-ph_"
+            json_result_files = [path.joinpath(file_name) for file_name in os.listdir(path)
+                                 if file_name.startswith(startswith) and file_name.endswith(".json")]
+            for json_result_file in json_result_files:
+                trafo_size = int(json_result_file.stem.replace(startswith, ""))
+                with open(json_result_file, "r") as file:
                     trafo_results = json.load(file)
                 trafo_results_converted = {}
                 for metric, values in trafo_results.items():
@@ -62,9 +64,12 @@ def load_case_and_trafo_data(path: Path, quota_variation: QuotaVariation, grid: 
                         trafo_results_converted[metric] = values
                 metrics = extract_detailed_grid_info(trafo_results_converted)
                 trafo_results_converted.update(metrics)
-                trafo_data[trafo_size] = trafo_results_converted
-        case_and_tafo_data[name_value_dict[case]] = trafo_data
-    return case_and_tafo_data
+                if trafo_size in trafo_data:
+                    trafo_data[trafo_size][monte_carlo_metric] = trafo_results_converted
+                else:
+                    trafo_data[trafo_size] = {monte_carlo_metric: trafo_results_converted}
+            case_and_transformer_data[name_value_dict[case]] = trafo_data
+    return case_and_transformer_data
 
 
 def extract_detailed_grid_info(trafo_results: dict):
@@ -114,9 +119,16 @@ def convert_grid_df_to_heatmap_df(df_grid: pd.DataFrame, column):
 
 
 def plot_time_series(
-        case_trafo_data: dict,
-        metric: str, quota_variation: QuotaVariation,
-        save_path, fixed_case: str = None, fixed_trafo_size: int = None):
+        case_and_trafo_data: dict,
+        metric: str,
+        quota_variation: QuotaVariation,
+        save_path,
+        fixed_case: str = None,
+        fixed_trafo_size: int = None,
+        main_metric: str = "argmean",
+        max_metric: str = "argmax",
+        min_metric: str = "argmin"
+):
     if fixed_case is None and fixed_trafo_size is None:
         raise ValueError("One of both case or trafo_size must be fixed")
     if fixed_case is not None and fixed_trafo_size is not None:
@@ -129,14 +141,24 @@ def plot_time_series(
         varying_tech_name = ""
 
     if fixed_trafo_size is None:
-        _data = {f"{key} kVA": case_trafo_data[fixed_case][key][metric]
-                 for key in sorted(case_trafo_data[fixed_case].keys())}
+        fixed_case_data = case_and_trafo_data[fixed_case]
+        _data = {
+            f"{key} kVA": {
+                monte_carlo_metric: fixed_case_data[key][monte_carlo_metric][metric]
+                for monte_carlo_metric in fixed_case_data[key].keys()
+            } for key in sorted(fixed_case_data.keys())
+        }
         fig_title = "Transformer variation"
         if varying_tech_name:
             fig_title += f" | {varying_tech_name}-quota={fixed_case}"
         save_name = f"case={fixed_case}"
     else:
-        _data = {case: trafo_data[fixed_trafo_size][metric] for case, trafo_data in case_trafo_data.items()}
+        _data = {
+            case: {
+                monte_carlo_metric: trafo_results[metric]
+                for monte_carlo_metric, trafo_results in trafo_data[fixed_trafo_size]
+            } for case, trafo_data in case_and_trafo_data.items()
+        }
         fig_title = f"{fixed_trafo_size} kVA transformer"
         if varying_tech_name:
             fig_title = f"{varying_tech_name}-quota variation | " + fig_title
@@ -146,21 +168,38 @@ def plot_time_series(
     t_oda = load_outdoor_air_temperature()
     bins = np.linspace(t_oda.values[1:-1, 0].min(), t_oda.values[1:-1, 0].max(), num=30)
     categories = pd.cut(t_oda.values[1:-1, 0], bins, labels=False)
-    for _label, time_series_data in _data.items():
-        curve = []
-        for bin_idx in range(len(bins)):
-            bin_mask = (categories == bin_idx)
-            if np.any(bin_mask):
-                if metric_data[metric]["opt"] == "min":
-                    curve.append(np.abs(time_series_data[bin_mask]).min())
+    idx_case = 0
+    for _label, _monte_carlo_tsd in _data.items():
+        curves = {}
+        for monte_carlo_metric, time_series_data in _monte_carlo_tsd.items():
+            curve = []
+            for bin_idx in range(len(bins)):
+                bin_mask = (categories == bin_idx)
+                if np.any(bin_mask):
+                    if metric_data[metric]["opt"] == "min":
+                        curve.append(np.abs(time_series_data[bin_mask]).min())
+                    else:
+                        curve.append(np.abs(time_series_data[bin_mask]).max())
                 else:
-                    curve.append(np.abs(time_series_data[bin_mask]).max())
-            else:
-                curve.append(np.NAN)
+                    curve.append(np.NAN)
+            curves[monte_carlo_metric] = curve
+        main_tsd = _monte_carlo_tsd[main_metric]
+        max_tsd = _monte_carlo_tsd[max_metric]
+        min_tsd = _monte_carlo_tsd[min_metric]
+        main_cluster = curves[main_metric]
+        max_cluster = curves[max_metric]
+        min_cluster = curves[min_metric]
+        color = EBCColors.ebc_palette_sort_2[idx_case]
+        x_year = np.arange(len(main_tsd)) / 4,
+        uncertainty_kwargs = dict(
+            edgecolor=None, alpha=0.5, facecolor=color
+        )
+        ax[0].plot(x_year, np.sort(main_tsd)[::-1], label=_label, color=color)
+        ax[0].fill_between(x_year, np.sort(min_tsd)[::-1], np.sort(max_tsd)[::-1], **uncertainty_kwargs)
+        ax[1].plot(bins, main_cluster, label=_label, linestyle="-")
+        ax[1].fill_between(bins, min_cluster, max_cluster, **uncertainty_kwargs)
+        idx_case += 1
 
-        ax[0].plot(np.arange(len(time_series_data)) / 4, np.sort(time_series_data)[::-1],
-                   label=_label)
-        ax[1].plot(bins, curve, label=_label, linestyle="-")
     axhlines = metric_data[metric].get("axhlines", None)
     if axhlines is not None:
         for hline in axhlines:
@@ -182,42 +221,40 @@ def plot_time_series(
     plt.close("all")
 
 
-def get_statistics(case_and_trafo_data: dict, path: Path, quota_variation: QuotaVariation):
+def get_statistics(case_and_trafo_data: dict, path: Path):
     df = pd.DataFrame()
     idx = 0
     for case, trafo_data in case_and_trafo_data.items():
         for trafo_size, trafo_results in trafo_data.items():
-            df.loc[idx, "Trafo-Size"] = trafo_size
-            df.loc[idx, "case"] = case
-            for metric, settings in metric_data.items():
-                opt = settings["opt"]
-                if opt == "min":
-                    df.loc[idx, f"{metric}_{opt}"] = np.abs(trafo_results[metric]).min()
-                if opt == "max":
-                    df.loc[idx, f"{metric}_{opt}"] = np.abs(trafo_results[metric]).max()
-                if "axhlines" in settings:
-                    for axhline_value in settings["axhlines"]:
-                        df.loc[idx, f"{metric} smaller {axhline_value}"] = get_percent_smaller_than(
-                            trafo_results[metric], axhline_value
-                        )
-            idx += 1
+            for monte_carlo_metric, trafo_results_monte_carlo in trafo_results.items():
+                df.loc[idx, "Trafo-Size"] = trafo_size
+                df.loc[idx, "case"] = case
+                df.loc[idx, "Monte-Carlo Metric"] = monte_carlo_metric
+                for metric, settings in metric_data.items():
+                    opt = settings["opt"]
+                    if opt == "min":
+                        df.loc[idx, f"{metric}_{opt}"] = np.abs(trafo_results_monte_carlo[metric]).min()
+                    if opt == "max":
+                        df.loc[idx, f"{metric}_{opt}"] = np.abs(trafo_results_monte_carlo[metric]).max()
+                    if "axhlines" in settings:
+                        for axhline_value in settings["axhlines"]:
+                            df.loc[idx, f"{metric} smaller {axhline_value}"] = get_percent_smaller_than(
+                                trafo_results_monte_carlo[metric], axhline_value
+                            )
+                idx += 1
     df.loc[:, "percent_max_trafo_load in %"] = df.loc[:, "s_trafo_max"] / df.loc[:, "Trafo-Size"] * 100
     df.to_excel(path.joinpath(f"grid_statistics_{path.name}.xlsx"))
-
-    for second_metric in calculated_metrics.keys():
-        plot_required_trafo_size(
-            path=path.joinpath("plots"),
-            df=df,
-            quota_variation=quota_variation,
-            design_metric="percent_max_trafo_load in %",
-            design_value=100,
-            second_metric=second_metric
-        )
-
     return df
 
 
-def plot_all_metrics_and_trafos(case_and_trafo_data: dict, path: Path, quota_variation: QuotaVariation):
+def plot_all_metrics_and_trafos(
+        case_and_trafo_data: dict,
+        path: Path,
+        quota_variation: QuotaVariation,
+        main_metric: str = "argmean",
+        max_metric: str = "argmax",
+        min_metric: str = "argmin"
+):
     cases = list(case_and_trafo_data.keys())
     trafo_sizes = list(case_and_trafo_data[cases[0]])
     save_path = path.joinpath("plots")
@@ -225,19 +262,29 @@ def plot_all_metrics_and_trafos(case_and_trafo_data: dict, path: Path, quota_var
     for metric in metric_data.keys():
         only_one_trafo_is_enough = metric in ["p_trafo", "s_trafo", "q_trafo"]
         #only_one_trafo_is_enough = False
+        kwargs = dict(
+            main_metric=main_metric,
+            max_metric=max_metric,
+            min_metric=min_metric,
+            case_and_trafo_data=case_and_trafo_data,
+            metric=metric,
+            save_path=save_path,
+            quota_variation=quota_variation
+        )
         for trafo_size in trafo_sizes:
-            plot_time_series(case_trafo_data=case_and_trafo_data,
-                             save_path=save_path, quota_variation=quota_variation,
-                             metric=metric, fixed_trafo_size=trafo_size)
+            plot_time_series(fixed_trafo_size=trafo_size, **kwargs)
             if only_one_trafo_is_enough:
                 break
         for case in cases:
-            plot_time_series(case_trafo_data=case_and_trafo_data,
-                             save_path=save_path, quota_variation=quota_variation,
-                             metric=metric, fixed_case=case)
+            plot_time_series(fixed_case=case, **kwargs)
 
 
-def generate_all_cases(path: Path, with_plot: bool, altbau=True, use_mp: bool = True):
+def generate_all_cases(
+        path: Path, with_plot: bool, altbau=True, use_mp: bool = True,
+        main_metric: str = "argmean",
+        max_metric: str = "argmax",
+        min_metric: str = "argmin"
+):
     if altbau:
         grid_case = "Altbau_"
         grid_str = "altbau"
@@ -260,7 +307,10 @@ def generate_all_cases(path: Path, with_plot: bool, altbau=True, use_mp: bool = 
             case_path=path.joinpath(folder),
             case=case,
             quota_variation=all_quota_cases[case],
-            grid_str=grid_str, with_plot=with_plot
+            grid_str=grid_str, with_plot=with_plot,
+            main_metric=main_metric,
+            max_metric=max_metric,
+            min_metric=min_metric,
         ))
 
     idx = 0
@@ -291,14 +341,32 @@ def create_plots_and_get_df(kwargs):
     case_path = kwargs["case_path"]
     case = kwargs["case"]
     with_plot = kwargs.get("with_plot", True)
+    main_metric = kwargs["main_metric"]
+    max_metric = kwargs["max_metric"]
+    min_metric = kwargs["min_metric"]
+
     print(f"Extracting and plotting {case_path}")
     try:
         case_and_trafo_data = load_case_and_trafo_data(case_path, quota_variation=quota_variation, grid=grid_str)
-        if with_plot:
-            plot_all_metrics_and_trafos(case_and_trafo_data, case_path, quota_variation)
-            plot_grid_as_heatmap(case_and_trafo_data, case_path)
-        df = get_statistics(case_and_trafo_data, case_path, quota_variation)
+        df = get_statistics(case_and_trafo_data=case_and_trafo_data, path=case_path)
         df.loc[:, "quota_cases"] = case
+        if with_plot:
+            plot_all_metrics_and_trafos(
+                case_and_trafo_data, case_path, quota_variation,
+                main_metric=main_metric, max_metric=max_metric, min_metric=min_metric
+            )
+            for second_metric in calculated_metrics.keys():
+                plot_required_trafo_size(
+                    path=case_path.joinpath("plots"),
+                    df=df,
+                    quota_variation=quota_variation,
+                    design_metric="percent_max_trafo_load in %",
+                    design_value=100,
+                    second_metric=second_metric,
+                    monte_carlo_metric=max_metric
+                )
+            plot_grid_as_heatmap(case_and_trafo_data, case_path, monte_carlo_metric=main_metric)
+
         print(f"Extracted and plotted {case_path}")
         return df
     except Exception as err:
@@ -318,11 +386,16 @@ def plot_required_trafo_size(
         quota_variation: QuotaVariation,
         design_metric: str = "percent_max_trafo_load in %",
         design_value: float = 100,
-        second_metric: str = "vm_pu_min smaller 0.97"
+        second_metric: str = "vm_pu_min smaller 0.97",
+        monte_carlo_metric: str = "argmax"
 ):
     df_plot = pd.DataFrame(columns=df.columns)
     for case in quota_variation.get_varying_technology_ids():
-        df_case = df.loc[(df.loc[:, "case"] == case) & (df.loc[:, design_metric] < design_value)]
+        df_case = df.loc[
+            (df.loc[:, "case"] == case) &
+            (df.loc[:, "Monte-Carlo Metric"] == monte_carlo_metric) &
+            (df.loc[:, design_metric] < design_value)
+            ]
         try:
             min_idx = df_case.loc[:, "Trafo-Size"].argmin()
             df_plot.loc[case] = df_case.iloc[min_idx]
@@ -357,7 +430,7 @@ def plot_required_trafo_size(
     fig.savefig(path.joinpath(f"MinTrafoDesign_{second_metric}.png"))
 
 
-def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path):
+def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path, monte_carlo_metric: str = "argmean"):
     save_path = save_path.joinpath("plots_detailed_grid")
     os.makedirs(save_path, exist_ok=True)
     n_trafo_sizes = len(next(iter(case_and_trafo_data.values())))
@@ -376,7 +449,7 @@ def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path):
     for idx_case, case in enumerate(case_and_trafo_data.keys()):
         case_data = case_and_trafo_data[case]
         for idx_trafo, tafo_size in enumerate(sorted(case_data.keys())):
-            trafo_data = case_data[tafo_size]
+            trafo_data = case_data[monte_carlo_metric][tafo_size]
             for metric, ax in zip(metrics, axes):
                 df = trafo_data[metric]
                 if not isinstance(df, pd.DataFrame):

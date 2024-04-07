@@ -428,6 +428,10 @@ def argmean(arr):
     return arg_of_value(arr, mean)
 
 
+def argmedian(arr):
+    return arg_of_value(arr, np.median(arr))
+
+
 def arg_of_value(arr, value):
     # Calculate the absolute differences between each element and the value
     abs_diff = np.abs(arr - value)
@@ -505,7 +509,7 @@ def plot_and_export_single_monte_carlo(
 
         max_over_households = 534.9015984368119
         max_peak_per_e_mobility = 11
-        n_house_with_e_mobility = len([choice for choice in choices_for_grid if "e_mob" in choice["electricity_system_choice"]])
+        n_house_with_e_mobility = len([choice for choice in choices_for_grid.values() if "e_mob" in choice["electricity_system_choice"]])
         trafo_max_possible = (
                 df_plausibility.loc[:, "PEleMax"].sum() / 1000 +
                 max_over_households +
@@ -591,7 +595,7 @@ def run_save_and_plot_monte_carlo(
     plots.plot_monte_carlo_violin(data=data, metric="sum", save_path=save_path, quota_variation=quota_variation)
     export_data = {}
     for arg_function in [
-        argmean, np.median,
+        argmean, argmedian,
         np.argmax, np.argmin,
         percentile_25, percentile_75,
     ]:
@@ -960,4 +964,4 @@ def run_all_cases(grid_case: str, load: bool, extra_case_name_hybrid: str = "", 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(grid_case="neubau", load=False, extra_case_name_hybrid="Weather", n_cpu=1)
+    run_all_cases(grid_case="neubau", load=False, extra_case_name_hybrid="Weather", n_cpu=20)

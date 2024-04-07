@@ -13,7 +13,7 @@ from hps_grid_interaction import DATA_PATH
 from hps_grid_interaction.utils import load_outdoor_air_temperature
 from hps_grid_interaction.emissions import COLUMNS_EMISSIONS, get_emission_options
 from hps_grid_interaction.plotting.config import EBCColors
-from hps_grid_interaction.plotting import get_figure_size, icon_plotting, plot_loadflow
+from hps_grid_interaction.plotting import get_figure_size, icon_plotting
 
 logger = logging.getLogger(__name__)
 
@@ -249,6 +249,7 @@ def plot_technology_choices_in_grid(df_grid: pd.DataFrame, choices_for_grid: dic
     rename_map = {
         "monovalent": "HP",
         "heating_rod": "HP+EH",
+        "hybrid": "Hyb",
         "household": "-",
         "household+pv": "PV",
         "household+pv+battery": "PV+Bat",
@@ -257,16 +258,19 @@ def plot_technology_choices_in_grid(df_grid: pd.DataFrame, choices_for_grid: dic
         "household+pv+battery+e_mobility": "PV+Bat+EMob",
         "tabula_standard": "no",
         "tabula_retrofit": "ret",
-        "tabula_adv_retrofit": "ret+"
+        "tabula_adv_retrofit": "ret+",
+        "heat_supply_choice": "heat supply",
+        "electricity_system_choice": "e-tech",
+        "construction_type_choice": "retrofit"
     }
-
+    from hps_grid_interaction.plotting import plot_loadflow
     fig, ax = plt.subplots(3, 1,
                            figsize=get_figure_size(n_columns=1, height_factor=0.7 * 3))
     for idx, choice_type in enumerate(choice_types):
         unique_labels = df_grid_with_choices.loc[:, choice_type].unique()
         # Convert strings to ints
         for label_idx, unique_label in enumerate(unique_labels):
-            df_grid_with_choices.loc[df_grid_with_choices.loc[:, choice_type] == unique_label] = label_idx
+            df_grid_with_choices.loc[df_grid_with_choices.loc[:, choice_type] == unique_label, choice_type] = label_idx
         df_heatmap = plot_loadflow.convert_grid_df_to_heatmap_df(
             df_grid=df_grid_with_choices, column=choice_type
         )
@@ -278,9 +282,10 @@ def plot_technology_choices_in_grid(df_grid: pd.DataFrame, choices_for_grid: dic
             cmap=cmap,
             df=df_heatmap
         )
-        ax[idx].set_ylabel(choice_type)
+        ax[idx].set_ylabel(rename_map[choice_type])
         colorbar = ax[idx].collections[0].colorbar
         r = colorbar.vmax - colorbar.vmin
         colorbar.set_ticks([colorbar.vmin + (i + 0.5) * r / n for i in range(n)])
-        colorbar.set_ticklabels([rename_map.get(label) for label in unique_labels])
+        colorbar.set_ticklabels([rename_map.get(label, label) for label in unique_labels])
     fig.savefig(save_path)
+    plt.close("all")

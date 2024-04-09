@@ -146,8 +146,8 @@ def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
             PEleHeaMax = tsd_loc[hea_rod_nom_name] / tsd_loc[hea_rod_eta_name]
         else:
             PEleHeaMax = 0
-        cop_nominal = _interpolate_cop(TOda=TOda_nominal, TSupply=THyd_nominal)
-        df_sim.loc[idx, "PEleMax"] = heat_load / cop_nominal + PEleHeaMax
+        PEleHeaPumMax = tsd_loc["scalingFactor"] * 3398
+        df_sim.loc[idx, "PEleMax"] = PEleHeaPumMax + PEleHeaMax
 
         def populate_data_to_dict(_df, _idx, assumption, case, gas, elec):
             _df.loc[_idx, f"{assumption}{case}_gas"] = gas

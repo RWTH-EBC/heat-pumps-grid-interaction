@@ -257,7 +257,7 @@ def load_function_kwargs_prior_to_monte_carlo(
 
     df_grid = pd.read_excel(
         KERBER_NETZ_XLSX,
-        sheet_name=f"Kerber Netz {grid_case.capitalize()}",
+        sheet_name=f"Kerber Netz {grid_case}",
         index_col=0
     )
     dfs_e_mobility = {}
@@ -968,4 +968,4 @@ def run_all_cases(grid_case: str, load: bool, extra_case_name_hybrid: str = "", 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(grid_case="newbuildings", load=False, extra_case_name_hybrid="Weather", n_cpu=20)
+    run_all_cases(grid_case="newbuildings", load=False, extra_case_name_hybrid="Weather", n_cpu=1)

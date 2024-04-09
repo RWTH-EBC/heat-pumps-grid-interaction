@@ -519,7 +519,7 @@ def plot_and_export_single_monte_carlo(
             "max": {point: data["max"][point][quota_case][arg] for point in data["max"].keys()},
             "sum": {point: data["sum"][point][quota_case][arg] for point in data["sum"].keys()}
         }
-        max_trafo = export_data[quota_case]['max']['ONT']
+        max_trafo = export_data[quota_case]['max']['Trafo']
         simultaneity_factor = max_trafo / trafo_max_possible
         if simultaneity_factor > 1:
             logger.error(f"{simultaneity_factor=} for {quota_case=}")
@@ -941,7 +941,7 @@ def run_all_cases(grid_case: str, load: bool, extra_case_name_hybrid: str = "", 
     # Trigger generation of pickle for inputs
     load_function_kwargs_for_grid(extra_case_name_hybrid=extra_case_name_hybrid, grid_case=grid_case, recreate_pickle=False)
     for quota_study_name, quota_variation in all_quota_cases.items():
-        save_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"{grid_case.capitalize()}_{quota_study_name}")
+        save_path = RESULTS_MONTE_CARLO_FOLDER.joinpath(f"{grid_case}_{quota_study_name}")
         multiprocessing_function_kwargs.append(dict(
             quota_variation=quota_variation,
             grid_case=grid_case,
@@ -961,6 +961,7 @@ def run_all_cases(grid_case: str, load: bool, extra_case_name_hybrid: str = "", 
             try:
                 run_save_and_plot_monte_carlo(kwargs)
             except Exception as err:
+                raise err
                 logger.error("Could not calculate case %s: %s", i + 1, err)
             logger.info("Calculated %s of %s cases", i + 1, len(multiprocessing_function_kwargs))
 
@@ -968,4 +969,4 @@ def run_all_cases(grid_case: str, load: bool, extra_case_name_hybrid: str = "", 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(grid_case="newbuildings", load=False, extra_case_name_hybrid="Weather", n_cpu=1)
+    run_all_cases(grid_case="newbuildings", load=False, extra_case_name_hybrid="Weather", n_cpu=20)

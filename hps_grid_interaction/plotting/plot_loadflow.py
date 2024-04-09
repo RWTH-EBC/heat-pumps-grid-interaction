@@ -499,7 +499,7 @@ def plot_heat_map_on_grid_image(ax: plt.axes, cmap, df: pd.DataFrame, heatmap_kw
     sns.heatmap(df.astype(float), ax=ax, cmap=cmap, linewidths=0,
                 zorder=1, linecolor='black', **heatmap_kwargs)
     ax.imshow(
-        plt.imread(DATA_PATH.joinpath("oldbuildings_grid.png"), format="png"),
+        plt.imread(DATA_PATH.joinpath("grid_image.png"), format="png"),
         aspect=ax.get_aspect(),
         extent=ax.get_xlim() + ax.get_ylim(),
         zorder=2

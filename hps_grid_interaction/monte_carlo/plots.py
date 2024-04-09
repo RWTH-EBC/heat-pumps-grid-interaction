@@ -173,7 +173,9 @@ def plot_monte_carlo_violin(
         ):
             data_dict[varying_tech] = np.array(values[quota_case]) * factor
         df = pd.DataFrame(dict([(key, pd.Series(value)) for key, value in data_dict.items()]))
-        sns.violinplot(data=df, ax=axes, orient='h', palette=EBCColors.ebc_palette_sort_2)
+        sns.violinplot(
+            data=df, ax=axes, orient='h',
+            palette=EBCColors.ebc_palette_sort_2[:len(quota_variation.quota_cases)])
         axes.set_xlabel(label)
         axes.set_yticks(list(range(len(quota_variation.quota_cases))))
         plot_quota_case_with_images(quota_variation=quota_variation, ax=axes, which_axis="y")
@@ -210,7 +212,7 @@ def plot_monte_carlo_bars(
     bar_args = dict(align='center', ecolor='black', width=bar_width)
     idx = 0
     for ax, point in zip(axes, points):
-        for quota_idx, _x_pos in enumerate(_x_pos):
+        for quota_idx, _x_pos in enumerate(x_pos):
             ax.bar(
                 _x_pos - 0.4 + (1 / 2 + idx) * bar_width,
                 plot_data[point]["mean"][quota_idx],
@@ -261,10 +263,10 @@ def plot_technology_choices_in_grid(df_grid: pd.DataFrame, choices_for_grid: dic
         "household+pv+battery+e_mobility": "PV+Bat+EMob",
         "tabula_standard": "no",
         "tabula_retrofit": "ret",
-        "tabula_adv_retrofit": "ret+",
-        "heat_supply_choice": "heat supply",
-        "electricity_system_choice": "e-tech",
-        "construction_type_choice": "retrofit"
+        "tabula_adv_retrofit": "adv-ret",
+        "heat_supply_choice": "heating technology",
+        "electricity_system_choice": "electrical technology",
+        "construction_type_choice": "building retrofit"
     }
     from hps_grid_interaction.plotting import plot_loadflow
     fig, ax = plt.subplots(3, 1,

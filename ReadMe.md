@@ -2,11 +2,11 @@
 
 - Netze: 2 * 146 = ca. 292 Simulationen
 	- Kerber 146 Gebäude
-		- Neubau
-		- Altbau
+		- newbuildings
+		- oldbuildings
 	- IEEE? 55 Gebäude  --> Aus Kerber Netz entnehmen
-		- Altbau
-		- Neubau
+		- oldbuildings
+		- newbuildings
 - Sanierungsquoten: 3
 	- Unsaniert, Teilsaniert, Vollsaniert
 - Wärmeerzeugung: 3 (bis 5)

@@ -168,8 +168,8 @@ def calculate_mean_supply_temperature(df: pd.DataFrame, real_winter):
 if __name__ == '__main__':
     save_path = Path(r"D:\00_temp\plots\monovalent_hr")
     os.makedirs(save_path, exist_ok=True)
-    path_new = Path(r"D:\01_Projekte\09_HybridWP\01_Results\02_simulations\MonovalentWeather_altbau_HR")
-    path_old = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\01_BESMod_Simulationen\Monovalent_altbau_HR")
+    path_new = Path(r"D:\01_Projekte\09_HybridWP\01_Results\02_simulations\MonovalentWeather_oldbuildings_HR")
+    path_old = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\01_BESMod_Simulationen\Monovalent_oldbuildings_HR")
     #plot_old_and_new(path_new=path_new, path_old=path_old, save_path=save_path)
     #get_t_m_old_new(path_new=path_new, path_old=path_old, save_path=save_path)
     #csv_inputs(path_new=path_new, path_old=path_old, save_path=save_path)

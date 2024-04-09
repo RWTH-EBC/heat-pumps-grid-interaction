@@ -41,17 +41,19 @@ def get_percent_smaller_than(np_array, threshold):
     return np.count_nonzero(np_array < threshold) / len(np_array) * 100
 
 
-def load_case_and_trafo_data(path: Path, quota_variation: QuotaVariation, grid: str):
+def load_case_and_trafo_data(path: Path, quota_variation: QuotaVariation, grid: str, monte_carlo_metrics: list):
     with open(path.joinpath("results_to_plot.json"), "r") as file:
         results = json.load(file)
     case_and_transformer_data = {}
     name_value_dict = quota_variation.get_quota_case_name_and_value_dict()
-    for monte_carlo_metric, results_metric in results.items():
-        for case, case_data in results_metric["grid"].items():
-            trafo_data = {}
+    for monte_carlo_metric in monte_carlo_metrics:
+        for case, case_data in results[monte_carlo_metric]["grid"].items():
+            case_name = name_value_dict[case]
             startswith = f"results_{case}_{grid}_3-ph_"
-            json_result_files = [path.joinpath(file_name) for file_name in os.listdir(path)
+            json_result_files = [path.joinpath(monte_carlo_metric, file_name)
+                                 for file_name in os.listdir(path.joinpath(monte_carlo_metric))
                                  if file_name.startswith(startswith) and file_name.endswith(".json")]
+            trafo_data = case_and_transformer_data.get(case_name, {})
             for json_result_file in json_result_files:
                 trafo_size = int(json_result_file.stem.replace(startswith, ""))
                 with open(json_result_file, "r") as file:
@@ -68,7 +70,7 @@ def load_case_and_trafo_data(path: Path, quota_variation: QuotaVariation, grid: 
                     trafo_data[trafo_size][monte_carlo_metric] = trafo_results_converted
                 else:
                     trafo_data[trafo_size] = {monte_carlo_metric: trafo_results_converted}
-            case_and_transformer_data[name_value_dict[case]] = trafo_data
+            case_and_transformer_data[case_name] = trafo_data
     return case_and_transformer_data
 
 
@@ -156,7 +158,7 @@ def plot_time_series(
         _data = {
             case: {
                 monte_carlo_metric: trafo_results[metric]
-                for monte_carlo_metric, trafo_results in trafo_data[fixed_trafo_size]
+                for monte_carlo_metric, trafo_results in trafo_data[fixed_trafo_size].items()
             } for case, trafo_data in case_and_trafo_data.items()
         }
         fig_title = f"{fixed_trafo_size} kVA transformer"
@@ -190,7 +192,7 @@ def plot_time_series(
         max_cluster = curves[max_metric]
         min_cluster = curves[min_metric]
         color = EBCColors.ebc_palette_sort_2[idx_case]
-        x_year = np.arange(len(main_tsd)) / 4,
+        x_year = np.arange(len(main_tsd)) / 4
         uncertainty_kwargs = dict(
             edgecolor=None, alpha=0.5, facecolor=color
         )
@@ -280,17 +282,17 @@ def plot_all_metrics_and_trafos(
 
 
 def generate_all_cases(
-        path: Path, with_plot: bool, altbau=True, use_mp: bool = True,
+        path: Path, with_plot: bool, oldbuildings=True, use_mp: bool = True,
         main_metric: str = "argmean",
-        max_metric: str = "argmax",
-        min_metric: str = "argmin"
+        max_metric: str = "argpercentile_95",
+        min_metric: str = "argpercentile_5"
 ):
-    if altbau:
-        grid_case = "Altbau_"
-        grid_str = "altbau"
+    if oldbuildings:
+        grid_case = "oldbuildings_"
+        grid_str = "oldbuildings"
     else:
-        grid_case = "Neubau_"
-        grid_str = "neubau"
+        grid_case = "newbuildings_"
+        grid_str = "newbuildings"
 
     from hps_grid_interaction.monte_carlo.monte_carlo import get_all_quota_studies
     all_quota_cases = get_all_quota_studies()
@@ -347,7 +349,8 @@ def create_plots_and_get_df(kwargs):
 
     print(f"Extracting and plotting {case_path}")
     try:
-        case_and_trafo_data = load_case_and_trafo_data(case_path, quota_variation=quota_variation, grid=grid_str)
+        case_and_trafo_data = load_case_and_trafo_data(case_path, quota_variation=quota_variation, grid=grid_str,
+                                                       monte_carlo_metrics=[main_metric, max_metric, min_metric])
         df = get_statistics(case_and_trafo_data=case_and_trafo_data, path=case_path)
         df.loc[:, "quota_cases"] = case
         if with_plot:
@@ -370,6 +373,7 @@ def create_plots_and_get_df(kwargs):
         print(f"Extracted and plotted {case_path}")
         return df
     except Exception as err:
+        raise err
         print(f"Error during extraction of {case_path}: {err}")
         return pd.DataFrame()
 
@@ -421,7 +425,12 @@ def plot_required_trafo_size(
     set_color_of_axis(axis=ax_twin.xaxis, color=EBCColors.ebc_palette_sort_2[1])
     from copy import deepcopy
     quota_variation_copy = deepcopy(quota_variation)
-    quota_variation_copy.varying_technologies = quota_variation_copy.varying_technologies[::-1]
+    if isinstance(quota_variation.varying_technologies, dict):
+        name, values = quota_variation.get_single_varying_technology_name_and_quotas()
+        quota_variation_copy.varying_technologies = {name: values[::-1]}
+    else:
+        quota_variation_copy.varying_technologies = quota_variation_copy.varying_technologies[::-1]
+
     plot_quota_case_with_images(quota_variation=quota_variation_copy, ax=ax, which_axis="y", title_offset=0.2)
     #ax.set_yticklabels(df_plot.index)
     set_color_of_axis(axis=ax.xaxis, color=EBCColors.ebc_palette_sort_2[0])
@@ -449,7 +458,7 @@ def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path, monte_carlo
     for idx_case, case in enumerate(case_and_trafo_data.keys()):
         case_data = case_and_trafo_data[case]
         for idx_trafo, tafo_size in enumerate(sorted(case_data.keys())):
-            trafo_data = case_data[monte_carlo_metric][tafo_size]
+            trafo_data = case_data[tafo_size][monte_carlo_metric]
             for metric, ax in zip(metrics, axes):
                 df = trafo_data[metric]
                 if not isinstance(df, pd.DataFrame):
@@ -489,7 +498,7 @@ def plot_heat_map_on_grid_image(ax: plt.axes, cmap, df: pd.DataFrame, heatmap_kw
     sns.heatmap(df.astype(float), ax=ax, cmap=cmap, linewidths=0,
                 zorder=1, linecolor='black', **heatmap_kwargs)
     ax.imshow(
-        plt.imread(DATA_PATH.joinpath("altbau_grid.png"), format="png"),
+        plt.imread(DATA_PATH.joinpath("oldbuildings_grid.png"), format="png"),
         aspect=ax.get_aspect(),
         extent=ax.get_xlim() + ax.get_ylim(),
         zorder=2
@@ -523,5 +532,5 @@ if __name__ == '__main__':
     PATH = RESULTS_MONTE_CARLO_FOLDER
     PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
     #aggregate_simultaneity_factors(path=PATH)
-    generate_all_cases(PATH, with_plot=False, altbau=True, use_mp=True)
-    generate_all_cases(PATH, with_plot=True, altbau=False, use_mp=True)
+    #generate_all_cases(PATH, with_plot=False, oldbuildings=True, use_mp=True)
+    generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=False)

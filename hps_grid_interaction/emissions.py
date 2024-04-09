@@ -53,20 +53,6 @@ def load_data(interpolate: bool = False):
     return years, df.index[-1]
 
 
-def calc_all_emissions():
-    hybrid_assumptions = {
-        "constant": HybridSystemAssumptions(method="costs"),
-        **{str(year): HybridSystemAssumptions(method="costs", emissions_electricity=str(year))
-           for year in [2025, 2030, 2037]}
-    }
-    #calc_emissions("HybridPVBat_altbau", hybrid_assumptions, file_ending=".hdf")
-    #calc_emissions("HybridPVBat_neubau", hybrid_assumptions, file_ending=".hdf")
-    #calc_emissions("MonovalentPVBat_altbau_HR", hybrid_assumptions, file_ending=".hdf")
-    #calc_emissions("MonovalentPVBat_altbau", hybrid_assumptions, file_ending=".hdf")
-    calc_emissions("MonovalentWeather_neubau_HR", hybrid_assumptions, file_ending=".hdf")
-    #calc_emissions("MonovalentPVBat_neubau", hybrid_assumptions, file_ending=".hdf")
-
-
 def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumptions], file_ending=".hdf"):
     print(f"Extracting case {case}")
     gas_name = "outputs.hydraulic.dis.PBoiAftBuf.value"
@@ -235,14 +221,14 @@ def plot_emissions_scatter():
 
 def get_all_cases_iteration_product():
     tech_cases = ["Hybrid", "Monovalent"]
-    grid_cases = ["altbau", "neubau"]
+    grid_cases = ["oldbuildings", "newbuildings"]
     quota_cases = [
         "average", "no_retrofit",
         "all_retrofit", "all_adv_retrofit"
     ]
     iterations = []
     for tech, grid_case, quota in itertools.product(tech_cases, grid_cases, quota_cases):
-        if grid_case == "altbau" and tech == "Monovalent":
+        if grid_case == "oldbuildings" and tech == "Monovalent":
             hr = [True, False]
         else:
             hr = [False]
@@ -345,7 +331,7 @@ def aggregate_and_save_all_cases(
                 df.loc[idx, ("Netzbelastung", label)] = df_lastfluss.loc[df_lastfluss_idx, column_lastfluss]
             for metric in ["max", "sum"]:
                 label, factor = get_label_and_factor(metric)
-                value = results[case_name]["grid"][tech][metric]["ONT"] * factor
+                value = results[case_name]["grid"][tech][metric]["Trafo"] * factor
                 df.loc[idx, ("Netzbelastung", label)] = value
             # Build sum of gas and electricity
             df.loc[idx, ("GEG", f"Wärme aus Gas in MWh")] = results[case_name]["emissions"][tech]["QBoi"] / 1e6

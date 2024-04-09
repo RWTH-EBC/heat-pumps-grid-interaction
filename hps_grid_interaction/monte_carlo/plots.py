@@ -117,7 +117,7 @@ def plot_time_series(quota_case_grid_data: dict, save_path, quota_variation: "Qu
     fig_yearly.savefig(save_path.joinpath(f"annual_time_series_plot.png"), dpi=400)
 
 
-def plot_results_all_cases(path: Path, point: str = "ONT", metric: str = "sum"):
+def plot_results_all_cases(path: Path, point: str = "Trafo", metric: str = "sum"):
     with open(path, "r") as file:
         results = json.load(file)
     y_label, fac = get_label_and_factor(metric)
@@ -160,7 +160,7 @@ def plot_monte_carlo_violin(
 ):
     data = data[metric]
     if points is None:
-        points = ["ONT"]
+        points = ["Trafo"]
     n_subplots = len(quota_variation.quota_cases)
     label, factor = get_label_and_factor(metric)
     for point in points:
@@ -191,7 +191,7 @@ def plot_monte_carlo_bars(
 ):
     n_bars = 1
     if points is None:
-        points = ["ONT"]
+        points = ["Trafo"]
     max_data = data[metric]
     y_label, factor = get_label_and_factor(metric)
     # Violins

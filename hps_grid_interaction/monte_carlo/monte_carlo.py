@@ -39,7 +39,7 @@ class Quotas:
             pv_quota: int,
             pv_battery_quota: int,
             e_mobility_quota: int,
-            n_monte_carlo: int = 1000
+            n_monte_carlo: int = 10000
     ):
         self.construction_type_quotas = get_construction_type_quotas(assumption=construction_type_quota)
         self.construction_type_quota = construction_type_quota
@@ -384,7 +384,7 @@ def run_single_grid_simulation(
             house_choices=all_choices[house_index]
         )
         grid[f"AP_{row['Anschlusspunkt'].split('-')[0]}"] += time_series_result
-    grid["ONT"] = np.sum(list(grid.values()), axis=0)  # Build overall sum at ONT
+    grid["Trafo"] = np.sum(list(grid.values()), axis=0)  # Build overall sum at ONT
     return grid, all_choices
 
 
@@ -444,12 +444,12 @@ def arg_percentile(arr, percentile):
     return arg_of_value(arr, percentile_value)
 
 
-def percentile_25(arr):
-    return arg_percentile(arr, 25)
+def percentile_5(arr):
+    return arg_percentile(arr, 5)
 
 
-def percentile_75(arr):
-    return arg_percentile(arr, 75)
+def percentile_95(arr):
+    return arg_percentile(arr, 95)
 
 
 def get_grid_simulation_case_name(quota_case: str, grid_case: str):
@@ -472,7 +472,7 @@ def plot_and_export_single_monte_carlo(
     quota_case_grid_data = {}
     simultaneity_factors = {}
     for quota_case in quota_variation.quota_cases:
-        arg = arg_function(data[metric]["ONT"][quota_case])
+        arg = arg_function(data[metric]["Trafo"][quota_case])
         # Save in excel for Lastflusssimulation:
         choices_for_grid = data["choices_for_grid"][quota_case][arg]
         grid_time_series_data, grid_plausibility = get_grid_simulation_input_for_choices(
@@ -595,9 +595,11 @@ def run_save_and_plot_monte_carlo(
     plots.plot_monte_carlo_violin(data=data, metric="sum", save_path=save_path, quota_variation=quota_variation)
     export_data = {}
     for arg_function in [
-        argmean, argmedian,
-        np.argmax, np.argmin,
-        percentile_25, percentile_75,
+        argmean,
+        np.argmax,
+        np.argmin,
+        percentile_5,
+        percentile_95,
     ]:
         save_path_arg_function = save_path.joinpath(arg_function.__name__)
         os.makedirs(save_path_arg_function, exist_ok=True)
@@ -768,7 +770,7 @@ def add_graphical_abstract_study(all_quota_studies):
 
 
 def add_single_analysis_study(all_quota_studies):
-    all_quota_studies["AnaylseEMobility"] = _create_quotas_from_0_to_100(
+    all_quota_studies["AnalyseEMobility"] = _create_quotas_from_0_to_100(
         quota_study_name="AnaylseEMobility",
         quota_variable="e_mobility_quota",
         construction_type_quota="average",
@@ -778,8 +780,8 @@ def add_single_analysis_study(all_quota_studies):
         heat_pump_quota=100,
         heating_rod_quota=0
     )
-    all_quota_studies["AnaylsePV"] = _create_quotas_from_0_to_100(
-        quota_study_name="AnaylsePV",
+    all_quota_studies["AnalysePV"] = _create_quotas_from_0_to_100(
+        quota_study_name="AnalysePV",
         quota_variable="pv_quota",
         construction_type_quota="average",
         e_mobility_quota=0,
@@ -788,8 +790,8 @@ def add_single_analysis_study(all_quota_studies):
         heat_pump_quota=100,
         heating_rod_quota=0
     )
-    all_quota_studies["AnaylsePVBat"] = _create_quotas_from_0_to_100(
-        quota_study_name="AnaylsePVBat",
+    all_quota_studies["AnalysePVBat"] = _create_quotas_from_0_to_100(
+        quota_study_name="AnalysePVBat",
         quota_variable="pv_battery_quota",
         construction_type_quota="average",
         e_mobility_quota=0,
@@ -798,8 +800,8 @@ def add_single_analysis_study(all_quota_studies):
         heat_pump_quota=100,
         heating_rod_quota=0
     )
-    all_quota_studies["AnaylseHR"] = _create_quotas_from_0_to_100(
-        quota_study_name="AnaylseHR",
+    all_quota_studies["AnalyseHR"] = _create_quotas_from_0_to_100(
+        quota_study_name="AnalyseHR",
         quota_variable="heating_rod_quota",
         construction_type_quota="average",
         e_mobility_quota=0,
@@ -808,8 +810,8 @@ def add_single_analysis_study(all_quota_studies):
         heat_pump_quota=100,
         pv_quota=0
     )
-    all_quota_studies["AnaylseHP"] = _create_quotas_from_0_to_100(
-        quota_study_name="AnaylseHP",
+    all_quota_studies["AnalyseHP"] = _create_quotas_from_0_to_100(
+        quota_study_name="AnalyseHP",
         quota_variable="heat_pump_quota",
         construction_type_quota="average",
         e_mobility_quota=0,
@@ -887,23 +889,26 @@ def get_all_quota_studies():
             heating_rod_quota=hr,
             hybrid_quota=hyb
         )
-        all_quota_studies[f"extrema_{identifier}"] = _create_quotas_from_0_to_100(
-            zero_to_hundred=["no_retrofit", "all_retrofit", "all_adv_retrofit"], **kwargs
-        )
-        all_quota_studies[f"retrofit_{identifier}"] = _create_quotas_from_0_to_100(
+        #all_quota_studies[f"extrema_{identifier}"] = _create_quotas_from_0_to_100(
+        #    zero_to_hundred=["no_retrofit", "all_retrofit", "all_adv_retrofit"], **kwargs
+        #)
+        all_quota_studies[f"adv_retrofit_{identifier}"] = _create_quotas_from_0_to_100(
             arg_wrapper=lambda x: dict(p_ret=x / 100), **kwargs
         )
 
+    # TODO: Andere Analyse 0-100 % Plot
+    # TODO: colors überall gleich
+
     add_single_analysis_study(all_quota_studies)
-    add_graphical_abstract_study(all_quota_studies)
-    add_studies_to_compare_to_old_results(all_quota_studies)
+    #add_graphical_abstract_study(all_quota_studies)
+    #add_studies_to_compare_to_old_results(all_quota_studies)
 
     for folder in os.listdir(RESULTS_MONTE_CARLO_FOLDER):
         path = RESULTS_MONTE_CARLO_FOLDER.joinpath(folder)
         if (
                 folder not in
-                [f"Altbau_{k}" for k in all_quota_studies.keys()] +
-                [f"Neubau_{k}" for k in all_quota_studies.keys()] and
+                [f"oldbuildings_{k}" for k in all_quota_studies.keys()] +
+                [f"newbuildings_{k}" for k in all_quota_studies.keys()] and
                 os.path.isdir(path)
         ):
             print(f"Folder {path} could be deleted, not relevant with current factorial design.")
@@ -964,4 +969,4 @@ def run_all_cases(grid_case: str, load: bool, extra_case_name_hybrid: str = "", 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(grid_case="neubau", load=False, extra_case_name_hybrid="Weather", n_cpu=20)
+    run_all_cases(grid_case="newbuildings", load=False, extra_case_name_hybrid="Weather", n_cpu=20)

@@ -26,9 +26,9 @@ model TestHybrid
       fileName=Modelica.Utilities.Files.loadResource(
           "D:\01_Projekte\09_HybridWP\dhw_tappings\DHWCalc_78.txt")),
     systemParameters(filNamWea=Modelica.Utilities.Files.loadResource(
-          "D://01_Projekte//09_HybridWP//01_Results//02_simulations//Hybrid_neubau//WeatherInputs//TRY2015_523845130645_Jahr.mos"),
+          "D://01_Projekte//09_HybridWP//01_Results//02_simulations//Hybrid_newbuildings//WeatherInputs//TRY2015_523845130645_Jahr.mos"),
         TOda_nominal=260.54999999999995),
     userProfiles(fileNameAbsGai=Modelica.Utilities.Files.loadResource(
-          "D://01_Projekte//09_HybridWP//01_Results//02_simulations//Hybrid_neubau//custom_inputs//78.txt")));
+          "D://01_Projekte//09_HybridWP//01_Results//02_simulations//Hybrid_newbuildings//custom_inputs//78.txt")));
 
 end TestHybrid;

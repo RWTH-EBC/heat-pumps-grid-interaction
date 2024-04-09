@@ -18,7 +18,7 @@ def get_modifier(
 
 
 def create_user_sleep_schedules():
-    df = pd.read_excel(KERBER_NETZ_XLSX, index_col=0, sheet_name="Kerber Netz Neubau")
+    df = pd.read_excel(KERBER_NETZ_XLSX, index_col=0, sheet_name="Kerber Netz newbuildings")
     lowest_start = 4
     highest_start = 8
     mean = (lowest_start + highest_start) / 2

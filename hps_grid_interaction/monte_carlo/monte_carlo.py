@@ -770,35 +770,15 @@ def add_graphical_abstract_study(all_quota_studies):
 
 
 def add_single_analysis_study(all_quota_studies):
-    all_quota_studies["AnalyseEMobility"] = _create_quotas_from_0_to_100(
-        quota_study_name="AnaylseEMobility",
-        quota_variable="e_mobility_quota",
-        construction_type_quota="average",
-        pv_quota=0,
-        pv_battery_quota=0,
-        hybrid_quota=0,
-        heat_pump_quota=100,
-        heating_rod_quota=0
-    )
-    all_quota_studies["AnalysePV"] = _create_quotas_from_0_to_100(
-        quota_study_name="AnalysePV",
-        quota_variable="pv_quota",
+    all_quota_studies["AnalyseHP"] = _create_quotas_from_0_to_100(
+        quota_study_name="AnalyseHP",
+        quota_variable="heat_pump_quota",
         construction_type_quota="average",
         e_mobility_quota=0,
         pv_battery_quota=0,
         hybrid_quota=0,
-        heat_pump_quota=100,
-        heating_rod_quota=0
-    )
-    all_quota_studies["AnalysePVBat"] = _create_quotas_from_0_to_100(
-        quota_study_name="AnalysePVBat",
-        quota_variable="pv_battery_quota",
-        construction_type_quota="average",
-        e_mobility_quota=0,
-        pv_quota=0,
-        hybrid_quota=0,
-        heat_pump_quota=100,
-        heating_rod_quota=0
+        heating_rod_quota=0,
+        pv_quota=0
     )
     all_quota_studies["AnalyseHR"] = _create_quotas_from_0_to_100(
         quota_study_name="AnalyseHR",
@@ -810,15 +790,35 @@ def add_single_analysis_study(all_quota_studies):
         heat_pump_quota=100,
         pv_quota=0
     )
-    all_quota_studies["AnalyseHP"] = _create_quotas_from_0_to_100(
-        quota_study_name="AnalyseHP",
-        quota_variable="heat_pump_quota",
+    all_quota_studies["AnalyseEMobility"] = _create_quotas_from_0_to_100(
+        quota_study_name="AnalyseEMobility",
+        quota_variable="e_mobility_quota",
         construction_type_quota="average",
-        e_mobility_quota=0,
+        pv_quota=0,
         pv_battery_quota=0,
         hybrid_quota=0,
-        heating_rod_quota=0,
-        pv_quota=0
+        heat_pump_quota=100,
+        heating_rod_quota=100
+    )
+    all_quota_studies["AnalysePV"] = _create_quotas_from_0_to_100(
+        quota_study_name="AnalysePV",
+        quota_variable="pv_quota",
+        construction_type_quota="average",
+        e_mobility_quota=100,
+        pv_battery_quota=0,
+        hybrid_quota=0,
+        heat_pump_quota=100,
+        heating_rod_quota=100
+    )
+    all_quota_studies["AnalysePVBat"] = _create_quotas_from_0_to_100(
+        quota_study_name="AnalysePVBat",
+        quota_variable="pv_battery_quota",
+        construction_type_quota="average",
+        e_mobility_quota=100,
+        pv_quota=0,
+        hybrid_quota=0,
+        heat_pump_quota=100,
+        heating_rod_quota=100
     )
 
 
@@ -892,11 +892,12 @@ def get_all_quota_studies():
         #all_quota_studies[f"extrema_{identifier}"] = _create_quotas_from_0_to_100(
         #    zero_to_hundred=["no_retrofit", "all_retrofit", "all_adv_retrofit"], **kwargs
         #)
+        all_quota_studies[f"retrofit_{identifier}"] = _create_quotas_from_0_to_100(
+            arg_wrapper=lambda x: dict(p_ret=x / 100), **kwargs
+        )
         all_quota_studies[f"adv_retrofit_{identifier}"] = _create_quotas_from_0_to_100(
             arg_wrapper=lambda x: dict(p_ret=x / 100), **kwargs
         )
-
-    # TODO: Andere Analyse 0-100 % Plot
 
     add_single_analysis_study(all_quota_studies)
     #add_graphical_abstract_study(all_quota_studies)
@@ -960,7 +961,6 @@ def run_all_cases(grid_case: str, load: bool, extra_case_name_hybrid: str = "", 
             try:
                 run_save_and_plot_monte_carlo(kwargs)
             except Exception as err:
-                raise err
                 logger.error("Could not calculate case %s: %s", i + 1, err)
             logger.info("Calculated %s of %s cases", i + 1, len(multiprocessing_function_kwargs))
 

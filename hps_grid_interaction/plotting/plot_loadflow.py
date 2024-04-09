@@ -188,9 +188,10 @@ def plot_time_series(
         main_tsd = _monte_carlo_tsd[main_metric]
         max_tsd = _monte_carlo_tsd[max_metric]
         min_tsd = _monte_carlo_tsd[min_metric]
+        all_curves = np.array([curves[min_metric], curves[max_metric], curves[main_metric]])
         main_cluster = curves[main_metric]
-        max_cluster = curves[max_metric]
-        min_cluster = curves[min_metric]
+        max_cluster = np.max(all_curves, axis=1)
+        min_cluster = np.min(all_curves, axis=1)
         color = EBCColors.ebc_palette_sort_2[idx_case]
         x_year = np.arange(len(main_tsd)) / 4
         uncertainty_kwargs = dict(

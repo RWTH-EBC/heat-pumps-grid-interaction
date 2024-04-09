@@ -897,7 +897,6 @@ def get_all_quota_studies():
         )
 
     # TODO: Andere Analyse 0-100 % Plot
-    # TODO: colors überall gleich
 
     add_single_analysis_study(all_quota_studies)
     #add_graphical_abstract_study(all_quota_studies)

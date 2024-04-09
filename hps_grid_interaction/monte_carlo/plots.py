@@ -173,7 +173,7 @@ def plot_monte_carlo_violin(
         ):
             data_dict[varying_tech] = np.array(values[quota_case]) * factor
         df = pd.DataFrame(dict([(key, pd.Series(value)) for key, value in data_dict.items()]))
-        sns.violinplot(data=df, ax=axes, orient='h')
+        sns.violinplot(data=df, ax=axes, orient='h', palette=EBCColors.ebc_palette_sort_2)
         axes.set_xlabel(label)
         axes.set_yticks(list(range(len(quota_variation.quota_cases))))
         plot_quota_case_with_images(quota_variation=quota_variation, ax=axes, which_axis="y")
@@ -210,16 +210,19 @@ def plot_monte_carlo_bars(
     bar_args = dict(align='center', ecolor='black', width=bar_width)
     idx = 0
     for ax, point in zip(axes, points):
-        ax.bar(
-            x_pos - 0.4 + (1 / 2 + idx) * bar_width, plot_data[point]["mean"],
-            yerr=plot_data[point]["std"],
-            color=EBCColors.ebc_palette_sort_2[idx],
-            **bar_args,
-        )
+        for quota_idx, _x_pos in enumerate(_x_pos):
+            ax.bar(
+                _x_pos - 0.4 + (1 / 2 + idx) * bar_width,
+                plot_data[point]["mean"][quota_idx],
+                yerr=plot_data[point]["std"][quota_idx],
+                color=EBCColors.ebc_palette_sort_2[quota_idx],
+                **bar_args,
+            )
         ax.set_ylabel(y_label)
         ax.set_xticks(x_pos)
         plot_quota_case_with_images(ax=ax, quota_variation=quota_variation, which_axis="x")
         ax.yaxis.grid(True)
+        idx += 1
 
     fig.tight_layout()
     fig.savefig(save_path.joinpath(f"monte_carlo_{metric}.png"), dpi=400)
@@ -275,7 +278,7 @@ def plot_technology_choices_in_grid(df_grid: pd.DataFrame, choices_for_grid: dic
             df_grid=df_grid_with_choices, column=choice_type
         )
         n = len(unique_labels)
-        cmap = sns.color_palette("deep", n)
+        cmap = sns.color_palette(palette=EBCColors.ebc_palette_sort_2, n_colors=n)
 
         ax[idx] = plot_loadflow.plot_heat_map_on_grid_image(
             ax=ax[idx],

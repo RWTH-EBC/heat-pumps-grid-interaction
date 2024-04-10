@@ -247,7 +247,9 @@ def plot_monte_carlo_convergence(
         "min": (np.min, []),
         "max": (np.max, []),
         "5p": (np.percentile, [5]),
-        "95p": (np.percentile, [95])
+        "95p": (np.percentile, [95]),
+        "0.3p": (np.percentile, [0.3]),
+        "99.7p": (np.percentile, [99.7]),
     }
     for quota_case, ax, quota_name in zip(
             quota_variation.quota_cases, axes, quota_variation.get_varying_technology_ids()

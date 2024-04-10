@@ -452,6 +452,14 @@ def percentile_95(arr):
     return arg_percentile(arr, 95)
 
 
+def percentile_03(arr):
+    return arg_percentile(arr, 0.3)
+
+
+def percentile_997(arr):
+    return arg_percentile(arr, 99.7)
+
+
 def get_grid_simulation_case_name(quota_case: str, grid_case: str):
     return quota_case + "_" + grid_case
 
@@ -587,10 +595,10 @@ def run_save_and_plot_monte_carlo(
     export_data = {}
     for arg_function in [
         argmean,
-        np.argmax,
-        np.argmin,
-        percentile_5,
-        percentile_95,
+        #np.argmax,
+        #np.argmin,
+        percentile_03,
+        percentile_997,
     ]:
         save_path_arg_function = save_path.joinpath(arg_function.__name__)
         os.makedirs(save_path_arg_function, exist_ok=True)
@@ -955,7 +963,6 @@ def run_all_cases(grid_case: str, load: bool, extra_case_name_hybrid: str = "", 
                 raise err
                 logger.error("Could not calculate case %s: %s", i + 1, err)
             logger.info("Calculated %s of %s cases", i + 1, len(multiprocessing_function_kwargs))
-
 
 
 if __name__ == '__main__':

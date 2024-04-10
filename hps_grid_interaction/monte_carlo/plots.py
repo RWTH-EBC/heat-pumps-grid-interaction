@@ -231,6 +231,40 @@ def plot_monte_carlo_bars(
     plt.close("all")
 
 
+def plot_monte_carlo_convergence(
+        data: dict,
+        metric: str,
+        save_path: Path,
+        quota_variation: "QuotaVariation"
+):
+    data = data[metric]["Trafo"]
+    y_label, factor = get_label_and_factor(metric)
+    # Violins
+    plt.figure()
+    plot_data = {}
+    n_rows = len(quota_variation.quota_cases)
+    fig, axes = plt.subplots(n_rows, 1, figsize=get_figure_size(n_columns=1, height_factor=0.5 * n_rows))
+    mc_metrics = {
+        "mean": (np.mean, []),
+        "min": (np.min, []),
+        "max": (np.max, []),
+        "5p": (np.percentile, [5]),
+        "95p": (np.percentile, [95])
+    }
+    for quota_case, ax in zip(quota_variation.quota_cases, axes):
+        quota_data = {mc_metric: [] for mc_metric in mc_metrics}
+        n_monte_carlos = list(range(10, len(data[quota_case]), 10))
+        for n_monte_carlo in n_monte_carlos:
+            for mc_metric, func_args in mc_metrics.items():
+                func, args = func_args
+                quota_data[mc_metric].append(func(data[quota_case][:n_monte_carlo], *args) * factor)
+        for key, values in quota_case.items():
+            ax.plot(n_monte_carlos, values, label=key)
+
+    axes[0].legend(bbox_to_anchor=(0, 1), ncol=len(mc_metrics), mode="expand", borderaxespad=0)
+    fig.savefig(save_path.joinpath(f"monte_carlo_{metric}_convergence.png"))
+
+
 def plot_cop_motivation():
     plt.rcParams.update({"figure.figsize": [6.24 * 1.2, 5.78 / 1.3]})
     tsd35 = TimeSeriesData(DATA_PATH.joinpath("GetCOPCurve308.mat")).to_df()

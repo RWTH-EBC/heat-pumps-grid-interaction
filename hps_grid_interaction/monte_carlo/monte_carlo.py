@@ -582,6 +582,8 @@ def run_save_and_plot_monte_carlo(
     plots.plot_monte_carlo_bars(data=data, metric="sum", save_path=save_path, quota_variation=quota_variation)
     plots.plot_monte_carlo_violin(data=data, metric="max", save_path=save_path, quota_variation=quota_variation)
     plots.plot_monte_carlo_violin(data=data, metric="sum", save_path=save_path, quota_variation=quota_variation)
+    plots.plot_monte_carlo_convergence(data=data, metric="max", save_path=save_path, quota_variation=quota_variation)
+    plots.plot_monte_carlo_convergence(data=data, metric="mean", save_path=save_path, quota_variation=quota_variation)
     export_data = {}
     for arg_function in [
         argmean,
@@ -953,6 +955,7 @@ def run_all_cases(grid_case: str, load: bool, extra_case_name_hybrid: str = "", 
                 raise err
                 logger.error("Could not calculate case %s: %s", i + 1, err)
             logger.info("Calculated %s of %s cases", i + 1, len(multiprocessing_function_kwargs))
+
 
 
 if __name__ == '__main__':

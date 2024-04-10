@@ -39,7 +39,7 @@ class Quotas:
             pv_quota: int,
             pv_battery_quota: int,
             e_mobility_quota: int,
-            n_monte_carlo: int = 10000
+            n_monte_carlo: int = 5000
     ):
         self.construction_type_quotas = get_construction_type_quotas(assumption=construction_type_quota)
         self.construction_type_quota = construction_type_quota
@@ -228,14 +228,14 @@ def _get_time_series_data_for_choices(
     sim_result_name = possible_rows["simulation_result"]
     time_series_data_for_choice = time_series_data[sim_result_name].loc[:, house_choices["electricity_system_choice"]]
 
-    names_to_store_for_plausibility = {  # Todo set to one once newly generated with calc_emissions.py
-        "building_demand": 3600000,
-        "heat_demand": 3600000,
-        "dhw_demand": 3600000,
+    names_to_store_for_plausibility = {
+        "building_demand": 1,
+        "heat_demand": 1,
+        "dhw_demand": 1,
         "ABui": 1,
         "heat_load": 1,
         "SCOP_Sys": 1,
-        "WEleGen": 3600000,
+        "WEleGen": 1,
         "PEleMax": 1
     }
     plausibility_check = {name: possible_rows[name] / factor for name, factor in names_to_store_for_plausibility.items()}

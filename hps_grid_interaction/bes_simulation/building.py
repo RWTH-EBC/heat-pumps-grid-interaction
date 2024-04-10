@@ -197,13 +197,12 @@ class BuildingConfig(BaseModel):
         Source:
         https://www.ffe.de/projekte/waermepumpen-fahrplan-finanzielle-kipppunkte-zur-modernisierung-mit-waermepumpen-im-wohngebaeudebestand/
         """
-        # TODO: Single function
-        if year_of_construction < 1950:  # TODO: Possible 1960 is better.
-            return 90 + 273.15, 20, 1.3  # TODO: Check values
+        if year_of_construction < 1950:
+            return 90 + 273.15, 20, 1.3
         if year_of_construction < 1990:
-            return 70 + 273.15, 15, 1.3  # TODO: Check values
+            return 70 + 273.15, 15, 1.3
         if year_of_construction < 2010:
-            return 55 + 273.15, 10, 1.3  # TODO: Check values
+            return 55 + 273.15, 10, 1.3
         return 35 + 273.15, 5, 1  # As in BESMod
 
     def get_retrofit_temperatures(
@@ -214,7 +213,6 @@ class BuildingConfig(BaseModel):
         """
         According to Lämmle et al. 2022, Chapter 4.1
         """
-        # TODO: Single function?
         t_supply, dT_supply, n_heat_exponent = self.get_nominal_supply_temperature(
             year_of_construction=self.year_of_construction
         )
@@ -273,7 +271,6 @@ class BuildingConfig(BaseModel):
         :return: T2:
             New return temperature
         """
-        # TODO: Single function
         dT2 = (TSup1 - TRet1) * QNom2 / QNom1
         dTLog2 = (
                 (TSup1 - TRet1) /

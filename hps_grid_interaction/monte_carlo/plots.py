@@ -197,7 +197,6 @@ def plot_monte_carlo_bars(
     max_data = data[metric]
     y_label, factor = get_label_and_factor(metric)
     # Violins
-    plt.figure()
     plot_data = {point: {"mean": [], "std": []} for point in points}
     for point in points:
         data = max_data[point]
@@ -240,10 +239,9 @@ def plot_monte_carlo_convergence(
     data = data[metric]["Trafo"]
     y_label, factor = get_label_and_factor(metric)
     # Violins
-    plt.figure()
-    plot_data = {}
     n_rows = len(quota_variation.quota_cases)
-    fig, axes = plt.subplots(n_rows, 1, figsize=get_figure_size(n_columns=1, height_factor=0.5 * n_rows))
+    fig, axes = plt.subplots(n_rows, 1, sharex=True,
+                             figsize=get_figure_size(n_columns=1.5, height_factor=0.8 * n_rows))
     mc_metrics = {
         "mean": (np.mean, []),
         "min": (np.min, []),
@@ -251,18 +249,24 @@ def plot_monte_carlo_convergence(
         "5p": (np.percentile, [5]),
         "95p": (np.percentile, [95])
     }
-    for quota_case, ax in zip(quota_variation.quota_cases, axes):
+    for quota_case, ax, quota_name in zip(
+            quota_variation.quota_cases, axes, quota_variation.get_varying_technology_ids()
+    ):
         quota_data = {mc_metric: [] for mc_metric in mc_metrics}
         n_monte_carlos = list(range(10, len(data[quota_case]), 10))
         for n_monte_carlo in n_monte_carlos:
             for mc_metric, func_args in mc_metrics.items():
                 func, args = func_args
                 quota_data[mc_metric].append(func(data[quota_case][:n_monte_carlo], *args) * factor)
-        for key, values in quota_case.items():
+        for key, values in quota_data.items():
             ax.plot(n_monte_carlos, values, label=key)
+        ax.set_ylabel(y_label)
+        ax.set_title(quota_name)
 
-    axes[0].legend(bbox_to_anchor=(0, 1), ncol=len(mc_metrics), mode="expand", borderaxespad=0)
-    fig.savefig(save_path.joinpath(f"monte_carlo_{metric}_convergence.png"))
+    axes[-1].set_xlabel("Monte-Carlo Iterations in -")
+    axes[0].legend(bbox_to_anchor=(0, 1.1), ncol=3, loc="lower left")
+    fig.tight_layout()
+    fig.savefig(save_path.joinpath(f"monte_carlo_convergence_{metric}.png"))
 
 
 def plot_cop_motivation():

@@ -583,7 +583,7 @@ def run_save_and_plot_monte_carlo(
     plots.plot_monte_carlo_violin(data=data, metric="max", save_path=save_path, quota_variation=quota_variation)
     plots.plot_monte_carlo_violin(data=data, metric="sum", save_path=save_path, quota_variation=quota_variation)
     plots.plot_monte_carlo_convergence(data=data, metric="max", save_path=save_path, quota_variation=quota_variation)
-    plots.plot_monte_carlo_convergence(data=data, metric="mean", save_path=save_path, quota_variation=quota_variation)
+    plots.plot_monte_carlo_convergence(data=data, metric="sum", save_path=save_path, quota_variation=quota_variation)
     export_data = {}
     for arg_function in [
         argmean,
@@ -961,4 +961,4 @@ def run_all_cases(grid_case: str, load: bool, extra_case_name_hybrid: str = "", 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(grid_case="newbuildings", load=False, extra_case_name_hybrid="Weather", n_cpu=20)
+    run_all_cases(grid_case="newbuildings", load=True, extra_case_name_hybrid="Weather", n_cpu=20)

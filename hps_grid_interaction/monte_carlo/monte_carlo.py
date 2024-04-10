@@ -527,17 +527,6 @@ def plot_and_export_single_monte_carlo(
             "max": max_trafo, "max_possible": trafo_max_possible, "factor": simultaneity_factor
         }
 
-        # TODO: Fix simulation results for cases
-        # quota_case_mask = df_sim.loc[:, "system_type"] == tech.lower()
-        # df_quota_case = df_sim.loc[quota_case_mask]
-        # columns = COLUMNS_EMISSIONS + COLUMNS_GEG
-        # sum_cols = {col: 0 for col in columns}
-        # for sim_result in grid_time_series_data:
-        #    row = df_quota_case.loc[df_quota_case.loc[:, "simulation_result"] == sim_result]
-        #    for col in columns:
-        #        sum_cols[col] += row[col].values[0]
-        # emissions_data[quota_case] = sum_cols
-    # return {"grid": export_data, "emissions": emissions_data}
     with open(save_path.joinpath("simultaneity_factors.json"), "w+") as file:
         json.dump(simultaneity_factors, file, indent=2)
     plots.plot_time_series(

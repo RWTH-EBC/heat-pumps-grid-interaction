@@ -117,7 +117,7 @@ def plot_time_series(quota_case_grid_data: dict, save_path, quota_variation: "Qu
     fig_yearly.savefig(save_path.joinpath(f"annual_time_series_plot.png"), dpi=400)
 
 
-def plot_results_all_cases(path: Path, point: str = "ONT", metric: str = "sum"):
+def plot_results_all_cases(path: Path, point: str = "Trafo", metric: str = "sum"):
     with open(path, "r") as file:
         results = json.load(file)
     y_label, fac = get_label_and_factor(metric)
@@ -160,7 +160,7 @@ def plot_monte_carlo_violin(
 ):
     data = data[metric]
     if points is None:
-        points = ["ONT"]
+        points = ["Trafo"]
     n_subplots = len(quota_variation.quota_cases)
     label, factor = get_label_and_factor(metric)
     for point in points:
@@ -173,7 +173,9 @@ def plot_monte_carlo_violin(
         ):
             data_dict[varying_tech] = np.array(values[quota_case]) * factor
         df = pd.DataFrame(dict([(key, pd.Series(value)) for key, value in data_dict.items()]))
-        sns.violinplot(data=df, ax=axes, orient='h')
+        sns.violinplot(
+            data=df, ax=axes, orient='h',
+            palette=EBCColors.ebc_palette_sort_2[:len(quota_variation.quota_cases)])
         axes.set_xlabel(label)
         axes.set_yticks(list(range(len(quota_variation.quota_cases))))
         plot_quota_case_with_images(quota_variation=quota_variation, ax=axes, which_axis="y")
@@ -191,11 +193,10 @@ def plot_monte_carlo_bars(
 ):
     n_bars = 1
     if points is None:
-        points = ["ONT"]
+        points = ["Trafo"]
     max_data = data[metric]
     y_label, factor = get_label_and_factor(metric)
     # Violins
-    plt.figure()
     plot_data = {point: {"mean": [], "std": []} for point in points}
     for point in points:
         data = max_data[point]
@@ -210,20 +211,64 @@ def plot_monte_carlo_bars(
     bar_args = dict(align='center', ecolor='black', width=bar_width)
     idx = 0
     for ax, point in zip(axes, points):
-        ax.bar(
-            x_pos - 0.4 + (1 / 2 + idx) * bar_width, plot_data[point]["mean"],
-            yerr=plot_data[point]["std"],
-            color=EBCColors.ebc_palette_sort_2[idx],
-            **bar_args,
-        )
+        for quota_idx, _x_pos in enumerate(x_pos):
+            ax.bar(
+                _x_pos - 0.4 + (1 / 2 + idx) * bar_width,
+                plot_data[point]["mean"][quota_idx],
+                yerr=plot_data[point]["std"][quota_idx],
+                color=EBCColors.ebc_palette_sort_2[quota_idx],
+                **bar_args,
+            )
         ax.set_ylabel(y_label)
         ax.set_xticks(x_pos)
         plot_quota_case_with_images(ax=ax, quota_variation=quota_variation, which_axis="x")
         ax.yaxis.grid(True)
+        idx += 1
 
     fig.tight_layout()
     fig.savefig(save_path.joinpath(f"monte_carlo_{metric}.png"), dpi=400)
     plt.close("all")
+
+
+def plot_monte_carlo_convergence(
+        data: dict,
+        metric: str,
+        save_path: Path,
+        quota_variation: "QuotaVariation"
+):
+    data = data[metric]["Trafo"]
+    y_label, factor = get_label_and_factor(metric)
+    # Violins
+    n_rows = len(quota_variation.quota_cases)
+    fig, axes = plt.subplots(n_rows, 1, sharex=True,
+                             figsize=get_figure_size(n_columns=1.5, height_factor=0.8 * n_rows))
+    mc_metrics = {
+        "mean": (np.mean, []),
+        "min": (np.min, []),
+        "max": (np.max, []),
+        "5p": (np.percentile, [5]),
+        "95p": (np.percentile, [95]),
+        "0.3p": (np.percentile, [0.3]),
+        "99.7p": (np.percentile, [99.7]),
+    }
+    for quota_case, ax, quota_name in zip(
+            quota_variation.quota_cases, axes, quota_variation.get_varying_technology_ids()
+    ):
+        quota_data = {mc_metric: [] for mc_metric in mc_metrics}
+        n_monte_carlos = list(range(10, len(data[quota_case]), 10))
+        for n_monte_carlo in n_monte_carlos:
+            for mc_metric, func_args in mc_metrics.items():
+                func, args = func_args
+                quota_data[mc_metric].append(func(data[quota_case][:n_monte_carlo], *args) * factor)
+        for key, values in quota_data.items():
+            ax.plot(n_monte_carlos, values, label=key)
+        ax.set_ylabel(y_label)
+        ax.set_title(quota_name)
+
+    axes[-1].set_xlabel("Monte-Carlo Iterations in -")
+    axes[0].legend(bbox_to_anchor=(0, 1.1), ncol=3, loc="lower left")
+    fig.tight_layout()
+    fig.savefig(save_path.joinpath(f"monte_carlo_convergence_{metric}.png"))
 
 
 def plot_cop_motivation():
@@ -258,10 +303,10 @@ def plot_technology_choices_in_grid(df_grid: pd.DataFrame, choices_for_grid: dic
         "household+pv+battery+e_mobility": "PV+Bat+EMob",
         "tabula_standard": "no",
         "tabula_retrofit": "ret",
-        "tabula_adv_retrofit": "ret+",
-        "heat_supply_choice": "heat supply",
-        "electricity_system_choice": "e-tech",
-        "construction_type_choice": "retrofit"
+        "tabula_adv_retrofit": "adv-ret",
+        "heat_supply_choice": "heating technology",
+        "electricity_system_choice": "electrical technology",
+        "construction_type_choice": "building retrofit"
     }
     from hps_grid_interaction.plotting import plot_loadflow
     fig, ax = plt.subplots(3, 1,
@@ -275,7 +320,7 @@ def plot_technology_choices_in_grid(df_grid: pd.DataFrame, choices_for_grid: dic
             df_grid=df_grid_with_choices, column=choice_type
         )
         n = len(unique_labels)
-        cmap = sns.color_palette("deep", n)
+        cmap = sns.color_palette(palette=EBCColors.ebc_palette_sort_2, n_colors=n)
 
         ax[idx] = plot_loadflow.plot_heat_map_on_grid_image(
             ax=ax[idx],

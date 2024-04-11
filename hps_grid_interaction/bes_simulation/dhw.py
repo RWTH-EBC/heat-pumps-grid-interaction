@@ -102,7 +102,7 @@ def create_dhw_profiles():
     df = pd.read_excel(
         KERBER_NETZ_XLSX,
         index_col=0,
-        sheet_name="Kerber Netz Neubau"
+        sheet_name="Kerber Netz newbuildings"
     )
     dhw_litre_per_person_per_day = 25
 

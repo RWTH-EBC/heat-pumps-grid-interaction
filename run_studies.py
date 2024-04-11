@@ -28,7 +28,7 @@ def run_simulations(
         case_name: str = None,
         n_cpu: int = 8
 ):
-    assert grid_case in ["altbau", "neubau"]
+    assert grid_case in ["oldbuildings", "newbuildings"]
     if case_name is None:
         case_name = model_name
     case_name += f"_{grid_case}"
@@ -191,8 +191,8 @@ if __name__ == '__main__':
         with_smart_thermostat=False
     )
     for GRID in [
-        #"neubau",
-        "altbau"
+        "newbuildings",
+        #"oldbuildings"
     ]:
         # run_simulations(model_name="Hybrid", case_name="HybridWeather", grid_case=GRID, **KWARGS)
         # run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case=GRID, with_heating_rod=True, **KWARGS)

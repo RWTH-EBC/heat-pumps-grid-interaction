@@ -17,7 +17,7 @@ from pandapower.timeseries.data_sources.frame_data import DFData
 
 def run_lastfluss_simulation(
         trafo_kva: list,
-        loadflow_scenarios: list,
+        loadflow_scenarios: np.array,
         cos_phi: float = 0.95,
         sheet_name: str = "lastfluss"
 ):

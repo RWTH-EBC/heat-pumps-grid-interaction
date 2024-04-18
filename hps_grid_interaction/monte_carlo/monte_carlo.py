@@ -895,7 +895,7 @@ def get_all_quota_studies():
             arg_wrapper=lambda x: dict(p_ret=x / 100), **kwargs
         )
         all_quota_studies[f"adv_retrofit_{identifier}"] = _create_quotas_from_0_to_100(
-            arg_wrapper=lambda x: dict(p_ret=x / 100), **kwargs
+            arg_wrapper=lambda x: dict(p_adv_ret=x / 100), **kwargs
         )
 
     add_single_analysis_study(all_quota_studies)
@@ -968,4 +968,5 @@ def run_all_cases(grid_case: str, load: bool, extra_case_name_hybrid: str = "", 
 if __name__ == '__main__':
     logging.basicConfig(level="INFO")
     PlotConfig.load_default()  # Trigger rc_params
-    run_all_cases(grid_case="newbuildings", load=True, extra_case_name_hybrid="Weather", n_cpu=20)
+    #run_all_cases(grid_case="newbuildings", load=True, extra_case_name_hybrid="Weather", n_cpu=20)
+    run_all_cases(grid_case="oldbuildings", load=True, extra_case_name_hybrid="Weather", n_cpu=20)

@@ -205,11 +205,11 @@ def add_images_to_axis(
         for idx, tech in enumerate(technologies[i_tick]):
             if which_axis == "y":
                 y_start = tick - width / 2
-                x_start = 0 - (width + distance_to_others) * idx - distance_to_others * width
+                x_start = 0 - (width + distance_to_others) * idx - distance_to_others
                 bbox = (x_start - width, y_start)
             else:
                 x_start = tick - width / 2
-                y_start = 0 - (width + distance_to_others) * idx - distance_to_others * width
+                y_start = 0 - (width + distance_to_others) * idx - distance_to_others
                 bbox = (x_start, y_start - width)
             _add_single_image(ax=ax, bbox=bbox, image_path=get_technology_image_path(tech), width=width)
         i_tick += 1

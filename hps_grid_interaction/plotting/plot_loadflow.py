@@ -594,7 +594,7 @@ def plot_heat_map_trafo_size(
         **{metric: kwargs["label"] for metric, kwargs in calculated_metrics.items()}
     }
     for metric, title in metrics_to_plot.items():
-        fig, ax = plt.subplots(1, 1, figsize=get_figure_size(n_columns=2, height_factor=2.2))
+        fig, ax = plt.subplots(1, 1, figsize=get_figure_size(n_columns=2, height_factor=1.5))
         heatmap_data = df.pivot(index='quota', columns='fixed_technologies', values=metric)
         if metric == "Trafo-Size":
             unique_labels = df.loc[:, metric].unique()
@@ -619,11 +619,11 @@ def plot_heat_map_trafo_size(
 
         icon_plotting.add_images_to_axis(
             technologies=varying_technologies, ax=ax,
-            which_axis="x", width=0.09,
-            distance_to_others=0.01
+            which_axis="x", width=0.08,
+            distance_to_others=0.02
         )
         icon_plotting.add_image_and_text_as_label(
-            ax=ax, which_axis="y", technology=use_case, width=0.1,
+            ax=ax, which_axis="y", technology=use_case, width=0.08,
             ticklabels=[f"{i}%" for i in heatmap_data.index],
             distance_to_others=0.01
         )
@@ -635,7 +635,7 @@ def plot_heat_map_trafo_size(
 
 def plot_all_heat_map_trafo_size(path: Path):
     from hps_grid_interaction import PROJECT_FOLDER
-    save_path = PROJECT_FOLDER.joinpath("grid_heatmaps")
+    save_path = path.joinpath("plots_grid_heatmaps")
     os.makedirs(save_path, exist_ok=True)
     plot_heat_map_trafo_size(path, save_path, oldbuildings=True, use_case="hybrid")
     plot_heat_map_trafo_size(path, save_path, oldbuildings=False, use_case="hybrid")
@@ -649,7 +649,7 @@ if __name__ == '__main__':
     from hps_grid_interaction import RESULTS_MONTE_CARLO_FOLDER
 
     PATH = RESULTS_MONTE_CARLO_FOLDER
-    # PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
+    PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
 
     plot_all_heat_map_trafo_size(PATH)
     # aggregate_simultaneity_factors(path=PATH)

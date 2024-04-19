@@ -204,10 +204,10 @@ def plot_time_series(
         ax[1].plot(bins, main_cluster, label=_label, linestyle="-")
         ax[1].fill_between(bins, min_cluster, max_cluster, **uncertainty_kwargs)
         idx_case += 1
-        argmax_cluster = np.array(main_cluster).argmax()
+        argmax_cluster = np.nanargmax(np.array(main_cluster))
         max_oda_data[_label] = {
             "t_oda": bins[argmax_cluster],
-            main_metric: [argmax_cluster],
+            main_metric: main_cluster[argmax_cluster],
             max_metric: max_cluster[argmax_cluster],
             min_metric: min_cluster[argmax_cluster]
         }
@@ -314,7 +314,7 @@ def generate_all_cases(
     folders = [
         folder
         for folder in os.listdir(path)
-        if folder.startswith(grid_case) and os.path.isdir(path.joinpath(folder)) and folder == "newbuildings_adv_retrofit_HP"
+        if folder.startswith(grid_case) and os.path.isdir(path.joinpath(folder))
     ]
     kwargs_mp = []
     for folder in folders:
@@ -695,5 +695,5 @@ if __name__ == '__main__':
 
     #plot_all_heat_map_trafo_size(PATH)
     # aggregate_simultaneity_factors(path=PATH)
-    # generate_all_cases(PATH, with_plot=False, oldbuildings=False, use_mp=True)
-    generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=False)
+    generate_all_cases(PATH, with_plot=True, oldbuildings=True, use_mp=True)
+    generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=True)

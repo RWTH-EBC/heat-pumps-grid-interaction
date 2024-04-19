@@ -172,6 +172,7 @@ def plot_time_series(
     bins = np.linspace(t_oda.values[1:-1, 0].min(), t_oda.values[1:-1, 0].max(), num=30)
     categories = pd.cut(t_oda.values[1:-1, 0], bins, labels=False)
     idx_case = 0
+    max_oda_data = {}
     for _label, _monte_carlo_tsd in _data.items():
         curves = {}
         for monte_carlo_metric, time_series_data in _monte_carlo_tsd.items():
@@ -203,6 +204,13 @@ def plot_time_series(
         ax[1].plot(bins, main_cluster, label=_label, linestyle="-")
         ax[1].fill_between(bins, min_cluster, max_cluster, **uncertainty_kwargs)
         idx_case += 1
+        argmax_cluster = np.array(main_cluster).argmax()
+        max_oda_data[_label] = {
+            "t_oda": bins[argmax_cluster],
+            main_metric: [argmax_cluster],
+            max_metric: max_cluster[argmax_cluster],
+            min_metric: min_cluster[argmax_cluster]
+        }
 
     axhlines = metric_data[metric].get("axhlines", None)
     if axhlines is not None:
@@ -223,6 +231,7 @@ def plot_time_series(
     fig.tight_layout(pad=0.3)
     fig.savefig(save_path.joinpath(f"{metric}_{save_name}.png"))
     plt.close("all")
+    return max_oda_data
 
 
 def get_statistics(case_and_trafo_data: dict, path: Path):
@@ -263,6 +272,7 @@ def plot_all_metrics_and_trafos(
     trafo_sizes = list(case_and_trafo_data[cases[0]])
     save_path = path.joinpath("plots")
     os.makedirs(save_path, exist_ok=True)
+    s_max_cluster = {}
     for metric in metric_data.keys():
         only_one_trafo_is_enough = metric in ["p_trafo", "s_trafo", "q_trafo"]
         # only_one_trafo_is_enough = False
@@ -280,8 +290,10 @@ def plot_all_metrics_and_trafos(
             if only_one_trafo_is_enough:
                 break
         for case in cases:
-            plot_time_series(fixed_case=case, **kwargs)
-
+            max_oda_data = plot_time_series(fixed_case=case, **kwargs)
+            if metric == "s_trafo":
+                s_max_cluster[case] = max_oda_data
+    return s_max_cluster
 
 def generate_all_cases(
         path: Path, with_plot: bool, oldbuildings=True, use_mp: bool = True,
@@ -302,7 +314,7 @@ def generate_all_cases(
     folders = [
         folder
         for folder in os.listdir(path)
-        if folder.startswith(grid_case) and os.path.isdir(path.joinpath(folder))
+        if folder.startswith(grid_case) and os.path.isdir(path.joinpath(folder)) and folder == "newbuildings_adv_retrofit_HP"
     ]
     kwargs_mp = []
     for folder in folders:
@@ -319,20 +331,23 @@ def generate_all_cases(
 
     idx = 0
     dfs_min_trafo_size = []
+    s_max_cluster_all_cases = {}
     if use_mp:
         import multiprocessing as mp
         pool = mp.Pool(processes=30)
 
-        for df, df_min_trafo_size in pool.imap_unordered(create_plots_and_get_df, kwargs_mp):
+        for df, df_min_trafo_size, _s_max_cluster_all_cases in pool.imap_unordered(create_plots_and_get_df, kwargs_mp):
             dfs.append(df)
             dfs_min_trafo_size.append(df_min_trafo_size)
+            s_max_cluster_all_cases.update(_s_max_cluster_all_cases)
             print(f"Ran {idx + 1}/{len(folders)} folders")
             idx += 1
     else:
         for kwargs in kwargs_mp:
-            df, df_min_trafo_size = create_plots_and_get_df(kwargs)
+            df, df_min_trafo_size, _s_max_cluster_all_cases = create_plots_and_get_df(kwargs)
             dfs.append(df)
             dfs_min_trafo_size.append(df_min_trafo_size)
+            s_max_cluster_all_cases.update(_s_max_cluster_all_cases)
             print(f"Ran {idx + 1}/{len(folders)} folders")
             idx += 1
     dfs = pd.concat(dfs)
@@ -340,6 +355,8 @@ def generate_all_cases(
     df_min_trafo_size.to_excel(path.joinpath(f"{grid_case}minimal_trafo_sizes.xlsx"))
     dfs.index = range(len(dfs))
     dfs.to_excel(path.joinpath(f"{grid_case}all_grid_results_ex.xlsx"))
+    with open(path.joinpath(f"{grid_case}max_data.json"), "w+") as file:
+        json.dump(s_max_cluster_all_cases, file)
 
 
 def create_plots_and_get_df(kwargs):
@@ -356,16 +373,18 @@ def create_plots_and_get_df(kwargs):
     min_metric = kwargs["min_metric"]
 
     print(f"Extracting and plotting {case_path}")
+    s_max_cluster_all_cases = {}
     try:
         case_and_trafo_data = load_case_and_trafo_data(case_path, quota_variation=quota_variation, grid=grid_str,
                                                        monte_carlo_metrics=[main_metric, max_metric, min_metric])
         df = get_statistics(case_and_trafo_data=case_and_trafo_data, path=case_path)
         df.loc[:, "quota_cases"] = case
         if with_plot:
-            plot_all_metrics_and_trafos(
+            s_max_cluster = plot_all_metrics_and_trafos(
                 case_and_trafo_data, case_path, quota_variation,
                 main_metric=main_metric, max_metric=max_metric, min_metric=min_metric
             )
+            s_max_cluster_all_cases[case] = s_max_cluster
             plot_grid_as_heatmap(case_and_trafo_data, case_path, monte_carlo_metric=main_metric)
         df_min_trafo_size = plot_required_trafo_size(
             path=case_path.joinpath("plots"),
@@ -377,7 +396,7 @@ def create_plots_and_get_df(kwargs):
         )
 
         print(f"Extracted and plotted {case_path}")
-        return df, df_min_trafo_size
+        return df, df_min_trafo_size, s_max_cluster_all_cases
     except Exception as err:
         raise err
         print(f"Error during extraction of {case_path}: {err}")
@@ -645,13 +664,36 @@ def plot_all_heat_map_trafo_size(path: Path):
     plot_heat_map_trafo_size(path, save_path, oldbuildings=False, use_case="retrofit")
 
 
+def plot_analysis_of_effects_with_uncertainty(
+        path: Path,
+        save_path: Path,
+        oldbuildings: bool = False,
+):
+
+    if oldbuildings:
+        grid_name = "newbuildings"
+    else:
+        grid_name = "oldbuildings"
+    analysis_name = "Analyse"
+    with open(path.joinpath(f"{grid_name}_max_data.json"), "r") as file:
+        data = json.load(file)
+    identifier = f"{grid_name}_{analysis_name}"
+    # Filter cases
+    data = {k: v for k, v in data.items() if k.startswith(identifier)}
+    analysis_order = [
+        "HP", "HR", "EMobility", "PV", "PVBat"
+    ]
+    for analysis in analysis_order:
+        print([f"{identifier}{analysis}"])
+
+
 if __name__ == '__main__':
     from hps_grid_interaction import RESULTS_MONTE_CARLO_FOLDER
 
     PATH = RESULTS_MONTE_CARLO_FOLDER
     PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
 
-    plot_all_heat_map_trafo_size(PATH)
+    #plot_all_heat_map_trafo_size(PATH)
     # aggregate_simultaneity_factors(path=PATH)
     # generate_all_cases(PATH, with_plot=False, oldbuildings=False, use_mp=True)
-    # generate_all_cases(PATH, with_plot=False, oldbuildings=True, use_mp=True)
+    generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=False)

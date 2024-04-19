@@ -176,7 +176,9 @@ def add_images_to_axis(
         ax: plt.axes,
         width: float,
         which_axis: str,
-        distance_to_others: float = 0.001
+        distance_to_others: float = 0.001,
+        x_offset: float = 0.0,
+        y_offset: float = 0.0
 ):
     """
     Adds images to the specified axis based on tick positions.
@@ -187,6 +189,8 @@ def add_images_to_axis(
         width (float): The width of the bounding box for each image.
         which_axis (str): The axis along which to add the images ("x" or "y").
         distance_to_others (float, optional): Distance between images. Defaults to 0.001.
+        y_offset (float, optional): Extra distance for all objects in y direction
+        x_offset (float, optional): Extra distance for all objects in x direction
 
     Returns:
         None
@@ -204,12 +208,12 @@ def add_images_to_axis(
     for tick in scale_ticks_to_axes(ticks, lim):
         for idx, tech in enumerate(technologies[i_tick]):
             if which_axis == "y":
-                y_start = tick - width / 2
-                x_start = 0 - (width + distance_to_others) * idx - distance_to_others
+                y_start = tick - width / 2 - y_offset
+                x_start = 0 - (width + distance_to_others) * idx - distance_to_others - x_offset
                 bbox = (x_start - width, y_start)
             else:
-                x_start = tick - width / 2
-                y_start = 0 - (width + distance_to_others) * idx - distance_to_others
+                x_start = tick - width / 2 - x_offset
+                y_start = 0 - (width + distance_to_others) * idx - distance_to_others - y_offset
                 bbox = (x_start, y_start - width)
             _add_single_image(ax=ax, bbox=bbox, image_path=get_technology_image_path(tech), width=width)
         i_tick += 1

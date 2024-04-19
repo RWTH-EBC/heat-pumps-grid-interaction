@@ -565,9 +565,9 @@ def plot_heat_map_trafo_size(
         oldbuildings: bool = False,
 ):
     if oldbuildings:
-        grid_name = "newbuildings"
-    else:
         grid_name = "oldbuildings"
+    else:
+        grid_name = "newbuildings"
 
     df = pd.read_excel(path.joinpath(f"{grid_name}_minimal_trafo_sizes.xlsx"), index_col=0)
     df.loc[:, "quota"] = df.index
@@ -666,25 +666,91 @@ def plot_all_heat_map_trafo_size(path: Path):
 
 def plot_analysis_of_effects_with_uncertainty(
         path: Path,
-        save_path: Path,
         oldbuildings: bool = False,
+        main_metric: str = "argmean",
+        max_metric: str = "percentile_997",
+        min_metric: str = "percentile_03"
 ):
-
     if oldbuildings:
-        grid_name = "newbuildings"
-    else:
         grid_name = "oldbuildings"
+    else:
+        grid_name = "newbuildings"
     analysis_name = "Analyse"
     with open(path.joinpath(f"{grid_name}_max_data.json"), "r") as file:
         data = json.load(file)
-    identifier = f"{grid_name}_{analysis_name}"
     # Filter cases
-    data = {k: v for k, v in data.items() if k.startswith(identifier)}
-    analysis_order = [
-        "HP", "HR", "EMobility", "PV", "PVBat"
-    ]
-    for analysis in analysis_order:
-        print([f"{identifier}{analysis}"])
+    data = {k: v for k, v in data.items() if k.startswith(analysis_name)}
+    analysis_order = {
+        "HP": "heat_pump",
+        "HR": "heating_rod",
+        "EMobility": "e_mobility",
+        "PV": "pv",
+        "PVBat": "battery"
+    }
+
+    labels = []
+    fixed_technologies = []
+    technologies = []
+    curves_max = []
+    curves_mid = []
+    curves_min = []
+    curves_t_oda = []
+
+    def _get_min_trafo_size_key(d: dict, metric: str):
+        sizes = np.array([int(s.replace(" kVA", "")) for s in d.keys()])
+        s_max = np.array([_max[metric] for _max in d.values()])
+        load = s_max / sizes
+        return f"{sizes[load < 1].min()} kVA"
+
+    for analysis, tech_name in analysis_order.items():
+        case_name = f"{analysis_name}{analysis}"
+        fixed_technologies.append(tech_name)
+        # data[case_name] = {"0%": {1000 kVa: {main_metric: 0, max_metric: 0}}}
+        for percent_variation in [0, 20, 40, 60, 80, 100]:
+            _percent_str = f"{percent_variation}%"
+            trafo_data = data[case_name][_percent_str]
+            labels.append(_percent_str)
+            if percent_variation == 40:
+                technologies.append(fixed_technologies.copy())
+            else:
+                technologies.append([])
+            min_trafo_size = _get_min_trafo_size_key(trafo_data, max_metric)
+            curves_max.append(trafo_data[min_trafo_size][max_metric])
+            curves_mid.append(trafo_data[min_trafo_size][main_metric])
+            curves_min.append(trafo_data[min_trafo_size][min_metric])
+            curves_t_oda.append(trafo_data[min_trafo_size]["t_oda"])
+    fig, ax = plt.subplots(1, 1, figsize=get_figure_size(n_columns=2, height_factor=1.5))
+    ax_twin = ax.twinx()
+    ax_twin.set_ylabel("$T_\mathrm{Oda}$ in °C")
+    x_ticks = range(len(curves_mid))
+    for i in range(int(len(curves_mid) / 6)):
+        ax.axvline(5.5 + (i * 6), color="black")
+
+    ax.plot(x_ticks, curves_mid, color=EBCColors.ebc_palette_sort_2[0])
+    uncertainty_kwargs = dict(
+        edgecolor=None, alpha=0.5, facecolor=EBCColors.ebc_palette_sort_2[0]
+    )
+    ax.fill_between(x_ticks, curves_min, curves_max, **uncertainty_kwargs)
+    ax_twin.plot(x_ticks, curves_t_oda, color=EBCColors.ebc_palette_sort_2[1])
+    ax.set_ylabel(metric_data["s_trafo"]["label"])
+    ax.set_xticks(x_ticks)
+    icon_plotting.add_images_to_axis(
+        technologies=technologies,
+        ax=ax,
+        which_axis="x",
+        width=0.1,
+        distance_to_others=0.02,
+        y_offset=0.05,
+        x_offset=-0.025
+    )
+    ax.set_xticks(x_ticks)
+    ax.set_xticklabels(labels, rotation=90)
+
+    set_color_of_axis(axis=ax.yaxis, color=EBCColors.ebc_palette_sort_2[0])
+    set_color_of_axis(axis=ax_twin.yaxis, color=EBCColors.ebc_palette_sort_2[1])
+
+    fig.tight_layout()
+    fig.savefig(path.joinpath(f"{analysis_name}_s_max.png"))
 
 
 if __name__ == '__main__':
@@ -692,8 +758,9 @@ if __name__ == '__main__':
 
     PATH = RESULTS_MONTE_CARLO_FOLDER
     PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
+    plot_analysis_of_effects_with_uncertainty(path=Path(r"D://"))
 
-    #plot_all_heat_map_trafo_size(PATH)
+    # plot_all_heat_map_trafo_size(PATH)
     # aggregate_simultaneity_factors(path=PATH)
-    generate_all_cases(PATH, with_plot=True, oldbuildings=True, use_mp=True)
-    generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=True)
+    # generate_all_cases(PATH, with_plot=True, oldbuildings=True, use_mp=True)
+    # generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=True)

@@ -24,6 +24,7 @@ def run_simulations(
         with_e_mobility: bool = False,
         with_night_set_back: bool = False,
         with_smart_thermostat: bool = True,
+        non_optimal_heating_curve: bool = False,
         extract_only: bool = False,
         case_name: str = None,
         n_cpu: int = 8
@@ -39,12 +40,13 @@ def run_simulations(
 
     base_path = RESULTS_BES_FOLDER
 
-    sheet_name = f"Kerber Netz {grid_case.capitalize()}"
+    sheet_name = f"Kerber Netz {grid_case}"
     buildings, gains_modifiers, dhw_profiles = utils.load_buildings_and_gains(
         sheet_name=sheet_name,
         study_path=base_path.joinpath(case_name),
         hybrid_assumptions=hybrid_assumptions,
         with_e_mobility=with_e_mobility,
+        non_optimal_heating_curve=non_optimal_heating_curve,
         with_night_set_back=with_night_set_back,
         with_smart_thermostat=with_smart_thermostat
     )
@@ -187,16 +189,17 @@ if __name__ == '__main__':
     KWARGS = dict(
         hybrid_assumptions=HYBRID_ASSUMPTIONS,
         n_cpu=30,
-        extract_only=True,
-        with_smart_thermostat=False
+        extract_only=False,
+        with_smart_thermostat=False,
+        non_optimal_heating_curve=True
     )
     for GRID in [
-        "newbuildings",
-        #"oldbuildings"
+        #"newbuildings",
+        "oldbuildings"
     ]:
-        # run_simulations(model_name="Hybrid", case_name="HybridWeather", grid_case=GRID, **KWARGS)
-        # run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case=GRID, with_heating_rod=True, **KWARGS)
-        # run_simulations(model_name="Monovalent", case_name="MonovalentWeather", grid_case=GRID, with_heating_rod=False, **KWARGS)
-        extract_monte_carlo_xlsx(case_name=f"MonovalentWeather_{GRID}_HR")
-        extract_monte_carlo_xlsx(case_name=f"MonovalentWeather_{GRID}")
-        extract_monte_carlo_xlsx(case_name=f"HybridWeather_{GRID}")
+        # run_simulations(model_name="Hybrid", case_name="HybridHC", grid_case=GRID, **KWARGS)
+        run_simulations(model_name="Monovalent", case_name="MonovalentHC", grid_case=GRID, with_heating_rod=True, **KWARGS)
+        run_simulations(model_name="Monovalent", case_name="MonovalentHC", grid_case=GRID, with_heating_rod=False, **KWARGS)
+        # extract_monte_carlo_xlsx(case_name=f"MonovalentHC_{GRID}_HR")
+        # extract_monte_carlo_xlsx(case_name=f"MonovalentHC_{GRID}")
+        # extract_monte_carlo_xlsx(case_name=f"HybridHC_{GRID}")

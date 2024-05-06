@@ -115,6 +115,7 @@ def load_buildings_and_gains(
         sheet_name: str, hybrid_assumptions: HybridSystemAssumptions, study_path: Path,
         with_e_mobility: bool,
         with_night_set_back: bool,
+        non_optimal_heating_curve: bool,
         with_smart_thermostat: bool):
     logger.info("Loading grid and building data")
     df = pd.read_excel(KERBER_NETZ_XLSX, sheet_name=sheet_name, index_col=0)
@@ -198,6 +199,8 @@ def load_buildings_and_gains(
             e_mobility_modifier = f'fileNameEMob=Modelica.Utilities.Files.loadResource("{file_path}"),' \
                                   f'use_eMob={"true" if with_e_mobility else "false"})'
             user_modifier += "," + e_mobility_modifier
+        if non_optimal_heating_curve:
+            user_modifier += f",THeaCur_nominal={273.15 + 55}"
 
         dhw_path = dhw_base_path.joinpath(f"DHWCalc_{idx}.txt")
         if not os.path.exists(dhw_path):

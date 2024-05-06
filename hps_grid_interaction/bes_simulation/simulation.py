@@ -122,7 +122,8 @@ def start_dymola(
         show_window=True,
         debug=False,
         modify_structural_parameters=False,
-        time_delay_between_starts=5
+        time_delay_between_starts=5,
+        equidistant_output=False
     )
     dym_api.model_name = config.model
     dym_api.set_sim_setup(config.sim_setup)

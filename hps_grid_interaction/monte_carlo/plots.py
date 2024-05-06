@@ -328,9 +328,9 @@ def plot_technology_choices_in_grid(df_grid: pd.DataFrame, choices_for_grid: dic
             df=df_heatmap
         )
         ax[idx].set_ylabel(rename_map[choice_type])
-        colorbar = ax[idx].collections[0].colorbar
-        r = colorbar.vmax - colorbar.vmin
-        colorbar.set_ticks([colorbar.vmin + (i + 0.5) * r / n for i in range(n)])
-        colorbar.set_ticklabels([rename_map.get(label, label) for label in unique_labels])
+        plot_loadflow.add_discrete_colorbar(
+            ax=ax[idx],
+            labels=[rename_map.get(label, label) for label in unique_labels]
+        )
     fig.savefig(save_path)
     plt.close("all")

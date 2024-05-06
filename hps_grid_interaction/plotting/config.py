@@ -43,6 +43,17 @@ class EBCColors:
         light_blue,
         light_grey,
     ]
+    ebc_palette_sort_3 = [
+        green,
+        light_blue,
+        blue,
+        grey,
+        dark_grey,
+        light_red,
+        red,
+        dark_red,
+        light_grey,
+    ]
 
 
 class PlotVariableConfig(BaseModel):

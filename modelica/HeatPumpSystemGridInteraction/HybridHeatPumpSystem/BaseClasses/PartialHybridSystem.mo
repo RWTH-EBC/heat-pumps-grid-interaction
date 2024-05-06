@@ -63,6 +63,10 @@ partial model PartialHybridSystem "Partial bivalent heat pump system"
       HeatPumpSystemGridInteraction.HybridHeatPumpSystem.BaseClasses.ParameterStudy
       parameterStudy);
 
+  parameter Modelica.Units.SI.TemperatureDifference dTAddHeaCur=systemParameters.THydSup_nominal[1] - THeaCur_nominal
+    "Constant offset of ideal heating curve";
+  parameter Modelica.Units.SI.Temperature THeaCur_nominal=systemParameters.THydSup_nominal[1]
+    "Nominal set temperature of heating curve";
   parameter Boolean use_eleHea=true "=false to disable the electric heater";
   parameter BESMod.Systems.Hydraulical.Generation.Types.GenerationDesign
     genDesTyp=BESMod.Systems.Hydraulical.Generation.Types.GenerationDesign.BivalentPartParallel

@@ -11,6 +11,9 @@ model Monovalent "Monovalent heat pump system"
           valCtrl,
         dTHysBui=10,
         dTHysDHW=10,
+        redeclare model BuildingSupplySetTemperature =
+            BESMod.Systems.Hydraulical.Control.Components.BuildingSupplyTemperatureSetpoints.IdealHeatingCurve
+            (dTAddCon=dTAddHeaCur),
         redeclare model DHWHysteresis =
             BESMod.Systems.Hydraulical.Control.Components.BivalentOnOffControllers.TimeBasedElectricHeater,
         redeclare model BuildingHysteresis =

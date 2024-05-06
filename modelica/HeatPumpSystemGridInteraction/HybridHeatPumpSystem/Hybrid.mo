@@ -12,8 +12,10 @@ model Hybrid
           valCtrl,
         dTHysBui=10,
         dTHysDHW=10,
+        redeclare model BuildingSupplySetTemperature =
+            BESMod.Systems.Hydraulical.Control.Components.BuildingSupplyTemperatureSetpoints.IdealHeatingCurve
+            (dTAddCon=dTAddHeaCur),
         meaValPriGen=BESMod.Systems.Hydraulical.Control.Components.BaseClasses.MeasuredValue.GenerationSupplyTemperature,
-
         redeclare model DHWHysteresis =
             BESMod.Systems.Hydraulical.Control.Components.BivalentOnOffControllers.AlternativeBivalent
             (T_biv=parameterStudy.TBiv),
@@ -22,7 +24,6 @@ model Hybrid
             (T_biv=parameterStudy.TBiv),
         redeclare model DHWSetTemperature =
             BESMod.Systems.Hydraulical.Control.Components.DHWSetControl.ConstTSet_DHW,
-
         redeclare model SummerMode =
             BESMod.Systems.Hydraulical.Control.Components.SummerMode.No,
         redeclare

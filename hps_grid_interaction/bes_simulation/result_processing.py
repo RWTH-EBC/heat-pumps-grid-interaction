@@ -11,8 +11,7 @@ from ebcpy import TimeSeriesData
 
 from hps_grid_interaction import DATA_PATH, RESULTS_BES_FOLDER
 from hps_grid_interaction.utils import HybridSystemAssumptions
-from hps_grid_interaction.bes_simulation.simulation import INIT_PERIOD, W_to_Wh
-
+from hps_grid_interaction.bes_simulation.simulation import INIT_PERIOD, W_to_Wh, TIME_STEP
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +33,8 @@ P_PV = "electrical.generation.internalElectricalPin.PElecGen"
 P_household = "building.internalElectricalPin.PElecLoa"
 P_grid_loa = "electricalGrid.PElecLoa"
 P_grid_gen = "electricalGrid.PElecGen"
+P_grid_loa_integral = "outputs.electrical.dis.PEleLoa.integral"
+P_grid_gen_integral = "outputs.electrical.dis.PEleGen.integral"
 
 
 VARIABLE_NAMES = [
@@ -55,6 +56,8 @@ VARIABLE_NAMES = [
     P_household,
     P_grid_loa,
     P_grid_gen,
+    P_grid_loa_integral,
+    P_grid_gen_integral,
 ]
 
 COLUMNS_EMISSIONS = [
@@ -69,11 +72,21 @@ COLUMNS_EMISSIONS = [
 
 
 def extract_electricity_and_save(tsd, path, result_name, with_heating_rod: bool):
-    df = tsd.to_df().loc[INIT_PERIOD:] / 1000  # All W to kW, other units will not be selected anyways
+    df = tsd.to_df().loc[INIT_PERIOD:] / 1000  # All W to kW, other units will not be selected anyway
     df.index -= df.index[0]
     if len(df.index) != int(365 * 86400 / TIME_STEP + 1):
-        logging.error("Not 15 min sampled data: %s", result_name)
+        logging.error("Not 15 min sampled data, using 15 min index: %s", result_name)
 
+    df = df.loc[range(0, 365 * 86400, 900)]
+    # Determine error due to integration in python through comparison to Modelica
+    for name, py_name, mo_name in zip(
+            ["load", "generation"], [P_grid_loa, P_grid_gen], [P_grid_loa_integral, P_grid_gen_integral]
+    ):
+        logger.error(
+            "Integration difference '%s' from python to Modelica: %s",
+            name,
+            (np.sum(df.loc[:, py_name]) - df.iloc[-1, mo_name]) / df.iloc[-1, mo_name] * 100
+        )
     if with_heating_rod:
         df_heat_supply = df.loc[:, p_el_hp_name] + df.loc[:, p_el_hr_name]
     else:
@@ -130,7 +143,6 @@ def load_emission_data(interpolate: bool = False):
     # Convert the seconds-based index to a Datetime index
     df['DateTime'] = pd.to_datetime(df.index, unit='h')
     df.set_index('DateTime', inplace=True)
-    from hps_grid_interaction.bes_simulation.simulation import TIME_STEP
     interval = int(TIME_STEP / 60)
     # Resample to minute intervals and interpolate
     df_resampled = df.resample(f'{interval}min').asfreq().interpolate(method='linear')

@@ -182,7 +182,7 @@ def extract_monte_carlo_xlsx(case_name):
         **{str(year): HybridSystemAssumptions(method="costs", emissions_electricity=str(year))
            for year in [2025, 2030, 2037]}
     }
-    calc_emissions(case_name, hybrid_assumptions, file_ending=".mat")
+    result_processing.postprocessing(case_name, hybrid_assumptions, file_ending=".mat")
 
 
 if __name__ == '__main__':

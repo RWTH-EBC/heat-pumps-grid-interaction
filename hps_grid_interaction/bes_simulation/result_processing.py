@@ -9,9 +9,9 @@ import numpy as np
 from ebcpy.preprocessing import convert_datetime_index_to_float_index
 from ebcpy import TimeSeriesData
 
-from hps_grid_interaction import DATA_PATH
+from hps_grid_interaction import DATA_PATH, RESULTS_BES_FOLDER
 from hps_grid_interaction.utils import HybridSystemAssumptions
-from hps_grid_interaction.bes_simulation.simulation import INIT_PERIOD
+from hps_grid_interaction.bes_simulation.simulation import INIT_PERIOD, W_to_Wh
 
 
 logger = logging.getLogger(__name__)
@@ -28,9 +28,7 @@ A_name = "building.zoneParam[1].AZone"
 heat_load_name = "systemParameters.QBui_flow_nominal[1]"
 building_demand_name = "outputs.building.QTraGain[1].integral"
 dhw_demand_name = "outputs.DHW.Q_flow.integral"
-TOda_nom_name = "systemParameters.TOda_nominal"
 hea_rod_nom_name = "hydraulic.generation.eleHea.Q_flow_nominal"
-THyd_name = "THyd_nominal"
 hea_rod_eta_name = "hydraulic.generation.parEleHea.eta"
 P_PV = "electrical.generation.internalElectricalPin.PElecGen"
 P_household = "building.internalElectricalPin.PElecLoa"
@@ -51,9 +49,7 @@ VARIABLE_NAMES = [
     heat_load_name,
     building_demand_name,
     dhw_demand_name,
-    TOda_nom_name,
     hea_rod_nom_name,
-    THyd_name,
     hea_rod_eta_name,
     P_PV,
     P_household,
@@ -148,11 +144,8 @@ def load_emission_data(interpolate: bool = False):
     return years, df.index[-1]
 
 
-def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumptions], file_ending=".hdf"):
-    print(f"Extracting case {case}")
-
-    from hps_grid_interaction import RESULTS_BES_FOLDER
-    from hps_grid_interaction.bes_simulation.simulation import INIT_PERIOD, W_to_Wh
+def postprocessing(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumptions], file_ending=".hdf"):
+    logger.info("Extracting case %s", case)
 
     path = RESULTS_BES_FOLDER.joinpath(case)
     df_sim = pd.read_excel(
@@ -215,8 +208,6 @@ def calc_emissions(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
             W_el_ges = tsd_loc[p_el_hp_int_name]
         df_sim.loc[idx, "SCOP_Sys"] = heat_demand / W_el_ges
         df_sim.loc[idx, "WEleGen"] = W_el_ges / 3600000
-        THyd_nominal = tsd_loc[THyd_name]
-        TOda_nominal = tsd_loc[TOda_nom_name]
         if with_hr:
             PEleHeaMax = tsd_loc[hea_rod_nom_name] / tsd_loc[hea_rod_eta_name]
         else:

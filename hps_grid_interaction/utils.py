@@ -13,7 +13,6 @@ from pathlib import Path
 
 
 from hps_grid_interaction.bes_simulation.building import BuildingConfig
-from hps_grid_interaction.plotting.important_variables import plot_important_variables
 from hps_grid_interaction import PROJECT_FOLDER, KERBER_NETZ_XLSX, E_MOBILITY_DATA, HOUSEHOLD_DATA, DATA_PATH
 from hps_grid_interaction.bes_simulation.simulation import TIME_STEP
 
@@ -255,80 +254,6 @@ def load_buildings_and_gains(
     logger.info("Loaded grid and building data")
 
     return building_configs, user_modifiers, dhw_profiles
-
-
-def extract_electricity_and_save(tsd, path, result_name, with_heating_rod: bool):
-    from hps_grid_interaction.bes_simulation.simulation import INIT_PERIOD
-
-    P_heat_pump = "outputs.hydraulic.gen.PEleHeaPum.value"
-    P_heating_rod = "outputs.hydraulic.gen.PEleEleHea.value"
-    P_PV = "electrical.generation.internalElectricalPin.PElecGen"
-    P_household = "building.internalElectricalPin.PElecLoa"
-    P_grid_loa = "electricalGrid.PElecLoa"
-    P_grid_gen = "electricalGrid.PElecGen"
-
-    df = tsd.to_df().loc[INIT_PERIOD:] / 1000  # All W to kW, other units will not be selected anyways
-    df.index -= df.index[0]
-    if len(df.index) != int(365 * 86400 / TIME_STEP + 1):
-        logging.error("Not 15 min sampled data: %s", result_name)
-
-    if with_heating_rod:
-        df_heat_supply = df.loc[:, P_heat_pump] + df.loc[:, P_heating_rod]
-    else:
-        df_heat_supply = df.loc[:, P_heat_pump]
-
-    df_to_csv = pd.DataFrame({
-        "heat_supply": df_heat_supply,
-        "household": df.loc[:, P_household] + df_heat_supply,
-        "household+pv": df.loc[:, P_household] + df_heat_supply - df.loc[:, P_PV],
-        "household+pv+battery": - df.loc[:, P_grid_loa] - df.loc[:, P_grid_gen],
-    })
-
-    os.makedirs(path.joinpath("csv_files"), exist_ok=True)
-    df_to_csv.to_csv(path.joinpath("csv_files", result_name.replace(".mat", "_grid_simulation.csv")))
-
-
-def extract_tsd_results(
-        path: Path,
-        result_names: list,
-        convert_to_hdf_and_delete_mat: bool
-):
-    logger.debug("Reading file %s", path.name)
-    result_names = list(set(result_names))
-    try:
-        tsd = TimeSeriesData(path)
-        result_names = list(set(tsd.get_variable_names()).intersection(result_names))
-        tsd = tsd.loc[:, result_names]
-    except np.core._exceptions._ArrayMemoryError as err:
-        logger.error("Could not read .mat file due to memory-error: %s", err)
-        return None  # For DOE, no obj is required.
-    logger.debug("Read file %s", path.name)
-    if convert_to_hdf_and_delete_mat and path.suffix != ".hdf":
-        tsd.save(
-            path.parent.joinpath(path.stem + ".hdf"),
-            key="DesignOptimization"
-        )
-
-    return tsd
-
-
-def plot_result(tsd, init_period, result_name, save_path, plot_settings):
-    plot_important_variables(
-        save_path=save_path.joinpath("plots_time", result_name + ".png"),
-        x_variable="time",
-        scatter=False,
-        tsd=tsd,
-        init_period=init_period,
-        **plot_settings
-    )
-    plot_important_variables(
-        tsd=tsd,
-        save_path=save_path.joinpath("plots_scatter", result_name + ".png"),
-        x_variable="weaDat.weaBus.TDryBul",
-        scatter=True,
-        init_period=init_period,
-        **plot_settings
-    )
 
 
 def get_bivalence_temperatures(buildings, with_heating_rod: bool, TOda_nominal, model_name: str,

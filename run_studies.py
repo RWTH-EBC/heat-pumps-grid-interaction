@@ -1,6 +1,5 @@
 import logging
 import os
-import shutil
 
 from pathlib import Path
 
@@ -12,7 +11,9 @@ from hps_grid_interaction import utils
 from hps_grid_interaction.bes_simulation import simulation
 from hps_grid_interaction.bes_simulation.inputs import InputsConfig
 from hps_grid_interaction import RESULTS_BES_FOLDER
-from hps_grid_interaction.emissions import calc_emissions
+from hps_grid_interaction.bes_simulation import result_processing
+from hps_grid_interaction.plotting.important_variables import plot_result
+
 logger = logging.getLogger(__name__)
 
 
@@ -90,7 +91,8 @@ def run_simulations(
         "building.internalElectricalPin.PElecLoa",
         "electricalGrid.PElecLoa",
         "electricalGrid.PElecGen",
-    ]
+    ] + result_processing.VARIABLE_NAMES
+    sim_results_to_extract = list(set(sim_results_to_extract))
 
     if extract_only:
         results = [Path(study_path.joinpath("SimulationResults")).joinpath(result_name + ".mat")
@@ -129,12 +131,12 @@ def run_simulations(
                 continue
             result_name = Path(result).name
 
-            result = utils.extract_tsd_results(
+            result = result_processing.extract_tsd_results(
                 path=Path(result),
                 result_names=sim_results_to_extract,
                 convert_to_hdf_and_delete_mat=True
             )
-            utils.plot_result(
+            plot_result(
                 tsd=result,
                 init_period=simulation.INIT_PERIOD,
                 save_path=study_path,
@@ -145,7 +147,7 @@ def run_simulations(
             if result is None:
                 logging.error("Could not read results, skipping extraction")
                 break
-            utils.extract_electricity_and_save(
+            result_processing.extract_electricity_and_save(
                 tsd=result, path=study_path, result_name=result_name,
                 with_heating_rod=with_heating_rod
             )
@@ -199,7 +201,7 @@ if __name__ == '__main__':
     ]:
         # run_simulations(model_name="Hybrid", case_name="HybridHC", grid_case=GRID, **KWARGS)
         run_simulations(model_name="Monovalent", case_name="MonovalentHC", grid_case=GRID, with_heating_rod=True, **KWARGS)
-        run_simulations(model_name="Monovalent", case_name="MonovalentHC", grid_case=GRID, with_heating_rod=False, **KWARGS)
+        # run_simulations(model_name="Monovalent", case_name="MonovalentHC", grid_case=GRID, with_heating_rod=False, **KWARGS)
         # extract_monte_carlo_xlsx(case_name=f"MonovalentHC_{GRID}_HR")
         # extract_monte_carlo_xlsx(case_name=f"MonovalentHC_{GRID}")
         # extract_monte_carlo_xlsx(case_name=f"HybridHC_{GRID}")

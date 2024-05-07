@@ -103,3 +103,22 @@ def plot_important_variables(
         pass
         #plt.show()
     plt.close("all")
+
+
+def plot_result(tsd, init_period, result_name, save_path, plot_settings):
+    plot_important_variables(
+        save_path=save_path.joinpath("plots_time", result_name + ".png"),
+        x_variable="time",
+        scatter=False,
+        tsd=tsd,
+        init_period=init_period,
+        **plot_settings
+    )
+    plot_important_variables(
+        tsd=tsd,
+        save_path=save_path.joinpath("plots_scatter", result_name + ".png"),
+        x_variable="weaDat.weaBus.TDryBul",
+        scatter=True,
+        init_period=init_period,
+        **plot_settings
+    )

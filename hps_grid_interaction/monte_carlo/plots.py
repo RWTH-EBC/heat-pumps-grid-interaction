@@ -11,7 +11,6 @@ import seaborn as sns
 
 from hps_grid_interaction import DATA_PATH
 from hps_grid_interaction.utils import load_outdoor_air_temperature
-from hps_grid_interaction.emissions import COLUMNS_EMISSIONS, get_emission_options
 from hps_grid_interaction.plotting.config import EBCColors
 from hps_grid_interaction.plotting import get_figure_size, icon_plotting
 
@@ -115,40 +114,6 @@ def plot_time_series(quota_case_grid_data: dict, save_path, quota_variation: "Qu
     plot_quota_case_with_images(quota_variation=quota_variation, ax=ax_yearly, width=0.05)
     fig_yearly.tight_layout()
     fig_yearly.savefig(save_path.joinpath(f"annual_time_series_plot.png"), dpi=400)
-
-
-def plot_results_all_cases(path: Path, point: str = "Trafo", metric: str = "sum"):
-    with open(path, "r") as file:
-        results = json.load(file)
-    y_label, fac = get_label_and_factor(metric)
-    cases = {}
-    emissions = {}
-    for tech in ["Hybrid", "Monovalent"]:
-        for case, case_values in results.items():
-            cases[tech + "_" + case] = case_values["grid"][tech][metric][point] * fac
-            values = case_values["emissions"][tech]
-            for key in get_emission_options():
-                emissions[tech + "_" + case + "_" + key] = values[key + "_gas"] + values[key + "_electricity"]
-    cases = dict(sorted(cases.items(), key=lambda item: item[1]))
-    emissions = dict(sorted(emissions.items(), key=lambda item: item[1]))
-
-    def _plot_barh(_data, _y_label):
-        fig, ax = plt.subplots(figsize=[9.3, 7.5 * len(_data) / 11])
-        points = list(_data.keys())
-        x_pos = np.arange(len(points))
-        bar_args = dict(align='center', ecolor='black', height=0.4)
-        ax.barh(x_pos, list(_data.values()), color="red", **bar_args)
-        ax.set_xlabel(_y_label)
-        ax.set_yticks(x_pos)
-        ax.set_yticklabels(points)
-        ax.xaxis.grid(True)
-        fig.tight_layout()
-        return fig
-
-    fig = _plot_barh(cases, y_label)
-    fig.savefig(path.parent.joinpath(f"results_{metric}.png"))
-    fig = _plot_barh(emissions, "CO2-Emissionsn in kg")
-    fig.savefig(path.parent.joinpath(f"emissions.png"))
 
 
 def plot_monte_carlo_violin(

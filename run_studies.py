@@ -182,7 +182,7 @@ def extract_monte_carlo_xlsx(case_name):
         **{str(year): HybridSystemAssumptions(method="costs", emissions_electricity=str(year))
            for year in [2025, 2030, 2037]}
     }
-    result_processing.postprocessing(case_name, hybrid_assumptions, file_ending=".mat")
+    result_processing.postprocessing(case_name, hybrid_assumptions, file_ending=".hdf")
 
 
 if __name__ == '__main__':
@@ -190,8 +190,8 @@ if __name__ == '__main__':
     HYBRID_ASSUMPTIONS = HybridSystemAssumptions(method="costs")
     KWARGS = dict(
         hybrid_assumptions=HYBRID_ASSUMPTIONS,
-        n_cpu=30,
-        extract_only=False,
+        n_cpu=25,
+        extract_only=True,
         with_smart_thermostat=False,
         non_optimal_heating_curve=True
     )
@@ -200,8 +200,8 @@ if __name__ == '__main__':
         "oldbuildings"
     ]:
         # run_simulations(model_name="Hybrid", case_name="HybridHC", grid_case=GRID, **KWARGS)
-        run_simulations(model_name="Monovalent", case_name="MonovalentHC", grid_case=GRID, with_heating_rod=True, **KWARGS)
+        # run_simulations(model_name="Monovalent", case_name="MonovalentHC", grid_case=GRID, with_heating_rod=True, **KWARGS)
         # run_simulations(model_name="Monovalent", case_name="MonovalentHC", grid_case=GRID, with_heating_rod=False, **KWARGS)
-        # extract_monte_carlo_xlsx(case_name=f"MonovalentHC_{GRID}_HR")
+        extract_monte_carlo_xlsx(case_name=f"MonovalentHC_{GRID}_HR")
         # extract_monte_carlo_xlsx(case_name=f"MonovalentHC_{GRID}")
         # extract_monte_carlo_xlsx(case_name=f"HybridHC_{GRID}")

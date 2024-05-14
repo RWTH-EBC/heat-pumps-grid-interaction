@@ -35,6 +35,7 @@ P_grid_loa = "electricalGrid.PElecLoa"
 P_grid_gen = "electricalGrid.PElecGen"
 P_grid_loa_integral = "outputs.electrical.dis.PEleLoa.integral"
 P_grid_gen_integral = "outputs.electrical.dis.PEleGen.integral"
+scalingFactor = "scalingFactor"
 
 
 VARIABLE_NAMES = [
@@ -58,6 +59,7 @@ VARIABLE_NAMES = [
     P_grid_gen,
     P_grid_loa_integral,
     P_grid_gen_integral,
+    scalingFactor
 ]
 
 COLUMNS_EMISSIONS = [
@@ -72,35 +74,65 @@ COLUMNS_EMISSIONS = [
 
 
 def extract_electricity_and_save(tsd, path, result_name, with_heating_rod: bool):
-    df = tsd.to_df().loc[INIT_PERIOD:] / 1000  # All W to kW, other units will not be selected anyway
+    df = tsd.to_df().loc[INIT_PERIOD:]
     df.index -= df.index[0]
-    if len(df.index) != int(365 * 86400 / TIME_STEP + 1):
-        logging.error("Not 15 min sampled data, using 15 min index: %s", result_name)
 
-    df = df.loc[range(0, 365 * 86400, 900)]
+    variables = [
+        p_el_hp_name, P_household, P_PV, P_grid_gen, P_grid_loa
+    ]
+    if with_heating_rod:
+        variables.append(p_el_hr_name)
+
+    df_resampled = resample_and_average_results_with_state_events(df=df, time_step=TIME_STEP, variables=variables)
+    df_filtered = df.loc[range(0, 365 * 86400, 900)]
+    df_filtered = df_filtered[~df_filtered.index.duplicated(keep="last")]
     # Determine error due to integration in python through comparison to Modelica
+    errors = {"idx": result_name}
     for name, py_name, mo_name in zip(
             ["load", "generation"], [P_grid_loa, P_grid_gen], [P_grid_loa_integral, P_grid_gen_integral]
     ):
+        errors[f"{name}_filtered"] = (np.sum(df_filtered.loc[:, py_name]) * TIME_STEP - df.iloc[-1][mo_name]) / df.iloc[-1][mo_name] * 100
+        errors[f"{name}_resampled"] = (np.sum(df_resampled.loc[:, py_name]) * TIME_STEP - df.iloc[-1][mo_name]) / df.iloc[-1][mo_name] * 100
         logger.error(
-            "Integration difference '%s' from python to Modelica: %s",
-            name,
-            (np.sum(df.loc[:, py_name]) - df.iloc[-1, mo_name]) / df.iloc[-1, mo_name] * 100
+            "Integration difference '%s' from resampled python to Modelica: %s",
+            name, errors[f"{name}_resampled"]
         )
+        logger.error(
+            "Integration difference '%s' from filtered python to Modelica: %s",
+            name, errors[f"{name}_filtered"]
+        )
+
+    # All W to kW, other units will not be selected anyway
     if with_heating_rod:
-        df_heat_supply = df.loc[:, p_el_hp_name] + df.loc[:, p_el_hr_name]
+        df_heat_supply = df_resampled.loc[:, p_el_hp_name] + df_resampled.loc[:, p_el_hr_name]
     else:
-        df_heat_supply = df.loc[:, p_el_hp_name]
+        df_heat_supply = df_resampled.loc[:, p_el_hp_name]
 
     df_to_csv = pd.DataFrame({
-        "heat_supply": df_heat_supply,
-        "household": df.loc[:, P_household] + df_heat_supply,
-        "household+pv": df.loc[:, P_household] + df_heat_supply - df.loc[:, P_PV],
-        "household+pv+battery": - df.loc[:, P_grid_loa] - df.loc[:, P_grid_gen],
+        "heat_supply": df_heat_supply / 1000,
+        "household": (df_resampled.loc[:, P_household] + df_heat_supply) / 1000,
+        "household+pv": (df_resampled.loc[:, P_household] + df_heat_supply - df_resampled.loc[:, P_PV]) / 1000,
+        "household+pv+battery": (- df_resampled.loc[:, P_grid_loa] - df_resampled.loc[:, P_grid_gen]) / 1000,
     })
 
     os.makedirs(path.joinpath("csv_files"), exist_ok=True)
     df_to_csv.to_csv(path.joinpath("csv_files", result_name.replace(".mat", "_grid_simulation.csv")))
+    return errors
+
+
+def resample_and_average_results_with_state_events(df: pd.DataFrame, variables: list, time_step: int):
+    import datetime
+    from ebcpy import preprocessing
+    df = df.copy().loc[:, variables]
+    df["Time"] = df.index
+    delta_t = df["Time"].shift(-1) - df["Time"]
+    df = df.drop("Time", axis=1)
+    df = df.multiply(delta_t, axis=0)
+    df = preprocessing.convert_index_to_datetime_index(df, origin=datetime.datetime(2023, 1, 1))
+    df = df.resample(f"{time_step}s").sum()
+    df = preprocessing.convert_datetime_index_to_float_index(df)
+    df = df.divide(time_step, axis=0)
+    return df
 
 
 def extract_tsd_results(
@@ -110,6 +142,7 @@ def extract_tsd_results(
 ):
     logger.debug("Reading file %s", path.name)
     result_names = list(set(result_names))
+    result_names.remove("")
     try:
         try:
             tsd = TimeSeriesData(path, variable_names=result_names)
@@ -169,14 +202,23 @@ def postprocessing(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
     hybrid = "Hybrid" in path.name
     col = "Average Emissions [g_CO2/kWh]"
     years, _until = load_emission_data(interpolate=True)
+    all_errors = []
     for file in os.listdir(path_sim):
         if not file.endswith(file_ending):
             continue
-        tsd = TimeSeriesData(path_sim.joinpath(file)).to_df()
+        tsd = TimeSeriesData(path_sim.joinpath(file))
+
+        all_errors.append(extract_electricity_and_save(
+            tsd=tsd, path=path, result_name=path_sim.joinpath(file).name,
+            with_heating_rod="_HR" in path.name
+        ))
+        tsd = tsd.to_df()
         tsd = tsd.loc[INIT_PERIOD:]
         tsd.index -= INIT_PERIOD
-        tsd = tsd.loc[:_until]
         idx = int(file.split("_")[0])
+        tsd = tsd.loc[range(0, 365 * 86400, 900)]
+        tsd = tsd[~tsd.index.duplicated(keep='last')]
+        tsd = tsd.loc[:_until]
         with_hr = p_el_hr_name in tsd
         if hybrid:
             tsd_gas = tsd.loc[:, gas_name] / 1000
@@ -199,8 +241,8 @@ def postprocessing(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
         df_sim.loc[idx, "percent_renewables"] = percent_renewables
 
         # Analysis of heat demand and nominal heat load for plausibility analysis
-        if file_ending != ".mat":
-            raise FileNotFoundError(".mat files needed for detailed building plausibility study.")
+        #if file_ending != ".mat":
+        #    raise FileNotFoundError(".mat files needed for detailed building plausibility study.")
         tsd_loc = tsd.iloc[-1]  # Last row for integral and parameters
         heat_load = tsd_loc[heat_load_name]
         building_demand = tsd_loc[building_demand_name]
@@ -224,7 +266,7 @@ def postprocessing(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
             PEleHeaMax = tsd_loc[hea_rod_nom_name] / tsd_loc[hea_rod_eta_name]
         else:
             PEleHeaMax = 0
-        PEleHeaPumMax = tsd_loc["scalingFactor"] * 3398
+        PEleHeaPumMax = tsd_loc.to_dict().get("scalingFactor", 1) * 3398
         df_sim.loc[idx, "PEleMax"] = PEleHeaPumMax + PEleHeaMax
 
         def populate_data_to_dict(_df, _idx, assumption, case, gas, elec):
@@ -261,3 +303,4 @@ def postprocessing(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
         path.joinpath("MonteCarloSimulationInputWithEmissions.xlsx"),
         sheet_name="Sheet1"
     )
+    pd.DataFrame(all_errors).to_excel(path.joinpath("IntegrationErrors.xlsx"))

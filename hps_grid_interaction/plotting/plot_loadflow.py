@@ -594,10 +594,7 @@ def plot_heat_map_trafo_size_with_uncertainty(
     for mc_type, mc_metric in MONTE_CARLO_METRICS.items():
         df = pd.read_excel(path.joinpath(f"{grid_name}_minimal_trafo_sizes_{mc_metric}.xlsx"), index_col=0)
         df.loc[:, "quota"] = df.index
-        if use_case == "hybrid":
-            mask = df.loc[:, "quota_cases"].apply(lambda x: x.startswith("hybrid_"))
-        else:
-            mask = df.loc[:, "quota_cases"].apply(lambda x: x.startswith("adv_retrofit_"))
+        mask = df.loc[:, "quota_cases"].apply(lambda x: x.startswith(f"{use_case}_"))
         mc_dfs[mc_type] = df.loc[mask]
     retro_order = [
         "['heat_pump']",
@@ -833,8 +830,8 @@ if __name__ == '__main__':
     PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
 
     # aggregate_simultaneity_factors(path=PATH)
-    generate_all_cases(PATH, with_plot=True, oldbuildings=True, use_mp=True)
-    generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=True)
-    # plot_all_heat_map_trafo_size(PATH)
+    # generate_all_cases(PATH, with_plot=True, oldbuildings=True, use_mp=True)
+    # generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=True)
+    plot_all_heat_map_trafo_size(PATH)
     # plot_analysis_of_effects_with_uncertainty(path=PATH, oldbuildings=False)
     # plot_analysis_of_effects_with_uncertainty(path=PATH, oldbuildings=True)

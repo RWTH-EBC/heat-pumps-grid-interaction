@@ -11,6 +11,8 @@ def plot_feed_in():
     csv_files_folder = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\01_BESMod_Simulationen\MonovalentHC_oldbuildings_HR\csv_files")
     grid_sum = []
     for file in os.listdir(csv_files_folder):
+        if not file.endswith(".csv"):
+            continue
         grid_sum.append(pd.read_csv(csv_files_folder.joinpath(file), index_col=0))
     grid_sum_heat_supply = sum([d.loc[:, "heat_supply"] for d in grid_sum])
     grid_sum_household = sum([d.loc[:, "household"] for d in grid_sum]) - grid_sum_heat_supply

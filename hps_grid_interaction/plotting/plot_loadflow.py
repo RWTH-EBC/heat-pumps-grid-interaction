@@ -638,6 +638,8 @@ def plot_heat_map_trafo_size_with_uncertainty(
             title=title, save_path=save_path
         )
         joined_heatmap = pd.DataFrame()
+        total_min = min(df.loc[:, metric].min() for df in mc_dfs.values())
+        total_max = max(df.loc[:, metric].max() for df in mc_dfs.values())
         for mc, df in mc_dfs.items():
             heatmap = df.pivot(index='quota', columns='fixed_technologies', values=metric)
             joined_heatmap.index = heatmap.index
@@ -648,31 +650,37 @@ def plot_heat_map_trafo_size_with_uncertainty(
                 heatmap=heatmap,
                 save_name=f"{grid_name}_{use_case}_{mc}_{metric}",
                 with_uncertainty=False,
+                vmin=total_min, vmax=total_max
             )
         _plot_single_heat_map_trafo_size(
             **kwargs,
             heatmap=joined_heatmap,
             save_name=f"{grid_name}_{use_case}_{metric}",
-            with_uncertainty=True
+            with_uncertainty=True,
+            vmin=joined_heatmap.values.min(), vmax=joined_heatmap.values.max()
         )
 
 
 def _plot_single_heat_map_trafo_size(
         heatmap: pd.DataFrame, save_path: Path, metric: str,
         use_case: str, orders: list, title: str,
-        with_uncertainty: bool, save_name: str
+        with_uncertainty: bool, save_name: str,
+        vmin: float = None, vmax: float = None
 ):
     fig, ax = plt.subplots(1, 1, figsize=get_figure_size(n_columns=2, height_factor=1.3))
 
     if metric == "Trafo-Size":
         unique_labels = pd.unique(heatmap.values.ravel())
+        try:
+            unique_labels = np.arange(vmin, vmax + 1, 200)
+        except Exception:
+            print("Hasdas")
         color_map = dict(zip([600, 800, 1000, 1200, 1400, 1600, 1800, 2000], EBCColors.ebc_palette_sort_3[:8]))
         color_palette = [color_map[label] for label in sorted(unique_labels)]
         cmap = sns.color_palette(palette=color_palette, n_colors=len(color_palette))
-        kwargs = {}
     else:
         cmap = "flare"
-        kwargs = {}
+    kwargs = dict(vmax=vmax, vmin=vmin)
 
     heatmap = heatmap.astype(float)
     heatmap.index = heatmap.index.map(lambda x: int(x.replace("%", "")))

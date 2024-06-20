@@ -1,9 +1,9 @@
 {
   "rcParams": {
-    "font.size": 11,
-    "figure.titlesize": 11,
+    "font.size": 14,
+    "figure.titlesize": 14,
     "backend": "agg",
-    "figure.dpi": 250
+    "figure.dpi": 500
   },
   "variables": {
     "weaDat.weaBus.TDryBul": {

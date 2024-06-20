@@ -70,7 +70,7 @@ def plot_time_series(quota_case_grid_data: dict, save_path, quota_variation: "Qu
     fig, ax = plt.subplots(1, 2, sharey=True, figsize=get_figure_size(n_columns=2))
     fig_yearly, ax_yearly = plt.subplots(1, 1, figsize=get_figure_size(n_columns=2))
 
-    #ax = [ax]
+    # ax = [ax]
     t_oda = load_outdoor_air_temperature()
     bins = np.linspace(t_oda.values[1:-1, 0].min(), t_oda.values[1:-1, 0].max(), num=30)
     categories = pd.cut(t_oda.values[1:-1, 0], bins, labels=False)
@@ -107,13 +107,13 @@ def plot_time_series(quota_case_grid_data: dict, save_path, quota_variation: "Qu
     plot_quota_case_with_images(quota_variation=quota_variation, ax=ax[0])
     plot_quota_case_with_images(quota_variation=quota_variation, ax=ax[1])
     fig.tight_layout()
-    fig.savefig(save_path.joinpath(f"sorted_time_series_plot.png"), dpi=400)
+    fig.savefig(save_path.joinpath(f"sorted_time_series_plot.png"))
     ax_yearly.set_ylabel(label)
     ax_yearly.set_xlabel("Hour of year in h")
     ax_yearly.legend(bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
     plot_quota_case_with_images(quota_variation=quota_variation, ax=ax_yearly, width=0.05)
     fig_yearly.tight_layout()
-    fig_yearly.savefig(save_path.joinpath(f"annual_time_series_plot.png"), dpi=400)
+    fig_yearly.savefig(save_path.joinpath(f"annual_time_series_plot.png"))
 
 
 def plot_monte_carlo_violin(
@@ -145,7 +145,7 @@ def plot_monte_carlo_violin(
         axes.set_yticks(list(range(len(quota_variation.quota_cases))))
         plot_quota_case_with_images(quota_variation=quota_variation, ax=axes, which_axis="y")
         fig.tight_layout()
-        fig.savefig(save_path.joinpath(f"monte_carlo_violin_{point}_{metric}.png"), dpi=400)
+        fig.savefig(save_path.joinpath(f"monte_carlo_violin_{point}_{metric}.png"))
     plt.close("all")
 
 
@@ -191,7 +191,7 @@ def plot_monte_carlo_bars(
         idx += 1
 
     fig.tight_layout()
-    fig.savefig(save_path.joinpath(f"monte_carlo_{metric}.png"), dpi=400)
+    fig.savefig(save_path.joinpath(f"monte_carlo_{metric}.png"))
     plt.close("all")
 
 
@@ -237,16 +237,96 @@ def plot_monte_carlo_convergence(
 
 
 def plot_cop_motivation():
+    from hps_grid_interaction.bes_simulation import weather
+    t_oda_year = weather.WeatherConfig().get_hourly_weather_data()
+    t_oda_year = t_oda_year["t"].sort_values()
+    t_oda_year[t_oda_year > 20] = 20  # No demand in summer
+    min_t_oda = t_oda_year.min()
+
+    bivalence_point = 1
+    timestamp = t_oda_year[t_oda_year > bivalence_point].index[0]
+    index_biv = t_oda_year.index.get_loc(timestamp)
+
     plt.rcParams.update({"figure.figsize": [6.24 * 1.2, 5.78 / 1.3]})
     tsd35 = TimeSeriesData(DATA_PATH.joinpath("GetCOPCurve308.mat")).to_df()
     tsd70 = TimeSeriesData(DATA_PATH.joinpath("GetCOPCurve343.mat")).to_df()
-    plt.plot(tsd35.loc[1:, "TOda"] - 273.15, tsd35.loc[1:, "sigBusGen.COP"], label="FBH 35 °C")
-    plt.plot(tsd70.loc[1:, "TOda"] - 273.15, tsd70.loc[1:, "sigBusGen.COP"], label="Radiator 70 °C")
-    plt.legend()
-    plt.ylabel("$COP$")
-    plt.xlabel("Außentemperatur in °C")
-    plt.tight_layout()
-    plt.savefig("plots/COP Motivation.png")
+    t_oda = tsd35.loc[:, "TOda"] - 273.15
+    mask = t_oda > min_t_oda
+    t_oda = t_oda[mask]
+
+    # plt.figure()
+    # plt.plot(t_oda, tsd35.loc[mask, "sigBusGen.COP"], label="FBH 35 °C")
+    # plt.plot(t_oda, tsd70.loc[mask, "sigBusGen.COP"], label="Radiator 70 °C")
+    # plt.legend()
+    # plt.ylabel("$COP$")
+    # plt.xlabel("Außentemperatur in °C")
+    # plt.tight_layout()
+    # plt.savefig("COP Motivation.png")
+    from matplotlib.lines import Line2D
+
+    custom_lines = [
+        Line2D([0], [0], color="red", linestyle="-", label="Without retrofit"),
+        Line2D([0], [0], color="green", linestyle="--", label="Retrofit"),
+        Line2D([0], [0], color='w', label='Peak load', markerfacecolor='gray', markersize=15, marker="s"),
+        Line2D([0], [0], color="black", linestyle="--", label="Hybrid heat pump")
+    ]
+
+    Q_dem = 200 * (20 - t_oda)
+    average_COP = (tsd35.loc[mask, "sigBusGen.COP"] + tsd70.loc[mask, "sigBusGen.COP"]) / 2
+    P_el = Q_dem / average_COP
+    P_el_retrofit = 0.5 * P_el
+    mask_bivalent = t_oda > bivalence_point
+    fig, ax = plt.subplots(2, 1, sharex=True, figsize=get_figure_size(n_columns=1, height_factor=1.4))
+    ax[0].plot(t_oda, Q_dem, color="red")
+    ax[0].plot(t_oda, Q_dem, color="black", linestyle="--")
+    ax[0].plot(t_oda, Q_dem * 0.5, color="green", linestyle="--")
+    ax[0].set_yticks([0, Q_dem.values[0]])
+    ax[0].set_yticklabels(["min", "max"])
+    ax[0].set_ylabel("Heat demand")
+    ax[1].plot(t_oda, P_el, color="red")
+    ax[1].plot(t_oda[mask_bivalent], P_el[mask_bivalent], color="black", linestyle="--")
+    ax[1].plot(t_oda, P_el_retrofit, color="green", linestyle="--")
+    # Scatter
+    scatter_kwargs = dict(s=15, marker="s")
+    ax[1].scatter(t_oda.values[0], P_el.values[0], color="red", **scatter_kwargs)
+    ax[1].scatter(t_oda[mask_bivalent].values[0], P_el[mask_bivalent].values[0], color="black", **scatter_kwargs)
+    ax[1].scatter(t_oda.values[0], P_el_retrofit.values[0], color="green", **scatter_kwargs)
+    ax[1].set_yticks([0, P_el.values[0]])
+    ax[1].set_yticklabels(["min", "max"])
+    ax[1].set_ylabel("Electricity load")
+    ax[1].set_xlabel("Outdoor air temperature in °C")
+    ax[1].set_xticks([-12, 20])
+    ax[0].legend(handles=custom_lines, bbox_to_anchor=(0, 1), loc="lower left", mode="expand", ncol=2)
+    fig.tight_layout()
+
+    Q_dem = 200 * (20 - t_oda_year)
+    COP_t_oda = pd.Series(dict(zip(t_oda.values, average_COP.values)))
+    COP_over_year = t_oda_year.apply(
+        lambda x: COP_t_oda.reindex(COP_t_oda.index.union([x])).sort_index().interpolate().loc[x])
+    P_el = Q_dem / COP_over_year
+    P_el_retrofit = 0.5 * P_el
+    fig, ax = plt.subplots(2, 1, sharex=True, figsize=get_figure_size(n_columns=1, height_factor=1.4))
+    ax[0].plot(range(len(Q_dem)), Q_dem, color="red")
+    ax[0].plot(range(len(Q_dem)), Q_dem, color="black", linestyle="--")
+    ax[0].plot(range(len(Q_dem)), Q_dem * 0.5, color="green", linestyle="--")
+    ax[0].set_yticks([0, Q_dem.values[0]])
+    ax[0].set_yticklabels(["min", "max"])
+    ax[0].set_ylabel("Heat demand")
+    ax[1].plot(range(len(Q_dem)), P_el, color="red")
+    ax[1].plot(range(index_biv, len(Q_dem)), P_el[index_biv:], color="black", linestyle="--")
+    ax[1].plot(range(len(Q_dem)), P_el_retrofit, color="green", linestyle="--")
+    # Index 0 is Nan
+    ax[1].scatter([0], P_el.values[1], color="red", **scatter_kwargs)
+    ax[1].scatter(index_biv, P_el[index_biv:].values[0], color="black", **scatter_kwargs)
+    ax[1].scatter([0], P_el_retrofit.values[1], color="green", **scatter_kwargs)
+    ax[1].set_yticks([0, P_el.values[1]])
+    ax[1].set_yticklabels(["min", "max"])
+    ax[1].set_ylabel("Electricity load")
+    ax[1].set_xlabel("Hours in year")
+    ax[1].set_xticks([0, 8760])
+    ax[0].legend(handles=custom_lines, bbox_to_anchor=(0, 1), loc="lower left", mode="expand", ncol=2)
+
+    fig.tight_layout()
     plt.show()
 
 
@@ -299,3 +379,7 @@ def plot_technology_choices_in_grid(df_grid: pd.DataFrame, choices_for_grid: dic
         )
     fig.savefig(save_path)
     plt.close("all")
+
+
+if __name__ == '__main__':
+    plot_cop_motivation()

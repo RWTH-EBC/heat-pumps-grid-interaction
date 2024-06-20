@@ -18,6 +18,7 @@ from hps_grid_interaction.plotting import get_figure_size, icon_plotting
 from hps_grid_interaction.monte_carlo.plots import plot_quota_case_with_images
 from hps_grid_interaction import DATA_PATH
 
+
 METRIC_DATA = {
     "p_trafo": {"label": "$P$ in kW", "opt": "max", "label_abs": "$|P|$ in kW"},
     "q_trafo": {"label": "$Q$ in kW", "opt": "max"},
@@ -326,7 +327,7 @@ def generate_all_cases(
     folders = [
         folder
         for folder in os.listdir(path)
-        if folder.startswith(grid_case) and os.path.isdir(path.joinpath(folder))
+        if folder.startswith(grid_case) and os.path.isdir(path.joinpath(folder)) and "_hybrid_" in folder
     ]
     kwargs_mp = []
     for folder in folders:
@@ -343,7 +344,7 @@ def generate_all_cases(
     s_max_cluster_all_cases = {}
     if use_mp:
         import multiprocessing as mp
-        pool = mp.Pool(processes=30)
+        pool = mp.Pool(processes=1)
 
         for df, df_min_trafo_size, _s_max_cluster_all_cases in pool.imap_unordered(create_plots_and_get_df, kwargs_mp):
             dfs.append(df)
@@ -632,6 +633,7 @@ def plot_heat_map_trafo_size_with_uncertainty(
         "Trafo-Size": "Minimal Transformer Size in kVA",
         **{metric: kwargs["label"] for metric, kwargs in CALCULATED_METRICS.items()}
     }
+    os.makedirs(save_path.joinpath("heatmap_tables"), exist_ok=True)
     for metric, title in metrics_to_plot.items():
         kwargs = dict(
             metric=metric, use_case=use_case, orders=special_orders[use_case],
@@ -689,6 +691,9 @@ def _plot_single_heat_map_trafo_size(
         heatmap = heatmap.reindex(columns=_reindex_with_uncertainty(orders))
     else:
         heatmap = heatmap.reindex(columns=orders)
+
+    heatmap.to_excel(save_path.joinpath("heatmap_tables", f"{save_name}.xlsx"))
+
     sns.heatmap(heatmap, ax=ax, linewidths=0.5, cmap=cmap,
                 zorder=1, linecolor='black', **kwargs)
 
@@ -834,12 +839,15 @@ def plot_analysis_of_effects_with_uncertainty(
 if __name__ == '__main__':
     from hps_grid_interaction import RESULTS_MONTE_CARLO_FOLDER
 
+    # Load RC Params
+    PlotConfig.load_default()
+
     PATH = RESULTS_MONTE_CARLO_FOLDER
     PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
 
     # aggregate_simultaneity_factors(path=PATH)
-    # generate_all_cases(PATH, with_plot=True, oldbuildings=True, use_mp=True)
+    generate_all_cases(PATH, with_plot=True, oldbuildings=True, use_mp=True)
     # generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=True)
-    plot_all_heat_map_trafo_size(PATH)
+    # plot_all_heat_map_trafo_size(PATH)
     # plot_analysis_of_effects_with_uncertainty(path=PATH, oldbuildings=False)
     # plot_analysis_of_effects_with_uncertainty(path=PATH, oldbuildings=True)

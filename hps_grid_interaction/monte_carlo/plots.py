@@ -247,7 +247,7 @@ def plot_cop_motivation():
     timestamp = t_oda_year[t_oda_year > bivalence_point].index[0]
     index_biv = t_oda_year.index.get_loc(timestamp)
 
-    plt.rcParams.update({"figure.figsize": [6.24 * 1.2, 5.78 / 1.3]})
+    plt.rcParams.update({"figure.figsize": [6.24 * 1.2, 5.78 / 1.3], "font.size": 11})
     tsd35 = TimeSeriesData(DATA_PATH.joinpath("GetCOPCurve308.mat")).to_df()
     tsd70 = TimeSeriesData(DATA_PATH.joinpath("GetCOPCurve343.mat")).to_df()
     t_oda = tsd35.loc[:, "TOda"] - 273.15
@@ -267,8 +267,8 @@ def plot_cop_motivation():
     custom_lines = [
         Line2D([0], [0], color="red", linestyle="-", label="Without retrofit"),
         Line2D([0], [0], color="green", linestyle="--", label="Retrofit"),
+        Line2D([0], [0], color="black", linestyle="--", label="Hybrid heat pump"),
         Line2D([0], [0], color='w', label='Peak load', markerfacecolor='gray', markersize=15, marker="s"),
-        Line2D([0], [0], color="black", linestyle="--", label="Hybrid heat pump")
     ]
 
     Q_dem = 200 * (20 - t_oda)
@@ -276,28 +276,36 @@ def plot_cop_motivation():
     P_el = Q_dem / average_COP
     P_el_retrofit = 0.5 * P_el
     mask_bivalent = t_oda > bivalence_point
-    fig, ax = plt.subplots(2, 1, sharex=True, figsize=get_figure_size(n_columns=1, height_factor=1.4))
-    ax[0].plot(t_oda, Q_dem, color="red")
-    ax[0].plot(t_oda, Q_dem, color="black", linestyle="--")
-    ax[0].plot(t_oda, Q_dem * 0.5, color="green", linestyle="--")
-    ax[0].set_yticks([0, Q_dem.values[0]])
-    ax[0].set_yticklabels(["min", "max"])
-    ax[0].set_ylabel("Heat demand")
-    ax[1].plot(t_oda, P_el, color="red")
-    ax[1].plot(t_oda[mask_bivalent], P_el[mask_bivalent], color="black", linestyle="--")
-    ax[1].plot(t_oda, P_el_retrofit, color="green", linestyle="--")
+    fig, ax = plt.subplots(
+        3, 1,
+        sharex=True, figsize=get_figure_size(n_columns=1, height_factor=1.7),
+        gridspec_kw={'height_ratios': [1, 2, 2]}
+    )
+    ax[0].set_ylabel("Cumulative\nProbability")
+    ax[0].plot(t_oda, t_oda.apply(lambda x: np.count_nonzero(t_oda_year <= x) / 8760).values, color="black")
+    ax[0].set_yticks([0, 1])
+    ax[1].plot(t_oda, Q_dem, color="red")
+    ax[1].plot(t_oda, Q_dem, color="black", linestyle="--")
+    ax[1].plot(t_oda, Q_dem * 0.5, color="green", linestyle="--")
+    ax[1].set_yticks([0, Q_dem.values[0]])
+    ax[1].set_yticklabels(["min", "max"])
+    ax[1].set_ylabel("Heat demand")
+    ax[2].plot(t_oda, P_el, color="red")
+    ax[2].plot(t_oda[mask_bivalent], P_el[mask_bivalent], color="black", linestyle="--")
+    ax[2].plot(t_oda, P_el_retrofit, color="green", linestyle="--")
     # Scatter
     scatter_kwargs = dict(s=15, marker="s")
-    ax[1].scatter(t_oda.values[0], P_el.values[0], color="red", **scatter_kwargs)
-    ax[1].scatter(t_oda[mask_bivalent].values[0], P_el[mask_bivalent].values[0], color="black", **scatter_kwargs)
-    ax[1].scatter(t_oda.values[0], P_el_retrofit.values[0], color="green", **scatter_kwargs)
-    ax[1].set_yticks([0, P_el.values[0]])
-    ax[1].set_yticklabels(["min", "max"])
-    ax[1].set_ylabel("Electricity load")
-    ax[1].set_xlabel("Outdoor air temperature in °C")
-    ax[1].set_xticks([-12, 20])
-    ax[0].legend(handles=custom_lines, bbox_to_anchor=(0, 1), loc="lower left", mode="expand", ncol=2)
+    ax[2].scatter(t_oda.values[0], P_el.values[0], color="red", **scatter_kwargs)
+    ax[2].scatter(t_oda[mask_bivalent].values[0], P_el[mask_bivalent].values[0], color="black", **scatter_kwargs)
+    ax[2].scatter(t_oda.values[0], P_el_retrofit.values[0], color="green", **scatter_kwargs)
+    ax[2].set_yticks([0, P_el.values[0]])
+    ax[2].set_yticklabels(["min", "max"])
+    ax[2].set_ylabel("Electricity load")
+    ax[2].set_xlabel("Outdoor air temperature in °C")
+    ax[2].set_xticks([-12, 20])
+    ax[0].legend(handles=custom_lines, bbox_to_anchor=(0, 1.02, 1, 0.2), loc="lower left", mode="expand", borderaxespad=0, ncol=1)
     fig.tight_layout()
+    fig.savefig(DATA_PATH.joinpath("Motivation_plot_oda.png"))
 
     Q_dem = 200 * (20 - t_oda_year)
     COP_t_oda = pd.Series(dict(zip(t_oda.values, average_COP.values)))
@@ -324,9 +332,9 @@ def plot_cop_motivation():
     ax[1].set_ylabel("Electricity load")
     ax[1].set_xlabel("Hours in year")
     ax[1].set_xticks([0, 8760])
-    ax[0].legend(handles=custom_lines, bbox_to_anchor=(0, 1), loc="lower left", mode="expand", ncol=2)
-
+    ax[0].legend(handles=custom_lines, bbox_to_anchor=(0, 1.02, 1, 0.2), loc="lower left", mode="expand", borderaxespad=0, ncol=1)
     fig.tight_layout()
+    fig.savefig(DATA_PATH.joinpath("Motivation_plot_hours.png"))
     plt.show()
 
 

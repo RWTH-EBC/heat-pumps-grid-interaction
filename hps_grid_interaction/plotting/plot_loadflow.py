@@ -248,6 +248,9 @@ def plot_time_series(
         else:
             ax[0].set_ylim([0, curr_ytick_max])
             # ax[0].set_yticks(np.linspace(0, curr_ytick_max, 7))
+    elif metric in ["vm_pu_min"]:
+        for _ax in ax:
+            _ax.set_yticks([0.9, 0.92, 0.94, 0.96, 0.98, 1])
 
     plot_quota_case_with_images(quota_variation=quota_variation, ax=ax[0])
     plot_quota_case_with_images(quota_variation=quota_variation, ax=ax[1])
@@ -511,8 +514,12 @@ def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path, monte_carlo
                     cmap = "flare_r"
                 else:
                     cmap = "flare"
+                if metric == "vm_pu_min":
+                    cbar_kws = {"ticks": [0.9, 0.92, 0.94, 0.96, 0.98, 1]}
+                else:
+                    cbar_kws = {}
                 ax[idx_case, idx_trafo] = plot_heat_map_on_grid_image(
-                    ax=ax[idx_case, idx_trafo], df=df,
+                    ax=ax[idx_case, idx_trafo], df=df, cbar_kws=cbar_kws,
                     cmap=cmap, heatmap_kwargs=metric_kwargs.get("min_max", {})
                 )
 
@@ -532,11 +539,11 @@ def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path, monte_carlo
         plt.close("all")
 
 
-def plot_heat_map_on_grid_image(ax: plt.axes, cmap, df: pd.DataFrame, heatmap_kwargs: dict = None):
+def plot_heat_map_on_grid_image(ax: plt.axes, cmap, df: pd.DataFrame, cbar_kws: dict, heatmap_kwargs: dict = None):
     if heatmap_kwargs is None:
         heatmap_kwargs = {}
     sns.heatmap(df.astype(float), ax=ax, cmap=cmap, linewidths=0,
-                zorder=1, linecolor='black', **heatmap_kwargs)
+                zorder=1, linecolor='black', **heatmap_kwargs, cbar_kws=cbar_kws)
     ax.imshow(
         plt.imread(DATA_PATH.joinpath("grid_image.png"), format="png"),
         aspect=ax.get_aspect(),

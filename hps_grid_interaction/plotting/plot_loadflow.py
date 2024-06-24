@@ -22,7 +22,7 @@ from hps_grid_interaction import DATA_PATH
 METRIC_DATA = {
     "p_trafo": {"label": "$P$ in kW", "opt": "max", "label_abs": "$|P|$ in kW"},
     "q_trafo": {"label": "$Q$ in kW", "opt": "max"},
-    "s_trafo": {"label": "$S$ in kVA", "opt": "max", "label_abs": "$|S|$ in kVA"},
+    "s_trafo": {"label": "$S_\mathrm{tf}$ in kVA", "opt": "max", "label_abs": "$|S_\mathrm{tf}|$ in kVA"},
     "vm_pu_min": {"label": "$V_\mathrm{min}$ in p.u.", "opt": "min",
                   "axhlines": [0.9, 0.95, 0.97], "min_max": {"vmin": 0.9, "vmax": 1}},
     #    "vm_pu_max": {"label": "$V_\mathrm{max}$ in p.u.", "opt": "max", "min_max": {"vmin": 0.85, "vmax": 1}},
@@ -175,7 +175,14 @@ def plot_time_series(
         }
         fig_title = f"{fixed_trafo_size} kVA transformer"
         if varying_tech_name:
-            fig_title = f"{varying_tech_name}-quota variation | " + fig_title
+            if varying_tech_name == "Hybrid":
+                fig_title = f"Hybrid HP share variation | " + fig_title
+            elif varying_tech_name == "Retrofit":
+                fig_title = "$\\texttt{retrofit}$ rate variation | " + fig_title
+            elif varying_tech_name == "Advanced-retrofit":
+                fig_title = "$\\texttt{advanced retrofit}$ rate variation | " + fig_title
+            else:
+                raise ValueError(f"Given varying tech name not supported: {varying_tech_name}")
         save_name = f"trafo={fixed_trafo_size}"
 
     fig, ax = plt.subplots(1, 2, sharey=False, figsize=get_figure_size(n_columns=2))
@@ -330,7 +337,11 @@ def generate_all_cases(
     folders = [
         folder
         for folder in os.listdir(path)
-        if folder.startswith(grid_case) and os.path.isdir(path.joinpath(folder)) and "_hybrid_" in folder
+        if (
+                folder.startswith(grid_case)
+                and os.path.isdir(path.joinpath(folder))
+                and "Analyse" not in folder
+        )
     ]
     kwargs_mp = []
     for folder in folders:
@@ -347,7 +358,7 @@ def generate_all_cases(
     s_max_cluster_all_cases = {}
     if use_mp:
         import multiprocessing as mp
-        pool = mp.Pool(processes=1)
+        pool = mp.Pool(processes=25)
 
         for df, df_min_trafo_size, _s_max_cluster_all_cases in pool.imap_unordered(create_plots_and_get_df, kwargs_mp):
             dfs.append(df)
@@ -394,8 +405,8 @@ def create_plots_and_get_df(kwargs):
                 case_and_trafo_data, case_path, quota_variation
             )
             s_max_cluster_all_cases[case] = s_max_cluster
-            for monte_carlo_metric in MONTE_CARLO_METRICS.values():
-                plot_grid_as_heatmap(case_and_trafo_data, case_path, monte_carlo_metric=monte_carlo_metric)
+            #for monte_carlo_metric in MONTE_CARLO_METRICS.values():
+            #    plot_grid_as_heatmap(case_and_trafo_data, case_path, monte_carlo_metric=monte_carlo_metric)
         trafo_sizes_metrics = {}
         for monte_carlo_metric in MONTE_CARLO_METRICS.values():
             trafo_sizes_metrics[monte_carlo_metric] = plot_required_trafo_size(
@@ -464,7 +475,7 @@ def plot_required_trafo_size(
             color=EBCColors.ebc_palette_sort_2[0],
             **bar_args,
         )
-        ax.set_xlabel("Minimal Transformer Size in kVA")
+        ax.set_xlabel("Minimum Transformer Size in kVA")
         ax.set_yticks(x_pos)
         ax.xaxis.grid(True)
         ax.set_xlim([df_plot.loc[:, "Trafo-Size"].min() - 100, df_plot.loc[:, "Trafo-Size"].max() + 100])
@@ -514,7 +525,7 @@ def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path, monte_carlo
                     cmap = "flare_r"
                 else:
                     cmap = "flare"
-                if metric == "vm_pu_min":
+                if metric == "vm_pu_min_per_line":
                     cbar_kws = {"ticks": [0.9, 0.92, 0.94, 0.96, 0.98, 1]}
                 else:
                     cbar_kws = {}
@@ -637,7 +648,7 @@ def plot_heat_map_trafo_size_with_uncertainty(
 
     # df.index = range(len(df))
     metrics_to_plot = {
-        "Trafo-Size": "Minimal Transformer Size in kVA",
+        "Trafo-Size": "Minimum Transformer Size in kVA",
         **{metric: kwargs["label"] for metric, kwargs in CALCULATED_METRICS.items()}
     }
     os.makedirs(save_path.joinpath("heatmap_tables"), exist_ok=True)
@@ -854,7 +865,7 @@ if __name__ == '__main__':
 
     # aggregate_simultaneity_factors(path=PATH)
     generate_all_cases(PATH, with_plot=True, oldbuildings=True, use_mp=True)
-    # generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=True)
+    generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=True)
     # plot_all_heat_map_trafo_size(PATH)
     # plot_analysis_of_effects_with_uncertainty(path=PATH, oldbuildings=False)
     # plot_analysis_of_effects_with_uncertainty(path=PATH, oldbuildings=True)

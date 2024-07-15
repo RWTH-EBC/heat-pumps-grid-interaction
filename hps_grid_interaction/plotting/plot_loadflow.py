@@ -178,9 +178,9 @@ def plot_time_series(
             if varying_tech_name == "Hybrid":
                 fig_title = f"Hybrid HP share variation | " + fig_title
             elif varying_tech_name == "Retrofit":
-                fig_title = "$\\texttt{retrofit}$ rate variation | " + fig_title
+                fig_title = "$\it{retrofit}$ rate variation | " + fig_title
             elif varying_tech_name == "Advanced-retrofit":
-                fig_title = "$\\texttt{advanced retrofit}$ rate variation | " + fig_title
+                fig_title = "$\it{advanced-retrofit}$ rate variation | " + fig_title
             else:
                 raise ValueError(f"Given varying tech name not supported: {varying_tech_name}")
         save_name = f"trafo={fixed_trafo_size}"

@@ -336,7 +336,11 @@ def plot_cop_motivation():
     ax[1].set_yticklabels(["min", "max"])
     ax[1].set_ylabel("Heat demand")
     ax[2].plot(range(len(Q_dem)), P_el, color="red")
-    ax[2].plot(range(index_biv, len(Q_dem)), P_el[index_biv:], color="black", linestyle="--")
+    ax[2].plot(
+        [0, index_biv] + list(range(index_biv, len(Q_dem))),
+        [0, 0] + list(P_el[index_biv:]),
+        color="black", linestyle="--"
+    )
     ax[2].plot(range(len(Q_dem)), P_el_retrofit, color="green", linestyle="--")
     # Index 0 is Nan
     ax[2].scatter([0], P_el.values[1], color="red", **scatter_kwargs)

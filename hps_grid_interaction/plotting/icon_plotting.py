@@ -72,6 +72,7 @@ def add_images_to_title(
     Returns:
         None
     """
+    technologies = filter_bivalent_names(technologies)
     n_images = len(technologies)
     assert width * n_images < 1, (f"Images won't fit, width should be "
                                   f"smaller than 1 but is {width * n_images}")
@@ -97,7 +98,6 @@ def _add_single_image(ax: plt.axes, bbox: tuple, image_path: pathlib.Path, width
     Returns:
         None
     """
-
     from matplotlib.image import BboxImage, imread
     from matplotlib.transforms import Bbox, TransformedBbox
 
@@ -144,8 +144,8 @@ def get_technology_image_path(technology: str) -> pathlib.Path:
         "p_ret": "BLDG_2.png",
         "p_adv_ret": "BLDG_box.png",
         "gas": "BOI_box.png",
-        "heating_rod": "heating_rod.png",
-        "hybrid": "hybrid.png",
+        "heating_rod": "HP_EH.png",
+        "hybrid": "HP_Hybrid.png",
         "heat_pump": "HP_AS_box.png",
         "household": "Electricity_box.png",
         "pv": "PV_box.png",
@@ -155,6 +155,16 @@ def get_technology_image_path(technology: str) -> pathlib.Path:
     }
     from hps_grid_interaction import DATA_PATH
     return DATA_PATH.joinpath("icons", file_map[technology])
+
+
+def filter_bivalent_names(technologies: list):
+    if "heat_pump" in technologies and (
+            "hybrid" in technologies or "heating_rod" in technologies
+    ):
+        technologies = technologies.copy()
+        technologies.remove("heat_pump")
+        return technologies
+    return technologies
 
 
 def scale_ticks_to_axes(ticks: list, lim: list) -> list:
@@ -206,7 +216,8 @@ def add_images_to_axis(
     i_tick = 0
     assert len(technologies) == len(ticks), "Length of images and ticks does not match"
     for tick in scale_ticks_to_axes(ticks, lim):
-        for idx, tech in enumerate(technologies[i_tick]):
+        technologies_for_tick = filter_bivalent_names(technologies[i_tick])
+        for idx, tech in enumerate(technologies_for_tick):
             if which_axis == "y":
                 y_start = tick - width / 2 - y_offset
                 x_start = 0 - (width + distance_to_others) * idx - distance_to_others - x_offset

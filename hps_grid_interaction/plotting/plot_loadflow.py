@@ -372,7 +372,8 @@ def generate_all_cases(
             dfs.append(df)
             dfs_min_trafo_size.append(df_min_trafo_size)
             s_max_cluster_all_cases.update(_s_max_cluster_all_cases)
-            print(f"Ran {idx + 1}/{len(folders)} folders")
+            print(f"Ran {idx + 1}/{len(folders)} folders:", kwargs)
+            return
             idx += 1
     dfs = pd.concat(dfs)
     for metric in MONTE_CARLO_METRICS.values():
@@ -405,8 +406,8 @@ def create_plots_and_get_df(kwargs):
                 case_and_trafo_data, case_path, quota_variation
             )
             s_max_cluster_all_cases[case] = s_max_cluster
-            #for monte_carlo_metric in MONTE_CARLO_METRICS.values():
-            #    plot_grid_as_heatmap(case_and_trafo_data, case_path, monte_carlo_metric=monte_carlo_metric)
+            for monte_carlo_metric in MONTE_CARLO_METRICS.values():
+                plot_grid_as_heatmap(case_and_trafo_data, case_path, monte_carlo_metric=monte_carlo_metric)
         trafo_sizes_metrics = {}
         for monte_carlo_metric in MONTE_CARLO_METRICS.values():
             trafo_sizes_metrics[monte_carlo_metric] = plot_required_trafo_size(
@@ -522,9 +523,9 @@ def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path, monte_carlo
                     continue
                 metric_kwargs = METRIC_DATA.get(metric_name, {})
                 if metric_kwargs["opt"] == "min":
-                    cmap = "flare_r"
+                    cmap = get_colormap(r=True)
                 else:
-                    cmap = "flare"
+                    cmap = get_colormap()
                 if metric == "vm_pu_min_per_line":
                     cbar_kws = {"ticks": [0.9, 0.92, 0.94, 0.96, 0.98, 1]}
                 else:
@@ -681,25 +682,38 @@ def plot_heat_map_trafo_size_with_uncertainty(
         )
 
 
+def get_colormap(r: bool = False):
+    from matplotlib.colors import LinearSegmentedColormap
+    if r:
+        return LinearSegmentedColormap.from_list("custom_cmap_r", EBCColors.ebc_palette_sort_3[::-1], N=500)
+    return LinearSegmentedColormap.from_list("custom_cmap", EBCColors.ebc_palette_sort_3, N=500)
+
+
 def _plot_single_heat_map_trafo_size(
         heatmap: pd.DataFrame, save_path: Path, metric: str,
         use_case: str, orders: list, title: str,
         with_uncertainty: bool, save_name: str,
         vmin: float = None, vmax: float = None
 ):
-    fig, ax = plt.subplots(1, 1, figsize=get_figure_size(n_columns=2, height_factor=1.3))
-
+    trafo_sizes = [600, 800, 1000, 1200, 1400, 1600, 1800, 2000]
     if metric == "Trafo-Size":
         unique_labels = pd.unique(heatmap.values.ravel())
         try:
             unique_labels = np.arange(vmin, vmax + 1, 200)
         except Exception:
             print("Hasdas")
-        color_map = dict(zip([600, 800, 1000, 1200, 1400, 1600, 1800, 2000], EBCColors.ebc_palette_sort_3[:8]))
-        color_palette = [color_map[label] for label in sorted(unique_labels)]
-        cmap = sns.color_palette(palette=color_palette, n_colors=len(color_palette))
+        boundaries = [size - 100 for size in trafo_sizes] + [trafo_sizes[-1] + 100]
+        color_palette = EBCColors.ebc_palette_sort_3[:len(trafo_sizes)]
+        from matplotlib.colors import ListedColormap, BoundaryNorm
+        cmap = ListedColormap(color_palette)
+        # Define the boundaries for the colormap
+        norm = BoundaryNorm(boundaries, cmap.N)
+        cbar_kws = {'ticks': trafo_sizes}
     else:
-        cmap = "flare"
+        cmap = get_colormap()
+        norm = None
+        cbar_kws = None
+
     kwargs = dict(vmax=vmax, vmin=vmin)
 
     heatmap = heatmap.astype(float)
@@ -712,8 +726,10 @@ def _plot_single_heat_map_trafo_size(
 
     heatmap.to_excel(save_path.joinpath("heatmap_tables", f"{save_name}.xlsx"))
 
-    sns.heatmap(heatmap, ax=ax, linewidths=0.5, cmap=cmap,
-                zorder=1, linecolor='black', **kwargs)
+    fig, ax = plt.subplots(1, 1, figsize=get_figure_size(n_columns=2, height_factor=1.3))
+
+    sns.heatmap(heatmap, ax=ax, linewidths=0.5, cmap=cmap, norm=norm,
+                zorder=1, linecolor='black',  cbar_kws=cbar_kws, **kwargs)
 
     if metric == "Trafo-Size":
         add_discrete_colorbar(ax=ax, labels=sorted(unique_labels))
@@ -733,14 +749,21 @@ def _plot_single_heat_map_trafo_size(
     icon_plotting.add_images_to_axis(
         technologies=varying_technologies, ax=ax,
         which_axis="x", width=0.08,
-        distance_to_others=0.02
+        distance_to_others=0.03
     )
     icon_plotting.add_image_and_text_as_label(
-        ax=ax, which_axis="y", technology=use_case, width=0.08,
+        ax=ax, which_axis="y", technology=use_case, width=0.12,
         ticklabels=[f"{i}%" for i in heatmap.index],
         distance_to_others=0.01
     )
     ax.set_title(title)
+
+    if metric == "Trafo-Size":
+        cbar = ax.collections[0].colorbar
+        cbar.set_ticks(trafo_sizes)
+        cbar.set_ticklabels(trafo_sizes)
+        cbar.set_ticks([], minor=True)
+
     fig.tight_layout(pad=0.5, rect=[0, -0.06, 1, 1], w_pad=0, h_pad=0)
     fig.savefig(save_path.joinpath(f"{save_name}.png"))
     plt.close("all")
@@ -864,8 +887,8 @@ if __name__ == '__main__':
     PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
 
     # aggregate_simultaneity_factors(path=PATH)
-    generate_all_cases(PATH, with_plot=True, oldbuildings=True, use_mp=True)
-    generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=True)
-    # plot_all_heat_map_trafo_size(PATH)
+    # generate_all_cases(PATH, with_plot=True, oldbuildings=True, use_mp=False)
+    # generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=True)
+    plot_all_heat_map_trafo_size(PATH)
     # plot_analysis_of_effects_with_uncertainty(path=PATH, oldbuildings=False)
     # plot_analysis_of_effects_with_uncertainty(path=PATH, oldbuildings=True)

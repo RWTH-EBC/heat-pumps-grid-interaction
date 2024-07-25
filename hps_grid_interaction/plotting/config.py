@@ -51,8 +51,7 @@ class EBCColors:
         dark_grey,
         light_red,
         red,
-        dark_red,
-        light_grey,
+        dark_red
     ]
 
 

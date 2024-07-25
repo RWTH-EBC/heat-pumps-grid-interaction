@@ -696,6 +696,7 @@ def _plot_single_heat_map_trafo_size(
         vmin: float = None, vmax: float = None
 ):
     trafo_sizes = [600, 800, 1000, 1200, 1400, 1600, 1800, 2000]
+    cbar_kws = {'pad': 0.02}
     if metric == "Trafo-Size":
         unique_labels = pd.unique(heatmap.values.ravel())
         try:
@@ -708,11 +709,10 @@ def _plot_single_heat_map_trafo_size(
         cmap = ListedColormap(color_palette)
         # Define the boundaries for the colormap
         norm = BoundaryNorm(boundaries, cmap.N)
-        cbar_kws = {'ticks': trafo_sizes}
+        cbar_kws['ticks'] =trafo_sizes
     else:
         cmap = get_colormap()
         norm = None
-        cbar_kws = None
 
     kwargs = dict(vmax=vmax, vmin=vmin)
 
@@ -726,10 +726,10 @@ def _plot_single_heat_map_trafo_size(
 
     heatmap.to_excel(save_path.joinpath("heatmap_tables", f"{save_name}.xlsx"))
 
-    fig, ax = plt.subplots(1, 1, figsize=get_figure_size(n_columns=2, height_factor=1.3))
+    fig, ax = plt.subplots(1, 1, figsize=get_figure_size(n_columns=2, height_factor=1.5))
 
     sns.heatmap(heatmap, ax=ax, linewidths=0.5, cmap=cmap, norm=norm,
-                zorder=1, linecolor='black',  cbar_kws=cbar_kws, **kwargs)
+                zorder=1, linecolor='black', cbar_kws=cbar_kws, **kwargs)
 
     if metric == "Trafo-Size":
         add_discrete_colorbar(ax=ax, labels=sorted(unique_labels))
@@ -749,12 +749,12 @@ def _plot_single_heat_map_trafo_size(
     icon_plotting.add_images_to_axis(
         technologies=varying_technologies, ax=ax,
         which_axis="x", width=0.08,
-        distance_to_others=0.03
+        distance_to_others=0.02
     )
     icon_plotting.add_image_and_text_as_label(
         ax=ax, which_axis="y", technology=use_case, width=0.12,
         ticklabels=[f"{i}%" for i in heatmap.index],
-        distance_to_others=0.01
+        distance_to_others=0.12
     )
     ax.set_title(title)
 

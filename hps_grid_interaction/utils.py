@@ -360,7 +360,7 @@ def copy_files_for_online_publications(
                 if file_or_folder in files_and_folder_to_copy or file_or_folder.startswith("monte_carlo_convergence"):
                     copy_path(
                         case_folder.joinpath(file_or_folder),
-                        dst_case_folder.joinpath(files_and_folder_to_copy[file_or_folder])
+                        dst_case_folder.joinpath(files_and_folder_to_copy.get(file_or_folder, file_or_folder))
                     )
             for folder_monte_carlo in MONTE_CARLO_METRICS.values():
                 monte_carlo_folder_src = case_folder.joinpath(folder_monte_carlo)

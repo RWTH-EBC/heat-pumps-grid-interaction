@@ -18,7 +18,6 @@ from hps_grid_interaction.plotting import get_figure_size, icon_plotting
 from hps_grid_interaction.monte_carlo.plots import plot_quota_case_with_images
 from hps_grid_interaction import DATA_PATH
 
-
 METRIC_DATA = {
     "p_trafo": {"label": "$P$ in kW", "opt": "max", "label_abs": "$|P|$ in kW"},
     "q_trafo": {"label": "$Q$ in kW", "opt": "max"},
@@ -184,8 +183,8 @@ def plot_time_series(
             else:
                 raise ValueError(f"Given varying tech name not supported: {varying_tech_name}")
         save_name = f"trafo={fixed_trafo_size}"
-
-    fig, ax = plt.subplots(1, 2, sharey=False, figsize=get_figure_size(n_columns=2))
+    different_y_labels = metric in ["s_trafo", "p_trafo"]
+    fig, ax = plt.subplots(1, 2, sharey=not different_y_labels, figsize=get_figure_size(n_columns=2))
     t_oda = load_outdoor_air_temperature()
     bins = np.linspace(t_oda.values[1:-1, 0].min(), t_oda.values[1:-1, 0].max(), num=30)
     categories = pd.cut(t_oda.values[1:-1, 0], bins, labels=False)
@@ -241,13 +240,14 @@ def plot_time_series(
     fig.suptitle(fig_title)
     y_label_non_abs = METRIC_DATA[metric]["label"]
     ax[0].set_ylabel(y_label_non_abs)
-    ax[1].set_ylabel(METRIC_DATA[metric].get("label_abs", y_label_non_abs))
+    if different_y_labels:
+        ax[1].set_ylabel(METRIC_DATA[metric].get("label_abs", y_label_non_abs))
     ax[1].set_xlabel("$T_\mathrm{oda}$ in °C")
     ax[0].set_xlabel("Hours in year")
-    ax[1].legend(bbox_to_anchor=(1, 1), loc="upper left", ncol=1)
+    ax[1].legend(bbox_to_anchor=(1, 1), loc="upper left", ncol=1, borderaxespad=0.02)
     if metric in ["s_trafo", "p_trafo"]:
         curr_ytick_max = overall_max * 1.1
-        #ax[1].set_ylim([0, curr_ytick_max])
+        # ax[1].set_ylim([0, curr_ytick_max])
         # ax[1].set_yticks(np.linspace(0, curr_ytick_max, 7))
         if main_tsd.min() < 0:
             ax[0].set_ylim([-curr_ytick_max, curr_ytick_max])
@@ -258,9 +258,10 @@ def plot_time_series(
     elif metric in ["vm_pu_min"]:
         for _ax in ax:
             _ax.set_yticks([0.9, 0.92, 0.94, 0.96, 0.98, 1])
+    kwargs = dict(width=0.18, title_offset=0.02, distance_to_others=0.02)
 
-    plot_quota_case_with_images(quota_variation=quota_variation, ax=ax[0])
-    plot_quota_case_with_images(quota_variation=quota_variation, ax=ax[1])
+    plot_quota_case_with_images(quota_variation=quota_variation, ax=ax[0], **kwargs)
+    plot_quota_case_with_images(quota_variation=quota_variation, ax=ax[1], **kwargs)
 
     fig.suptitle(fig_title)
     fig.tight_layout(pad=0.3)
@@ -341,6 +342,7 @@ def generate_all_cases(
                 folder.startswith(grid_case)
                 and os.path.isdir(path.joinpath(folder))
                 and "Analyse" not in folder
+                and "oldbuildings_hybrid_PVBat_EMob_HP" in folder
         )
     ]
     kwargs_mp = []
@@ -373,7 +375,6 @@ def generate_all_cases(
             dfs_min_trafo_size.append(df_min_trafo_size)
             s_max_cluster_all_cases.update(_s_max_cluster_all_cases)
             print(f"Ran {idx + 1}/{len(folders)} folders:", kwargs)
-            return
             idx += 1
     dfs = pd.concat(dfs)
     for metric in MONTE_CARLO_METRICS.values():
@@ -407,7 +408,8 @@ def create_plots_and_get_df(kwargs):
             )
             s_max_cluster_all_cases[case] = s_max_cluster
             for monte_carlo_metric in MONTE_CARLO_METRICS.values():
-                plot_grid_as_heatmap(case_and_trafo_data, case_path, monte_carlo_metric=monte_carlo_metric)
+                #plot_grid_as_heatmap_one_big_image(case_and_trafo_data, case_path, monte_carlo_metric=monte_carlo_metric)
+                plot_grid_as_heatmap_single_images(case_and_trafo_data, case_path, monte_carlo_metric=monte_carlo_metric)
         trafo_sizes_metrics = {}
         for monte_carlo_metric in MONTE_CARLO_METRICS.values():
             trafo_sizes_metrics[monte_carlo_metric] = plot_required_trafo_size(
@@ -416,7 +418,8 @@ def create_plots_and_get_df(kwargs):
                 quota_variation=quota_variation,
                 design_metric="percent_max_trafo_load in %",
                 design_value=100,
-                monte_carlo_metric=monte_carlo_metric
+                monte_carlo_metric=monte_carlo_metric,
+                without_plot=True
             )
 
         print(f"Extracted and plotted {case_path}")
@@ -439,7 +442,8 @@ def plot_required_trafo_size(
         quota_variation: QuotaVariation,
         design_metric: str = "percent_max_trafo_load in %",
         design_value: float = 100,
-        monte_carlo_metric: str = "argmax"
+        monte_carlo_metric: str = "argmax",
+        without_plot: bool = False
 ):
     os.makedirs(path, exist_ok=True)
     df_plot = pd.DataFrame(columns=df.columns)
@@ -457,6 +461,9 @@ def plot_required_trafo_size(
     df_plot = df_plot.iloc[::-1]
     df_plot.loc[:, "fixed_technologies"] = df_plot.loc[:, "Trafo-Size"].apply(
         lambda x: quota_variation.fixed_technologies)
+
+    if without_plot:
+        return df_plot
     from copy import deepcopy
     quota_variation_copy = deepcopy(quota_variation)
     if isinstance(quota_variation.varying_technologies, dict):
@@ -492,7 +499,7 @@ def plot_required_trafo_size(
     return df_plot
 
 
-def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path, monte_carlo_metric: str = "argmean"):
+def plot_grid_as_heatmap_one_big_image(case_and_trafo_data: dict, save_path: Path, monte_carlo_metric: str = "argmean"):
     save_path = save_path.joinpath("plots_detailed_grid")
     os.makedirs(save_path, exist_ok=True)
     n_trafo_sizes = len(next(iter(case_and_trafo_data.values())))
@@ -549,6 +556,48 @@ def plot_grid_as_heatmap(case_and_trafo_data: dict, save_path: Path, monte_carlo
         fig.tight_layout()
         fig.savefig(save_path.joinpath(f"{metric}_{monte_carlo_metric}.png"))
         plt.close("all")
+
+
+def plot_grid_as_heatmap_single_images(case_and_trafo_data: dict, save_path: Path, monte_carlo_metric: str = "argmean"):
+    save_path = save_path.joinpath("plots_detailed_grid_single")
+    os.makedirs(save_path, exist_ok=True)
+    metrics = [
+        "max_line_loading_per_line",
+        "vm_pu_min_per_line"
+    ]
+    for idx_case, case in enumerate(case_and_trafo_data.keys()):
+        case_data = case_and_trafo_data[case]
+        for idx_trafo, trafo_size in enumerate(sorted(case_data.keys())):
+            trafo_data = case_data[trafo_size][monte_carlo_metric]
+            for metric in metrics:
+                fig, ax = plt.subplots(1, 1, figsize=get_figure_size(n_columns=1, height_factor=0.7))
+                df = trafo_data[metric]
+                if not isinstance(df, pd.DataFrame):
+                    continue
+                metric_name = metric.replace("_per_line", "")
+                if metric_name not in METRIC_DATA:
+                    continue
+                metric_kwargs = METRIC_DATA.get(metric_name, {})
+                if metric_kwargs["opt"] == "min":
+                    cmap = get_colormap(r=True)
+                else:
+                    cmap = get_colormap()
+                if metric == "vm_pu_min_per_line":
+                    cbar_kws = {"ticks": [0.9, 0.92, 0.94, 0.96, 0.98, 1]}
+                else:
+                    cbar_kws = {}
+                ax = plot_heat_map_on_grid_image(
+                    ax=ax, df=df, cbar_kws=cbar_kws,
+                    cmap=cmap, heatmap_kwargs=metric_kwargs.get("min_max", {})
+                )
+                ax.set_ylabel(case)
+                ax.set_xlabel(f"{trafo_size} kVA")
+
+                metric_name = metric.replace("_per_line", "")
+                fig.suptitle(METRIC_DATA[metric_name].get("label", metric_name))
+                fig.tight_layout()
+                fig.savefig(save_path.joinpath(f"{metric}_{monte_carlo_metric}_{case}_{trafo_size}.png"))
+                plt.close("all")
 
 
 def plot_heat_map_on_grid_image(ax: plt.axes, cmap, df: pd.DataFrame, cbar_kws: dict, heatmap_kwargs: dict = None):
@@ -709,7 +758,7 @@ def _plot_single_heat_map_trafo_size(
         cmap = ListedColormap(color_palette)
         # Define the boundaries for the colormap
         norm = BoundaryNorm(boundaries, cmap.N)
-        cbar_kws['ticks'] =trafo_sizes
+        cbar_kws['ticks'] = trafo_sizes
     else:
         cmap = get_colormap()
         norm = None
@@ -877,6 +926,26 @@ def plot_analysis_of_effects_with_uncertainty(
     fig.savefig(path.joinpath(f"{grid_name}_{analysis_name}_s_max.png"))
 
 
+def copy_selection_for_paper(src, dst):
+    files = [
+        "oldbuildings_hybrid_main_Trafo-Size.png",
+        "oldbuildings_hybrid_max_vm_pu_min smaller 0.95.png",
+        "oldbuildings_hybrid_max_Trafo-Size.png",
+        "oldbuildings_hybrid_max_max_line_loading_max.png",
+        "newbuildings_hybrid_max_max_line_loading_max.png",
+        "newbuildings_hybrid_max_Trafo-Size.png",
+        "newbuildings_hybrid_max_vm_pu_min smaller 0.95.png",
+        "newbuildings_hybrid_main_Trafo-Size.png",
+        "oldbuildings_retrofit_main_Trafo-Size.png",
+        "oldbuildings_adv_retrofit_main_Trafo-Size.png",
+        "oldbuildings_retrofit_max_Trafo-Size.png",
+        "oldbuildings_adv_retrofit_max_Trafo-Size.png",
+    ]
+    import shutil
+    for file in files:
+        shutil.copy2(src.joinpath("plots_grid_heatmaps", file), dst.joinpath(file))
+
+
 if __name__ == '__main__':
     from hps_grid_interaction import RESULTS_MONTE_CARLO_FOLDER
 
@@ -887,8 +956,8 @@ if __name__ == '__main__':
     PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
 
     # aggregate_simultaneity_factors(path=PATH)
-    # generate_all_cases(PATH, with_plot=True, oldbuildings=True, use_mp=False)
+    generate_all_cases(PATH, with_plot=True, oldbuildings=True, use_mp=False)
     # generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=True)
-    plot_all_heat_map_trafo_size(PATH)
+    # plot_all_heat_map_trafo_size(PATH)
     # plot_analysis_of_effects_with_uncertainty(path=PATH, oldbuildings=False)
     # plot_analysis_of_effects_with_uncertainty(path=PATH, oldbuildings=True)

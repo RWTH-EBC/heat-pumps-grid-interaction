@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 from typing import Union
 
 from dataclasses import dataclass
@@ -292,5 +293,101 @@ def get_max_values_in_inputs():
     print("Max e-mob", np.sum(max_e_mob), np.mean(max_e_mob), np.std(max_e_mob))
 
 
+def copy_files_for_online_publications(
+        destination: Path,
+        src_bes: Path = None,
+        src_grid: Path = None,
+        src_emob: Path = None,
+        src_household: Path = None
+):
+    """
+    This function is used to copy relevant result files for the online publication.
+    All other plots and intermediate results may be generated with these datapoints.
+    If readers require further information, please contact the authors.
+
+    If any of the src folders are None the default ones from __init__.py are used.
+    """
+    # Building Simulation Results
+    extra_case_name_hybrid = "Weather"
+    folder_names = []
+    from hps_grid_interaction import E_MOBILITY_DATA, HOUSEHOLD_DATA, RESULTS_BES_FOLDER, RESULTS_MONTE_CARLO_FOLDER
+    if src_bes is None:
+        src_bes = RESULTS_BES_FOLDER
+    if src_emob is None:
+        src_emob = E_MOBILITY_DATA
+    if src_household is None:
+        src_household = HOUSEHOLD_DATA
+    if src_grid is None:
+        src_grid = RESULTS_MONTE_CARLO_FOLDER
+
+    # The same as in __init__.py of repo
+    dst_bes = destination.joinpath("01_results", "02_simulations")
+    dst_grid = destination.joinpath("01_results", "03_monte_carlo")
+    dst_emob = destination.joinpath("time_series_data", "e_mobility")
+    dst_household = destination.joinpath("time_series_data", "household")
+
+    # copy_path(src_emob, dst_emob)
+    # copy_path(src_household, dst_household)
+    #
+    # for grid_case in ["oldbuildings", "newbuildings"]:
+    #     folder_names.extend([
+    #         f"Hybrid{extra_case_name_hybrid}_{grid_case}",
+    #         f"Monovalent{extra_case_name_hybrid}_{grid_case}",
+    #         f"Monovalent{extra_case_name_hybrid}_{grid_case}_HR",
+    #     ])
+    # for folder in folder_names:
+    #     os.makedirs(dst_bes.joinpath(folder), exist_ok=True)
+    #     for name in ["MonteCarloSimulationInputWithEmissions.xlsx", "csv_files"]:
+    #         copy_path(src_bes.joinpath(folder, name), dst_bes.joinpath(folder, name))
+
+    # Grid Simulation Results
+    from hps_grid_interaction.plotting.plot_loadflow import MONTE_CARLO_METRICS
+    files_and_folder_to_copy = [
+        "results_to_plot",
+        "plots",
+        "plots_detailed_grid"
+    ]
+    for folder in os.listdir(src_grid):
+        if (
+                folder.startswith("oldbuildings") or folder.startswith("newbuildings")
+                and os.path.isdir(src_grid.joinpath(folder))
+                and "Analyse" not in folder
+        ):
+            case_folder = src_grid.joinpath(folder)
+            dst_case_folder = dst_grid.joinpath(folder)
+            os.makedirs(dst_case_folder, exist_ok=True)
+            for file_or_folder in os.listdir(case_folder):
+                if file_or_folder in files_and_folder_to_copy or file_or_folder.startswith("monte_carlo_convergence"):
+                    copy_path(case_folder.joinpath(file_or_folder), dst_case_folder.joinpath(file_or_folder))
+            for folder_monte_carlo in MONTE_CARLO_METRICS.values():
+                monte_carlo_folder_src = case_folder.joinpath(folder_monte_carlo)
+                monte_carlo_folder_dst = dst_case_folder.joinpath(folder_monte_carlo)
+                os.makedirs(monte_carlo_folder_dst, exist_ok=True)
+                for file in os.listdir(monte_carlo_folder_src):
+                    if file.startswith("results_") and file.endswith(".json"):
+                        copy_path(monte_carlo_folder_src.joinpath(file), monte_carlo_folder_dst.joinpath(file))
+
+
+def copy_path(src, dst):
+    """
+    Copy a file or directory from src to dst.
+
+    Parameters:
+    src (str): Source path.
+    dst (str): Destination path.
+    """
+    if os.path.isdir(src):
+        # It's a directory
+        shutil.copytree(src, dst)
+    elif os.path.isfile(src):
+        # It's a file
+        shutil.copy(src, dst)
+    else:
+        raise ValueError("Source path must be a file or directory")
+
+
 if __name__ == '__main__':
-    get_max_values_in_inputs()
+    copy_files_for_online_publications(
+        destination=Path(r"E:\fwu\03_paper_reproduction"),
+        src_grid=Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo"),
+    )

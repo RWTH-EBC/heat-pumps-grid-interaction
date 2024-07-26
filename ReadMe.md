@@ -15,7 +15,7 @@ and Dymola. We used Dymola2023x for the simulations.
 To install BESMod, follow the ReadMe here: 
 We used the commit `9e6f50e8f0e0436b8c1ed5d28d585ddd39ef8643` to create the simulation results.
 However, all relevant simulation results are exported as .csv and uploaded to the 
-research data repository # TODO
+research data repository `10.17632/g3k425zjsb.1`.
 
 1. For BES-simulations, run `run_studies.py`
 2. To perform monte-carlo simulations, run `hps_grid_interaction/monte_carlo/monte_carlo.py`

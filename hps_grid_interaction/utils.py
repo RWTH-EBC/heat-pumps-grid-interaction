@@ -364,7 +364,7 @@ def copy_files_for_online_publications(
                 monte_carlo_folder_dst = dst_case_folder.joinpath(folder_monte_carlo)
                 os.makedirs(monte_carlo_folder_dst, exist_ok=True)
                 for file in os.listdir(monte_carlo_folder_src):
-                    if file.startswith("results_") and file.endswith(".json"):
+                    if file.startswith("grid_choices") and file.endswith(".png"):
                         copy_path(monte_carlo_folder_src.joinpath(file), monte_carlo_folder_dst.joinpath(file))
 
 

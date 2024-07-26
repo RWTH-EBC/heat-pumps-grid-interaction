@@ -342,7 +342,6 @@ def generate_all_cases(
                 folder.startswith(grid_case)
                 and os.path.isdir(path.joinpath(folder))
                 and "Analyse" not in folder
-                and "oldbuildings_hybrid_PVBat_EMob_HP" in folder
         )
     ]
     kwargs_mp = []
@@ -956,8 +955,8 @@ if __name__ == '__main__':
     PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
 
     # aggregate_simultaneity_factors(path=PATH)
-    generate_all_cases(PATH, with_plot=True, oldbuildings=True, use_mp=False)
-    # generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=True)
+    generate_all_cases(PATH, with_plot=True, oldbuildings=True, use_mp=True)
+    generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=True)
     # plot_all_heat_map_trafo_size(PATH)
     # plot_analysis_of_effects_with_uncertainty(path=PATH, oldbuildings=False)
     # plot_analysis_of_effects_with_uncertainty(path=PATH, oldbuildings=True)

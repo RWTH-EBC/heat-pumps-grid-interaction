@@ -1,9 +1,9 @@
-git+https://github.com/RWTH-EBC/OpenDHW.git@main
-git+https://github.com/RWTH-EBC/ebcpy.git@master
+git+https://github.com/RWTH-EBC/OpenDHW.git@main  # Commit af9d2ac296accd4844e1f05de46bca0239479fd2
+ebcpy==0.4.2
 numpy==1.23.4
-pandas>=1.4.1
+pandas==2.4.1
 openpyxl==3.0.10
-matplotlib
+matplotlib==3.8.0
 pandapower==2.13.1
 aixweather==0.1.4
-git+https://github.com/RWTH-EBC/TEASER.git@development
+git+https://github.com/RWTH-EBC/TEASER.git@development  # Version 0.7.6

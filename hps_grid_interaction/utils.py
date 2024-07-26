@@ -342,11 +342,11 @@ def copy_files_for_online_publications(
 
     # Grid Simulation Results
     from hps_grid_interaction.plotting.plot_loadflow import MONTE_CARLO_METRICS
-    files_and_folder_to_copy = [
-        "results_to_plot",
-        "plots",
-        "plots_detailed_grid"
-    ]
+    files_and_folder_to_copy = {
+        "results_to_plot": "results_to_plot",
+        "plots": "plots_over_year",
+        "plots_detailed_grid_single": "plots_detailed_grid_single",
+    }
     for folder in os.listdir(src_grid):
         if (
                 folder.startswith("oldbuildings") or folder.startswith("newbuildings")
@@ -358,7 +358,10 @@ def copy_files_for_online_publications(
             os.makedirs(dst_case_folder, exist_ok=True)
             for file_or_folder in os.listdir(case_folder):
                 if file_or_folder in files_and_folder_to_copy or file_or_folder.startswith("monte_carlo_convergence"):
-                    copy_path(case_folder.joinpath(file_or_folder), dst_case_folder.joinpath(file_or_folder))
+                    copy_path(
+                        case_folder.joinpath(file_or_folder),
+                        dst_case_folder.joinpath(files_and_folder_to_copy[file_or_folder])
+                    )
             for folder_monte_carlo in MONTE_CARLO_METRICS.values():
                 monte_carlo_folder_src = case_folder.joinpath(folder_monte_carlo)
                 monte_carlo_folder_dst = dst_case_folder.joinpath(folder_monte_carlo)

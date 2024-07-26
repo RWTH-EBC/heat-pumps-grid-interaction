@@ -359,7 +359,7 @@ def generate_all_cases(
     s_max_cluster_all_cases = {}
     if use_mp:
         import multiprocessing as mp
-        pool = mp.Pool(processes=25)
+        pool = mp.Pool(processes=20)
 
         for df, df_min_trafo_size, _s_max_cluster_all_cases in pool.imap_unordered(create_plots_and_get_df, kwargs_mp):
             dfs.append(df)

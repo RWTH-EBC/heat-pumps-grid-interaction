@@ -14,7 +14,7 @@ from pathlib import Path
 
 
 from hps_grid_interaction.bes_simulation.building import BuildingConfig
-from hps_grid_interaction import PROJECT_FOLDER, KERBER_NETZ_XLSX, E_MOBILITY_DATA, HOUSEHOLD_DATA, DATA_PATH
+from hps_grid_interaction import KERBER_NETZ_XLSX, E_MOBILITY_DATA, HOUSEHOLD_DATA, DATA_PATH, DHW_DATA, USER_DATA
 from hps_grid_interaction.bes_simulation.simulation import TIME_STEP
 
 logger = logging.getLogger(__name__)
@@ -123,7 +123,6 @@ def load_buildings_and_gains(
     user_modifiers = []
     building_configs = []
     dhw_profiles = []
-    dhw_base_path = PROJECT_FOLDER.joinpath("dhw_tappings")
 
     tabula_areas_sfh = {
         2010: 187,
@@ -143,7 +142,7 @@ def load_buildings_and_gains(
     dhw_litre_per_person_per_day = 25
     excel_for_clustering = []
 
-    df_users = pd.read_excel(PROJECT_FOLDER.joinpath("Night_set_backs.xlsx"), sheet_name="users")
+    df_users = pd.read_excel(USER_DATA, sheet_name="users")
     for idx, row in df.iterrows():
         building_data = row.to_dict()
         tsd = create_input_for_gains(
@@ -202,7 +201,7 @@ def load_buildings_and_gains(
         if non_optimal_heating_curve:
             user_modifier += f",THeaCur_nominal={273.15 + 55}"
 
-        dhw_path = dhw_base_path.joinpath(f"DHWCalc_{idx}.txt")
+        dhw_path = DHW_DATA.joinpath(f"DHWCalc_{idx}.txt")
         if not os.path.exists(dhw_path):
             dhw_path = None
         dhw = {

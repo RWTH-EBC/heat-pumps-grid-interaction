@@ -11,13 +11,15 @@ if os.path.exists(PC_SPECIFIC_SETTING_PATH):
     PROJECT_FOLDER = pathlib.Path(PC_SPECIFIC_SETTINGS["PROJECT_FOLDER"])
     BESMOD_PATH = pathlib.Path((PC_SPECIFIC_SETTINGS["BESMOD_PATH"]))
 else:
-    PROJECT_FOLDER = pathlib.Path(r"D:\01_Projekte\09_HybridWP")
-    BESMOD_PATH = pathlib.Path(r"D:\04_git\BESMod\startup.mos")
+    PROJECT_FOLDER = pathlib.Path(r"E:\02_Paper\02_grid")
+    BESMOD_PATH = pathlib.Path(r"E:\02_Paper\02_grid\BESMod\startup.mos")
 
 RESULTS_BES_FOLDER = PROJECT_FOLDER.joinpath("01_results", "02_simulations")
 RESULTS_MONTE_CARLO_FOLDER = PROJECT_FOLDER.joinpath("01_results", "03_monte_carlo")
 E_MOBILITY_DATA = PROJECT_FOLDER.joinpath("time_series_data", "e_mobility")
 HOUSEHOLD_DATA = PROJECT_FOLDER.joinpath("time_series_data", "household")
+DHW_DATA = PROJECT_FOLDER.joinpath("time_series_data", "dhw_tappings")
+USER_DATA = PROJECT_FOLDER.joinpath("time_series_data", "Night_set_backs.xlsx")
 
 KERBER_NETZ_XLSX = REPO_ROOT.joinpath("Kerber_Vorstadtnetz.xlsx")
 DATA_PATH = REPO_ROOT.joinpath("data")

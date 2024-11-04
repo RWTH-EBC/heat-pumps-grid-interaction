@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from hps_grid_interaction import KERBER_NETZ_XLSX, PROJECT_FOLDER
+from hps_grid_interaction import KERBER_NETZ_XLSX, USER_DATA
 
 
 def get_modifier(
@@ -29,7 +29,7 @@ def create_user_sleep_schedules():
     if np.any(random_samples < lowest_start) or np.any(random_samples > highest_start):
         raise ValueError("Draw again")
     pd.DataFrame({"night_start": random_samples, "dT_set_back": np.ones(size) * 2}).to_excel(
-        PROJECT_FOLDER.joinpath("Night_set_backs.xlsx"), sheet_name="users"
+        USER_DATA, sheet_name="users"
     )
 
 

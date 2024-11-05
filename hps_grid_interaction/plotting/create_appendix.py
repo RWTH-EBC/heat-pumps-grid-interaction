@@ -20,12 +20,12 @@ def get_cop(hold_last: bool = False):
             -15: [2.66, 2.66, 2.27, 1.80, 1.81, 1.60],
             -10: [2.97, 2.97, 2.52, 2.01, 2.00, 1.84],
             -7: [3.16, 3.16, 2.67, 2.13, 2.11, 1.99],
-             2: [4.46, 4.46, 3.55, 2.60, 2.48, 2.24],
-             7: [5.31, 5.31, 4.14, 2.97, 2.81, 2.53],
-             10: [5.85, 5.85, 4.52, 3.24, 3.00, 2.69],
-             20: [8.55, 8.55, 6.18, 4.54, 3.74, 3.30],
-             30: [8.87, 8.87, 9.07, 6.03, 4.74, 4.09],
-             35: [8.87, 8.87, 9.07, 6.03, 4.74, 4.09]
+            2: [4.46, 4.46, 3.55, 2.60, 2.48, 2.24],
+            7: [5.31, 5.31, 4.14, 2.97, 2.81, 2.53],
+            10: [5.85, 5.85, 4.52, 3.24, 3.00, 2.69],
+            20: [8.55, 8.55, 6.18, 4.54, 3.74, 3.30],
+            30: [8.87, 8.87, 9.07, 6.03, 4.74, 4.09],
+            35: [8.87, 8.87, 9.07, 6.03, 4.74, 4.09]
         }
         index = [20, 35, 45, 55, 65, 70]
     else:
@@ -38,8 +38,8 @@ def get_cop(hold_last: bool = False):
             7: [5.31, 4.14, 2.97, 2.81, 2.53],
             10: [5.85, 4.52, 3.24, 3.00, 2.69],
             20: [8.55, 6.18, 4.54, 3.74, 3.30],
-            #30: [8.87, 9.07, 6.03, 4.74, 4.09],
-            #35: [8.87, 9.07, 6.03, 4.74, 4.09]
+            # 30: [8.87, 9.07, 6.03, 4.74, 4.09],
+            # 35: [8.87, 9.07, 6.03, 4.74, 4.09]
         }
         index = [35, 45, 55, 65, 70]
     df = pd.DataFrame(data, index=index)
@@ -50,13 +50,16 @@ def get_cop(hold_last: bool = False):
 def _interpolate_cop(TSupply, TOda, df_cop):
     if TSupply not in df_cop.index:
         df_cop.loc[TSupply] = np.NAN
-        df_cop = df_cop.sort_index()
+        df_cop = df_cop.sort_index(ascending=False)
         df_cop = df_cop.interpolate()
     if TOda not in df_cop.columns:
         df_cop.loc[TSupply, TOda] = np.NAN
         df_cop = df_cop.sort_index(axis=1)
         df_cop = df_cop.interpolate(axis=1)
-    return df_cop.loc[TSupply, TOda]
+    cop = df_cop.loc[TSupply, TOda]
+    if pd.isna(cop):
+        print(f"{TSupply=}, {TOda=} leads to COP being NAN")
+    return cop, df_cop
 
 
 def create_table_design_capacities():
@@ -84,10 +87,10 @@ def create_table_design_capacities():
     for case in [
         "HybridWeather_newbuildings",
         "HybridWeather_oldbuildings",
-        #"MonovalentWeather_newbuildings",
+        "MonovalentWeather_newbuildings",
         "MonovalentWeather_oldbuildings",
         "MonovalentWeather_oldbuildings_HR",
-        #"MonovalentWeather_newbuildings_HR",
+        "MonovalentWeather_newbuildings_HR",
     ]:
         path = base_path.joinpath(case)
         path_sim = path.joinpath("SimulationResults")
@@ -106,7 +109,7 @@ def create_table_design_capacities():
                 if not pd.isna(df_app.loc[idx_loc, (retrofit, "P_PV")]):
                     continue
                 # Only parameters for design:
-                tsd = TimeSeriesData(path_sim.joinpath(file), variable_names=[
+                tsd = load_tsd(path_sim.joinpath(file), variable_names=[
                     PV_MPP,
                     QEleHea_nominal,
                     etaEleHea,
@@ -114,8 +117,10 @@ def create_table_design_capacities():
                     QHeaLoaAtBiv,
                     THydAtBiv_nominal,
                     TBiv,
-                ]).to_df().iloc[-1].to_dict()
-                COP = _interpolate_cop(tsd[THydAtBiv_nominal] - 273.15, tsd[TBiv] - 273.15, df_cop)
+                ])
+                if tsd is None:
+                    continue
+                COP, df_cop = _interpolate_cop(tsd[THydAtBiv_nominal] - 273.15, tsd[TBiv] - 273.15, df_cop)
                 df_app.loc[idx_loc, (retrofit, "P_PV")] = tsd[PV_MPP] / 1000
                 df_app.loc[idx_loc, (retrofit, "Q_HL")] = tsd[QHeaLoa] / 1000
                 df_app.loc[idx_loc, (retrofit, "P_Biv")] = tsd[QHeaLoaAtBiv] / COP / 1000
@@ -124,25 +129,39 @@ def create_table_design_capacities():
                 if not pd.isna(df_app.loc[idx_loc, (retrofit, "P_Hyb")]):
                     continue
                 # Only parameters for design:
-                tsd = TimeSeriesData(path_sim.joinpath(file), variable_names=[
+                tsd = load_tsd(path_sim.joinpath(file), variable_names=[
                     QHeaLoaAtBiv,
                     THydAtBiv_nominal,
                     TBiv,
-                ]).to_df().iloc[-1].to_dict()
-                COP = _interpolate_cop(tsd[THydAtBiv_nominal] - 273.15, tsd[TBiv] - 273.15, df_cop)
+                ])
+                if tsd is None:
+                    continue
+                COP, df_cop = _interpolate_cop(tsd[THydAtBiv_nominal] - 273.15, tsd[TBiv] - 273.15, df_cop)
                 df_app.loc[idx_loc, (retrofit, "P_Hyb")] = tsd[QHeaLoaAtBiv] / COP / 1000
             else:
                 if not pd.isna(df_app.loc[idx_loc, (retrofit, "P_Mon")]):
                     continue
                 # Only parameters for design:
-                tsd = TimeSeriesData(path_sim.joinpath(file), variable_names=[
+                tsd = load_tsd(path_sim.joinpath(file), variable_names=[
                     QHeaLoaAtBiv,
                     THydAtBiv_nominal,
                     TBiv,
-                ]).to_df().iloc[-1].to_dict()
-                COP = _interpolate_cop(tsd[THydAtBiv_nominal] - 273.15, tsd[TBiv] - 273.15, df_cop)
+                ])
+                if tsd is None:
+                    continue
+                COP, df_cop = _interpolate_cop(tsd[THydAtBiv_nominal] - 273.15, tsd[TBiv] - 273.15, df_cop)
                 df_app.loc[idx_loc, (retrofit, "P_Mon")] = tsd[QHeaLoaAtBiv] / COP / 1000
-        print(df_app)
+    df_app.to_excel(PLOTS_PATH.joinpath("design_capacities.xlsx"))
+
+
+def load_tsd(path, variable_names):
+    # Only parameters for design:
+    try:
+        return TimeSeriesData(
+            path, variable_names=variable_names
+        ).to_df().iloc[-1].to_dict()
+    except (OSError, FileNotFoundError):
+        return None
 
 
 def plot_cop_map():
@@ -164,5 +183,5 @@ def plot_cop_map():
 
 if __name__ == '__main__':
     PlotConfig.load_default()
-    #plot_cop_map()
+    # plot_cop_map()
     create_table_design_capacities()

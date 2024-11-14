@@ -57,7 +57,8 @@ def add_images_to_title(
         ax: plt.axes,
         width: float,
         distance_to_others: float = 0.001,
-        offset: float = 0.0
+        offset: float = 0.0,
+        fixed_on_top: bool = True
 ) -> None:
     """
     Adds images to the title of the plot.
@@ -68,6 +69,10 @@ def add_images_to_title(
         width (float): The width of the bounding box for each image.
         distance_to_others (float, optional): Distance between images. Defaults to 0.001.
         offset (float): Additional offset above axis
+        fixed_on_top (bool):
+            If the "Fixed:" string should be on top of icons.
+            False for left to the icons.
+
 
     Returns:
         None
@@ -81,6 +86,10 @@ def add_images_to_title(
     for idx, tech in enumerate(technologies):
         x_curr = x_start + width * (1 + distance_to_others) * idx
         _add_single_image(ax=ax, bbox=(x_curr, y_start), image_path=get_technology_image_path(tech), width=width)
+    if fixed_on_top:
+        ax.text(0.5, y_start + width + distance_to_others, "Fixed:", transform=ax.transAxes,
+                horizontalalignment='center', verticalalignment='bottom')
+    else:
         ax.text(x_start, y_start + width / 2, "Fixed:", transform=ax.transAxes,
                 horizontalalignment='right', verticalalignment='center')
 

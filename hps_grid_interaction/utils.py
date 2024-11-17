@@ -386,10 +386,3 @@ def copy_path(src, dst):
         shutil.copy(src, dst)
     else:
         raise ValueError("Source path must be a file or directory")
-
-
-if __name__ == '__main__':
-    copy_files_for_online_publications(
-        destination=Path(r"E:\fwu\03_paper_reproduction"),
-        src_grid=Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo"),
-    )

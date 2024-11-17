@@ -9,7 +9,7 @@ import os
 
 from hps_grid_interaction.plotting import get_figure_size
 from hps_grid_interaction.plotting.config import PlotConfig
-from hps_grid_interaction import PLOTS_PATH
+from hps_grid_interaction import PLOTS_PATH, RESULTS_BES_FOLDER
 from ebcpy import TimeSeriesData
 
 
@@ -63,7 +63,7 @@ def _interpolate_cop(TSupply, TOda, df_cop):
 
 
 def create_table_design_capacities():
-    base_path = pathlib.Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\01_BESMod_Simulationen")
+    base_path = RESULTS_BES_FOLDER
     df_cop = get_cop(hold_last=True)
 
     # Create index levels

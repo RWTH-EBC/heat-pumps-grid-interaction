@@ -1,14 +1,13 @@
 import os
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import numpy as np
-from hps_grid_interaction.bes_simulation import weather
+
+from hps_grid_interaction import RESULTS_BES_FOLDER
 
 
 def plot_feed_in():
-    csv_files_folder = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\01_BESMod_Simulationen\MonovalentHC_oldbuildings_HR\csv_files")
+    csv_files_folder = RESULTS_BES_FOLDER.joinpath("MonovalentHC_oldbuildings_HR", "csv_files")
     grid_sum = []
     for file in os.listdir(csv_files_folder):
         if not file.endswith(".csv"):

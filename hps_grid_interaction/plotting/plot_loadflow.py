@@ -184,7 +184,11 @@ def plot_time_series(
                 raise ValueError(f"Given varying tech name not supported: {varying_tech_name}")
         save_name = f"trafo={fixed_trafo_size}"
     different_y_labels = metric in ["s_trafo", "p_trafo"]
-    fig, ax = plt.subplots(1, 2, sharey=not different_y_labels, figsize=get_figure_size(n_columns=2))
+    fig, ax = plt.subplots(
+        1, 2,
+        sharey=not different_y_labels,
+        figsize=get_figure_size(n_columns=2, height_factor=1.2)
+    )
     t_oda = load_outdoor_air_temperature()
     bins = np.linspace(t_oda.values[1:-1, 0].min(), t_oda.values[1:-1, 0].max(), num=30)
     categories = pd.cut(t_oda.values[1:-1, 0], bins, labels=False)
@@ -342,6 +346,10 @@ def generate_all_cases(
                 folder.startswith(grid_case)
                 and os.path.isdir(path.joinpath(folder))
                 and "Analyse" not in folder
+                and (
+                        folder.endswith("hybrid_PVBat_EMob_HP") or
+                        folder.endswith("hybrid_EMob_HP")
+                )
         )
     ]
     kwargs_mp = []
@@ -407,8 +415,9 @@ def create_plots_and_get_df(kwargs):
             )
             s_max_cluster_all_cases[case] = s_max_cluster
             for monte_carlo_metric in MONTE_CARLO_METRICS.values():
-                #plot_grid_as_heatmap_one_big_image(case_and_trafo_data, case_path, monte_carlo_metric=monte_carlo_metric)
-                plot_grid_as_heatmap_single_images(case_and_trafo_data, case_path, monte_carlo_metric=monte_carlo_metric)
+                pass
+                # plot_grid_as_heatmap_one_big_image(case_and_trafo_data, case_path, monte_carlo_metric=monte_carlo_metric)
+                # plot_grid_as_heatmap_single_images(case_and_trafo_data, case_path, monte_carlo_metric=monte_carlo_metric)
         trafo_sizes_metrics = {}
         for monte_carlo_metric in MONTE_CARLO_METRICS.values():
             trafo_sizes_metrics[monte_carlo_metric] = plot_required_trafo_size(
@@ -951,12 +960,9 @@ if __name__ == '__main__':
     # Load RC Params
     PlotConfig.load_default()
 
-    PATH = RESULTS_MONTE_CARLO_FOLDER
-    PATH = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
-
     # aggregate_simultaneity_factors(path=PATH)
-    generate_all_cases(PATH, with_plot=True, oldbuildings=True, use_mp=True)
-    generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=True)
+    generate_all_cases(RESULTS_MONTE_CARLO_FOLDER, with_plot=True, oldbuildings=True, use_mp=True)
+    # generate_all_cases(PATH, with_plot=True, oldbuildings=False, use_mp=True)
     # plot_all_heat_map_trafo_size(PATH)
     # plot_analysis_of_effects_with_uncertainty(path=PATH, oldbuildings=False)
     # plot_analysis_of_effects_with_uncertainty(path=PATH, oldbuildings=True)

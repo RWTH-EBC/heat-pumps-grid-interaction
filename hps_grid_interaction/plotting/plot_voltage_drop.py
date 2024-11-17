@@ -6,13 +6,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from hps_grid_interaction import KERBER_NETZ_XLSX
+from hps_grid_interaction import KERBER_NETZ_XLSX, RESULTS_MONTE_CARLO_FOLDER
 
 
 def plot_voltage_drop(with_all_feeders: bool = False):
     df_grid = pd.read_excel(KERBER_NETZ_XLSX, sheet_name="Kerber Netz oldbuildings", index_col=0)
 
-    RESULTS_MONTE_CARLO_FOLDER = pathlib.Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\03_monte_carlo")
     folder = RESULTS_MONTE_CARLO_FOLDER.joinpath("oldbuildings_hybrid_EMob_HP", "argmean")
     case = "hybrid_quota_EMob_HP_0"
     csv_inputs = folder.joinpath(f"grid_simulation_{case}")

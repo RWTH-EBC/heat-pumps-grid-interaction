@@ -1,15 +1,12 @@
 import os
-from pathlib import Path
 
 import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
 from ebcpy import TimeSeriesData
-from hps_grid_interaction.bes_simulation import weather
+from hps_grid_interaction import RESULTS_BES_FOLDER
 
 
 def plot_soc():
-    csv_files_folder = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\01_BESMod_Simulationen\MonovalentWeather_oldbuildings\SimulationResults")
+    csv_files_folder = RESULTS_BES_FOLDER.joinpath("MonovalentWeather_oldbuildings", "\SimulationResults")
     grid_sum = []
     for file in os.listdir(csv_files_folder):
         if not file.endswith(".hdf"):

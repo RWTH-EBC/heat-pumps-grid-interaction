@@ -163,15 +163,3 @@ def calculate_mean_supply_temperature(df: pd.DataFrame, real_winter):
     T = df.loc[real_winter, "hydraulic.distribution.sigBusDistr.TStoBufTopMea"].values
     Q = df.loc[real_winter, "outputs.building.QTraGain[1].integral"].values
     return np.sum(T * Q) / Q.sum() - 273.15
-
-
-if __name__ == '__main__':
-    save_path = Path(r"D:\00_temp\plots\monovalent_hr")
-    os.makedirs(save_path, exist_ok=True)
-    path_new = Path(r"D:\01_Projekte\09_HybridWP\01_Results\02_simulations\MonovalentWeather_oldbuildings_HR")
-    path_old = Path(r"X:\Projekte\EBC_ACS0025_EONgGmbH_HybridWP_\Data\04_Ergebnisse\01_BESMod_Simulationen\Monovalent_oldbuildings_HR")
-    #plot_old_and_new(path_new=path_new, path_old=path_old, save_path=save_path)
-    #get_t_m_old_new(path_new=path_new, path_old=path_old, save_path=save_path)
-    #csv_inputs(path_new=path_new, path_old=path_old, save_path=save_path)
-    # plot_worst_day(path_new=path_new, path_old=path_old, save_path=save_path)
-    plot_e_mobility_over_t_ambient(save_path=save_path.parent)

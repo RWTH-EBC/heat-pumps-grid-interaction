@@ -22,6 +22,8 @@ p_el_hr_int_name = "outputs.hydraulic.gen.PEleEleHea.integral"
 p_el_hp_int_name = "outputs.hydraulic.gen.PEleHeaPum.integral"
 COP_name = "hydraulic.generation.sigBusGen.COP"
 Q_boi_name = "outputs.hydraulic.dis.QBoi_flow.integral"
+Q_boi_flow_name = "outputs.hydraulic.dis.QBoi_flow.value"
+on_time_hp = "hydraulic.outBusHyd.gen.heaPum.totOnTim"
 ufh_name = "outputs.hydraulic.tra.QUFH_flow[1].integral"
 A_name = "building.zoneParam[1].AZone"
 heat_load_name = "systemParameters.QBui_flow_nominal[1]"
@@ -46,6 +48,8 @@ VARIABLE_NAMES = [
     p_el_hp_int_name,
     COP_name,
     Q_boi_name,
+    Q_boi_flow_name,
+    on_time_hp,
     ufh_name,
     A_name,
     heat_load_name,
@@ -144,14 +148,7 @@ def extract_tsd_results(
     result_names = list(set(result_names))
     result_names.remove("")
     try:
-        try:
-            tsd = TimeSeriesData(path, variable_names=result_names)
-        except KeyError as key_err:
-            logger.info("Could not find variables in .mat file: %s", key_err)
-            from ebcpy.modelica.simres import loadsim
-            available_variables = loadsim(path)
-            result_names = list(set(available_variables.keys()).intersection(result_names))
-            tsd = TimeSeriesData(path, variable_names=result_names)
+        tsd = load_mat(path, result_names)
     except np.core._exceptions._ArrayMemoryError as err:
         logger.error("Could not read .mat file due to memory-error: %s", err)
         return None  # For DOE, no obj is required.
@@ -164,6 +161,17 @@ def extract_tsd_results(
 
     return tsd
 
+
+def load_mat(path, result_names):
+    try:
+        tsd = TimeSeriesData(path, variable_names=result_names)
+    except KeyError as key_err:
+        logger.info("Could not find variables in .mat file: %s", key_err)
+        from ebcpy.modelica.simres import loadsim
+        available_variables = loadsim(path)
+        result_names = list(set(available_variables.keys()).intersection(result_names))
+        tsd = TimeSeriesData(path, variable_names=result_names)
+    return tsd
 
 def load_emission_data(interpolate: bool = False):
     df = pd.read_excel(DATA_PATH.joinpath("Results_price_emissions_updated.xlsx"),
@@ -206,7 +214,10 @@ def postprocessing(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
     for file in os.listdir(path_sim):
         if not file.endswith(file_ending):
             continue
-        tsd = TimeSeriesData(path_sim.joinpath(file))
+        if file_ending == ".mat":
+            tsd = load_mat(path_sim.joinpath(file), VARIABLE_NAMES)
+        else:
+            tsd = TimeSeriesData(path_sim.joinpath(file))
 
         all_errors.append(extract_electricity_and_save(
             tsd=tsd, path=path, result_name=path_sim.joinpath(file).name,
@@ -268,6 +279,11 @@ def postprocessing(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
             PEleHeaMax = 0
         PEleHeaPumMax = tsd_loc.to_dict().get("scalingFactor", 1) * 3398
         df_sim.loc[idx, "PEleMax"] = PEleHeaPumMax + PEleHeaMax
+        df_sim.loc[idx, "HPOnTim"] = tsd_loc[on_time_hp]
+        if hybrid:
+            df_sim.loc[idx, "BoiOnTim"] = 900 * np.count_nonzero(tsd.loc[:, Q_boi_flow_name] > 0)
+        else:
+            df_sim.loc[idx, "BoiOnTim"] = 0
 
         def populate_data_to_dict(_df, _idx, assumption, case, gas, elec):
             _df.loc[_idx, f"{assumption}{case}_gas"] = gas
@@ -300,7 +316,7 @@ def postprocessing(case: str, hybrid_assumptions: Dict[str, HybridSystemAssumpti
             #raise Exception
     df_sim = df_sim.set_index("Index")
     df_sim.to_excel(
-        path.joinpath("MonteCarloSimulationInputWithEmissions.xlsx"),
+        path.joinpath("MonteCarloSimulationInputWithEmissionsAndTimes.xlsx"),
         sheet_name="Sheet1"
     )
     pd.DataFrame(all_errors).to_excel(path.joinpath("IntegrationErrors.xlsx"))
